@@ -80,19 +80,28 @@ Los schemas Pydantic se separan por operación: `BookCreate`, `BookUpdate`, `Boo
 
 ## Puesta en marcha
 
-```bash
-# Desde la raíz del monorepo, con Docker
-make dev
+Todo desde la **raíz del monorepo** (el entorno virtual es único y vive en `<raíz>/.venv`):
 
-# O en local, dentro de backend/
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-pre-commit install   # instala los git hooks (config en la raíz del monorepo)
-alembic upgrade head
-python seed.py
-uvicorn src.main:app --reload
+```bash
+make setup      # entorno virtual, deps, hooks, PostgreSQL, migraciones y seed
+make dev-back   # uvicorn con hot reload en el host, contra la DB de Docker
 ```
+
+`make setup` es idempotente y equivale a estos pasos manuales (ver `scripts/setup.py`):
+
+```bash
+python -m venv .venv                  # en la raíz, no en backend/
+.venv\Scripts\Activate.ps1            # Linux/macOS: source .venv/bin/activate
+pip install -e "backend[dev]"
+pre-commit install                    # git hooks (config en la raíz del monorepo)
+make db-up                            # PostgreSQL en Docker
+make migrate                          # alembic upgrade head
+make seed                             # datos de ejemplo
+```
+
+Alternativa sin instalar nada en local: `make dev` levanta backend + PostgreSQL en Docker Compose.
+
+Los targets del Makefile invocan el intérprete de `.venv` por ruta, así que no requieren tenerlo activado.
 
 Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger UI).
 

@@ -49,6 +49,10 @@ Every task originates from a GitHub issue. Always link the work back to the issu
 All commands run from the monorepo root:
 
 ```
+make setup        → getting started: venv, deps, hooks, DB, migrations, seed
+make dev-back     → backend on the host with hot reload (port 8000)
+make dev-front    → frontend on the host with hot reload (port 3000)
+make db-up        → only PostgreSQL in Docker, detached
 make dev          → docker compose up (whole environment)
 make test         → backend + frontend tests
 make test-back    → backend tests only
