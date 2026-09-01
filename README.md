@@ -43,21 +43,48 @@ Los dos proyectos son **independientes** y se comunican exclusivamente a través
 
 ## Puesta en marcha
 
-Requisitos: Docker y Docker Compose.
+Requisitos: **Python 3.12+**, **Node.js 20+**, **Docker** y **Docker Compose**.
+
+### Getting started (un solo comando)
 
 ```bash
-# 1. Copiar la plantilla de variables de entorno
-cp .env.example .env
-
-# 2. Levantar todo el entorno (PostgreSQL, backend, frontend, Prometheus, Grafana)
-make dev
-
-# 3. Aplicar migraciones y datos de ejemplo
-make migrate
-make seed
+make setup
 ```
 
-Con hot reload habilitado en desarrollo mediante volúmenes, los cambios en `backend/` y `frontend/` se recargan automáticamente.
+`make setup` deja la máquina lista para desarrollar y es **idempotente** (se puede relanzar sin miedo). Hace, en este orden:
+
+1. Crea el `.env` a partir de `.env.example` si no existe.
+2. Crea el entorno virtual en `.venv/` (raíz del monorepo) si no existe.
+3. Instala el backend en modo editable con sus extras de desarrollo (`pip install -e "backend[dev]"`).
+4. Instala las dependencias npm del frontend.
+5. Engancha los hooks de `pre-commit` en `.git/hooks/pre-commit`.
+6. Levanta PostgreSQL en Docker, aplica las migraciones de Alembic y carga los datos de ejemplo.
+
+Si Docker no está arrancado, el paso 6 se salta con un aviso y el resto se completa igual; luego basta con `make db-up && make migrate && make seed`.
+
+Variantes: `make setup ARGS="--skip-db"`, `ARGS="--skip-front"`, `ARGS="--no-seed"`.
+
+### Desarrollo del día a día
+
+Backend y frontend se ejecutan **en el host**, cada uno con su propio hot reload, contra la PostgreSQL de Docker. Dos terminales:
+
+```bash
+make dev-back    # API      → http://localhost:8000/docs
+make dev-front   # SPA      → http://localhost:3000
+```
+
+Los targets del Makefile llaman al intérprete de `.venv` por ruta, así que **no hace falta activar el entorno virtual**. Para lanzar comandos a mano sí conviene: `.venv\Scripts\Activate.ps1` (Windows) o `source .venv/bin/activate` (Linux/macOS).
+
+### Solo Docker
+
+Para ver la aplicación funcionando sin instalar nada en local:
+
+```bash
+cp .env.example .env
+make dev
+```
+
+Levanta todo el entorno con Docker Compose (hot reload del backend vía volúmenes). Es la vía más simple para arrancar la app, pero para iterar en código a diario es más cómoda la combinación `make dev-back` + `make dev-front`.
 
 ## Comandos (Makefile)
 
@@ -65,6 +92,13 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 
 | Comando              | Descripción                                     |
 | -------------------- | ----------------------------------------------- |
+| `make help`          | Lista los comandos disponibles (target por defecto) |
+| `make setup`         | Getting started: entorno local listo para trabajar |
+| `make dev-back`      | Backend en el host con hot reload (puerto 8000)  |
+| `make dev-front`     | Frontend en el host con hot reload (puerto 3000) |
+| `make db-up`         | Solo PostgreSQL en Docker, en background        |
+| `make db-down`       | Para los contenedores de infra                  |
+| `make db-logs`       | Sigue los logs de PostgreSQL                    |
 | `make install-hooks` | Instala deps de npm del frontend + hooks de git |
 | `make dev`        | `docker compose up` — levanta todo el entorno   |
 | `make test`       | Tests de backend + frontend                     |
@@ -94,7 +128,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 
 ### Hooks de pre-commit
 
-Antes del primer commit hay que ejecutar **una vez**:
+`make setup` ya los instala. Si solo quieres esa parte (sin entorno virtual ni base de datos):
 
 ```bash
 make install-hooks
