@@ -1,4 +1,4 @@
-# Infraestructura BookShelf
+# Infraestructura react-fastapi-template
 
 Servicios del proyecto vía Docker Compose: PostgreSQL 16 con la extensión pgvector y el `backend` (FastAPI) con hot reload.
 
