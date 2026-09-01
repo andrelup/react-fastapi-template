@@ -1,12 +1,12 @@
 # Decisión de stack: Python + FastAPI frente a Node.js + Express
 
-Registro de decisión de arquitectura (ADR): por qué el backend de react-fastapi-template está construido con **Python 3.12 + FastAPI** en lugar de **Node.js + Express** (u otro framework del ecosistema JavaScript como NestJS o Fastify).
+Registro de decisión de arquitectura (ADR): por qué el backend de fastapi-template está construido con **Python 3.12 + FastAPI** en lugar de **Node.js + Express** (u otro framework del ecosistema JavaScript como NestJS o Fastify).
 
 ---
 
 ## Contexto
 
-react-fastapi-template es una tienda de libros cuyo diferencial es la **IA aplicada al catálogo**: búsqueda semántica con embeddings sobre PostgreSQL + pgvector, y recomendaciones generadas con LLMs. El backend es una API REST consumida por una SPA React independiente, organizada en arquitectura hexagonal (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
+fastapi-template es una tienda de libros cuyo diferencial es la **IA aplicada al catálogo**: búsqueda semántica con embeddings sobre PostgreSQL + pgvector, y recomendaciones generadas con LLMs. El backend es una API REST consumida por una SPA React independiente, organizada en arquitectura hexagonal (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
 
 Los dos candidatos finalistas fueron los stacks dominantes para APIs REST:
 
@@ -21,7 +21,7 @@ Es el criterio donde más mitos circulan, así que conviene ser preciso: **ningu
 
 - En benchmarks de throughput puro (servir JSON sin tocar base de datos), Node.js suele superar a Python: el motor V8 compila JIT y el event loop de Node lleva quince años optimizándose para exactamente ese escenario.
 - En cargas realistas de API con base de datos (consultas vía ORM, serialización de múltiples filas), FastAPI sobre Uvicorn/uvloop es de los frameworks Python más rápidos que existen y en [benchmarks independientes](https://www.travisluong.com/fastapi-vs-express-js-vs-flask-vs-nest-js-benchmark/) llega a superar a Express y NestJS en fetch múltiple con serialización.
-- Para una API CRUD como la de react-fastapi-template, **el cuello de botella real es la base de datos y la red, no el framework**. La diferencia de rendimiento entre ambos stacks es irrelevante a la escala de este proyecto.
+- Para una API CRUD como la de fastapi-template, **el cuello de botella real es la base de datos y la red, no el framework**. La diferencia de rendimiento entre ambos stacks es irrelevante a la escala de este proyecto.
 
 Conclusión honesta: el rendimiento **no fue un factor decisivo** — ambos stacks están sobrados para este caso de uso. Quien elija entre estos dos frameworks por microsegundos de benchmark está optimizando lo que no importa.
 
@@ -35,7 +35,7 @@ Aquí FastAPI tiene una ventaja objetiva y medible: **trae de serie tres cosas q
 | Documentación OpenAPI/Swagger | Generada automáticamente desde los type hints | Librería externa (swagger-jsdoc, tsoa) + anotaciones manuales que se desincronizan |
 | Inyección de dependencias | `Depends()` nativo | Manual o framework adicional (NestJS, InversifyJS) |
 
-En react-fastapi-template esto se ve directamente: los schemas de `adapters/inbound/schemas/` validan la entrada, serializan la salida y generan la documentación interactiva de `/docs` sin una sola línea extra. Un payload inválido devuelve un 422 detallado sin código de validación manual. En Express, cada una de esas responsabilidades es código propio que escribir, testear y mantener sincronizado.
+En fastapi-template esto se ve directamente: los schemas de `adapters/inbound/schemas/` validan la entrada, serializan la salida y generan la documentación interactiva de `/docs` sin una sola línea extra. Un payload inválido devuelve un 422 detallado sin código de validación manual. En Express, cada una de esas responsabilidades es código propio que escribir, testear y mantener sincronizado.
 
 Por tanto, la intuición de "en Python se escribe menos" es cierta **en este caso**, pero no por el lenguaje en sí, sino porque FastAPI integra validación + serialización + documentación en una sola declaración de tipos.
 
@@ -45,7 +45,7 @@ Empate técnico con matices. TypeScript es un sistema de tipos más maduro y su 
 
 ### 4. Ecosistema de IA — el factor decisivo
 
-react-fastapi-template necesita generar embeddings, hablar con LLMs y hacer búsqueda vectorial. **Python es la lengua franca del machine learning**: los SDKs de los proveedores de IA tratan Python como ciudadano de primera clase, y librerías como numpy o los clientes de pgvector tienen su mejor soporte ahí. El ecosistema JS tiene equivalentes, pero llegan más tarde, con menos documentación y comunidades más pequeñas.
+fastapi-template necesita generar embeddings, hablar con LLMs y hacer búsqueda vectorial. **Python es la lengua franca del machine learning**: los SDKs de los proveedores de IA tratan Python como ciudadano de primera clase, y librerías como numpy o los clientes de pgvector tienen su mejor soporte ahí. El ecosistema JS tiene equivalentes, pero llegan más tarde, con menos documentación y comunidades más pequeñas.
 
 Elegir Node habría significado nadar contra corriente exactamente en la parte del proyecto que lo diferencia. Este criterio, por sí solo, habría bastado para decidir.
 
@@ -55,7 +55,7 @@ Ambos resuelven bien el I/O concurrente: Node con su event loop nativo (todo es 
 
 ### 6. Un solo lenguaje en todo el stack
 
-La ventaja estructural de Express: con Node, frontend y backend comparten lenguaje, tooling y potencialmente tipos y validadores. Para equipos pequeños full-stack JS es un argumento serio que reduce el cambio de contexto. En react-fastapi-template pesó menos porque los dos proyectos son deliberadamente independientes (conectados solo por API REST) y el objetivo formativo incluía precisamente trabajar con dos stacks.
+La ventaja estructural de Express: con Node, frontend y backend comparten lenguaje, tooling y potencialmente tipos y validadores. Para equipos pequeños full-stack JS es un argumento serio que reduce el cambio de contexto. En fastapi-template pesó menos porque los dos proyectos son deliberadamente independientes (conectados solo por API REST) y el objetivo formativo incluía precisamente trabajar con dos stacks.
 
 ### 7. Comunidad y mercado
 
