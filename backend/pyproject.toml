@@ -1,0 +1,91 @@
+[project]
+name = "bookshelf-backend"
+version = "0.1.0"
+description = "BookShelf API — tienda de libros con IA (Hexagonal Architecture)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg",
+    "alembic",
+    "pydantic>=2",
+    "pydantic-settings",
+    "structlog",
+    "pgvector",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    # passlib 1.7.4's bcrypt backend detection breaks with bcrypt>=4.1
+    # (the `__about__` module was removed upstream). Pin until passlib
+    # ships a fix.
+    "bcrypt<4.1",
+    "email-validator",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy",
+    "pre-commit",
+    "pytest-cov",
+    "types-passlib",
+    "types-python-jose",
+    # Only used by `seed.py` (dev fixtures, run on the host). The Docker image
+    # copies `src/` alone, so faker must never ship to production.
+    "faker",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "S"]
+# UP046: keep typing.Generic instead of PEP 695 generic syntax,
+# which is a 3.12-only feature we avoid for broader compatibility.
+ignore = ["UP046"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's `Depends(...)`/`Query(...)`/etc. idiom relies on calling these in
+# argument defaults; bugbear treats their results as immutable so B008 does
+# not fire on this intentional, framework-mandated pattern.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.Cookie",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S101: bandit forbids `assert`, but in pytest it IS the assertion tool.
+# S105/S106: fake passwords/tokens passed as literals are unavoidable in tests.
+"tests/**" = ["S101", "S105", "S106"]
+# S603/S607: the integration fixture shells out to the `docker` CLI with a
+# fixed, hardcoded argument list (no user input) to manage an ephemeral
+# test-only Postgres container.
+"tests/integration/conftest.py" = ["S603", "S607"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
