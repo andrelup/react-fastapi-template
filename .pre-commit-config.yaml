@@ -1,0 +1,43 @@
+# Pre-commit hooks del monorepo BookShelf.
+# Los git hooks son únicos por repositorio, por eso esta config vive en la raíz:
+# cada bloque filtra sus archivos con `files: ^backend/` o `files: ^frontend/`.
+#
+# Instalación (una vez, con el venv del backend):
+#   backend/.venv/Scripts/pre-commit.exe install
+
+# ------------------------- Backend (Python) -------------------------
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff-check
+        files: ^backend/
+        args: [--fix]
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.1.0
+    hooks:
+      - id: mypy
+        files: ^backend/src/
+        args: [--strict]
+        additional_dependencies:
+          - fastapi
+          - "sqlalchemy[asyncio]>=2.0"
+          - "pydantic>=2"
+          - pydantic-settings
+          - structlog
+          - pgvector
+          - asyncpg
+          - alembic
+          - "python-jose[cryptography]"
+          - "passlib[bcrypt]"
+          - "bcrypt<4.1"
+          - email-validator
+          - types-passlib
+          - types-python-jose
+
+# ------------------------- Frontend (React) -------------------------
+# Aquí irán los hooks del frontend (ESLint, Prettier) con `files: ^frontend/`
+# cuando se monte el proyecto React.
