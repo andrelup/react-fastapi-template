@@ -1,0 +1,4 @@
+# core.autocrlf=true dejaria CRLF en el working tree tras un checkout, y
+# `prettier --check` (endOfLine: lf por defecto) fallaria en cada commit.
+# Con eol=lf el atributo gana sobre autocrlf y el arbol siempre es LF.
+* text=auto eol=lf

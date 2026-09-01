@@ -2,8 +2,11 @@
 # Los git hooks son únicos por repositorio, por eso esta config vive en la raíz:
 # cada bloque filtra sus archivos con `files: ^backend/` o `files: ^frontend/`.
 #
-# Instalación (una vez, con el venv del backend):
-#   backend/.venv/Scripts/pre-commit.exe install
+# Instalación (una vez):
+#   make install-hooks
+# equivale a `npm --prefix frontend ci` + `pre-commit install`. Los hooks del
+# frontend usan el ESLint/Prettier de frontend/node_modules, así que las
+# dependencias npm tienen que estar instaladas para que el commit no falle.
 
 # ------------------------- Backend (Python) -------------------------
 repos:
@@ -39,5 +42,24 @@ repos:
           - types-python-jose
 
 # ------------------------- Frontend (React) -------------------------
-# Aquí irán los hooks del frontend (ESLint, Prettier) con `files: ^frontend/`
-# cuando se monte el proyecto React.
+# `pass_filenames: false` es intencionado: ESLint 9 con flat config resuelve
+# eslint.config.js desde el cwd, y pre-commit ejecuta desde la raíz del
+# monorepo. `npm --prefix frontend` entra en el directorio correcto y lintea
+# todo src/; el filtro `files:` es el que limita cuándo se dispara el hook.
+  - repo: local
+    hooks:
+      - id: frontend-eslint
+        name: eslint (frontend)
+        entry: npm --prefix frontend run lint
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+        require_serial: true
+
+      - id: frontend-prettier
+        name: prettier (frontend)
+        entry: npm --prefix frontend run format:check
+        language: system
+        files: ^frontend/.*\.(ts|tsx|js|json|css|html|md)$
+        pass_filenames: false
+        require_serial: true

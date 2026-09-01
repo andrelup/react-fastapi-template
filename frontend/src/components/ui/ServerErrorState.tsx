@@ -9,8 +9,7 @@ interface ServerErrorStateProps {
 }
 
 const DEFAULT_TITLE = 'Error del servidor';
-const DEFAULT_DESCRIPTION =
-  'Algo ha fallado de nuestro lado. Inténtalo de nuevo en unos minutos.';
+const DEFAULT_DESCRIPTION = 'Algo ha fallado de nuestro lado. Inténtalo de nuevo en unos minutos.';
 
 const WarningTriangleIcon = () => (
   <svg

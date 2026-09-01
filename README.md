@@ -63,14 +63,17 @@ Con hot reload habilitado en desarrollo mediante volúmenes, los cambios en `bac
 
 Todos los comandos se ejecutan desde la raíz del monorepo:
 
-| Comando           | Descripción                                     |
-| ----------------- | ----------------------------------------------- |
+| Comando              | Descripción                                     |
+| -------------------- | ----------------------------------------------- |
+| `make install-hooks` | Instala deps de npm del frontend + hooks de git |
 | `make dev`        | `docker compose up` — levanta todo el entorno   |
 | `make test`       | Tests de backend + frontend                     |
 | `make test-back`  | Solo tests del backend                          |
 | `make test-front` | Solo tests del frontend                         |
 | `make test-e2e`   | Tests E2E con Playwright                         |
 | `make lint`       | Linters de backend + frontend                   |
+| `make lint-front` | Solo ESLint del frontend                        |
+| `make format-front` | Reformatea el frontend con Prettier           |
 | `make migrate`    | `alembic upgrade head`                          |
 | `make seed`       | Script de seed de datos                          |
 | `make build`      | Build de las imágenes Docker de ambos proyectos |
@@ -88,6 +91,28 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 - El scope indica el módulo: `feat(backend): add book search endpoint`, `fix(frontend): fix login redirect`.
 - Una rama por feature: `feature/nombre-corto`.
 - Los PRs van contra `main`, siempre con los tests en verde.
+
+### Hooks de pre-commit
+
+Antes del primer commit hay que ejecutar **una vez**:
+
+```bash
+make install-hooks
+```
+
+Instala las dependencias npm del frontend y engancha `pre-commit` en `.git/hooks/pre-commit`.
+A partir de ahí, cada `git commit` ejecuta automáticamente:
+
+| Hook                | Se dispara cuando cambian | Qué hace                                       |
+| ------------------- | ------------------------- | ---------------------------------------------- |
+| `ruff-check`        | `backend/`                | Lint de Python con autofix                     |
+| `ruff-format`       | `backend/`                | Formato de Python                              |
+| `mypy`              | `backend/src/`            | Tipado estricto                                |
+| `eslint (frontend)` | `frontend/src/*.ts(x)`    | `npm run lint` — falla con cualquier warning   |
+| `prettier (frontend)` | `frontend/`             | `npm run format:check`                         |
+
+Si Prettier se queja, `make format-front` lo arregla. Los hooks del frontend usan el ESLint y
+el Prettier de `frontend/node_modules`, así que las dependencias tienen que estar instaladas.
 
 ## Docker
 

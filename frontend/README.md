@@ -60,7 +60,7 @@ frontend/
 
 - Functional components con hooks. **No** class components.
 - `PascalCase` para componentes (`BookCard.tsx`), `camelCase` para hooks (`useAuth.ts`), `kebab-case` para utilidades y API (`books-api.ts`).
-- TypeScript strict. Prohibido `any` — usar `unknown` con *narrowing*.
+- TypeScript strict. Prohibido `any` — usar `unknown` con _narrowing_.
 - **Named exports** siempre (salvo páginas para lazy loading).
 - Props definidas con `interface`, no con `type`.
 
