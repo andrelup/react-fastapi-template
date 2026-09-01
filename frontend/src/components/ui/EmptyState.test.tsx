@@ -5,7 +5,9 @@ import { EmptyState } from './EmptyState';
 
 describe('EmptyState', () => {
   it('renders the given title and description', () => {
-    render(<EmptyState title="Tu carrito está vacío" description="Añade libros para verlos aquí." />);
+    render(
+      <EmptyState title="Tu carrito está vacío" description="Añade libros para verlos aquí." />,
+    );
 
     expect(screen.getByRole('heading', { name: 'Tu carrito está vacío' })).toBeInTheDocument();
     expect(screen.getByText('Añade libros para verlos aquí.')).toBeInTheDocument();

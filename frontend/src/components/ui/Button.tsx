@@ -21,7 +21,8 @@ export const Button = ({
   className = '',
   ...rest
 }: ButtonProps) => {
-  const baseClasses = 'px-5 py-3 rounded text-[15px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses =
+    'px-5 py-3 rounded text-[15px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <button

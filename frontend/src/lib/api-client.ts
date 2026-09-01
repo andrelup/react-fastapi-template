@@ -71,7 +71,10 @@ export const request = async <T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (!response.ok || !payload.success) {
-    throw new ApiError(payload.error ?? `Request failed with status ${response.status}`, response.status);
+    throw new ApiError(
+      payload.error ?? `Request failed with status ${response.status}`,
+      response.status,
+    );
   }
 
   return payload.data as T;

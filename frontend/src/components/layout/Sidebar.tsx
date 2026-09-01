@@ -20,13 +20,7 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
 
 // Visual-only item: no page exists yet for it, so it is not wrapped in a
 // `NavLink`. Turn it into a real `NavLink` once its route exists.
-const InactiveNavItem = ({
-  label,
-  badge,
-}: {
-  label: string;
-  badge?: number;
-}) => (
+const InactiveNavItem = ({ label, badge }: { label: string; badge?: number }) => (
   <div className="flex items-center justify-between rounded px-3 py-2 text-sm text-body">
     <span>{label}</span>
     {badge !== undefined && <Badge>{badge}</Badge>}

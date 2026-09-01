@@ -1,4 +1,11 @@
-.PHONY: dev test test-back test-front test-e2e lint migrate seed build
+.PHONY: dev install-hooks test test-back test-front test-e2e lint lint-front format-front migrate seed build
+
+## install-hooks: deja el repo listo para commitear. Instala las dependencias
+## npm del frontend (los hooks usan el ESLint/Prettier de frontend/node_modules)
+## y engancha pre-commit en .git/hooks/pre-commit.
+install-hooks:
+	npm --prefix frontend ci
+	pre-commit install
 
 ## dev: levanta todo el entorno (PostgreSQL + backend con hot reload) via Docker Compose.
 dev:
@@ -25,6 +32,14 @@ test-e2e:
 lint:
 	cd backend && python -m ruff check . && python -m mypy .
 	cd frontend && npm run lint
+
+## lint-front: solo el linter del frontend (eslint, falla con cualquier warning).
+lint-front:
+	cd frontend && npm run lint
+
+## format-front: reescribe el frontend con el formato de Prettier.
+format-front:
+	cd frontend && npm run format
 
 ## migrate: aplica las migraciones de Alembic hasta la ultima revision.
 migrate:

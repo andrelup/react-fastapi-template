@@ -53,9 +53,7 @@ describe('SellerDashboard', () => {
 
     renderSellerDashboard();
 
-    expect(
-      await screen.findByRole('heading', { name: 'Actividad reciente' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Actividad reciente' })).toBeInTheDocument();
     expect(screen.getByText('El nombre de la rosa')).toBeInTheDocument();
     expect(screen.getByText('Cien años de soledad')).toBeInTheDocument();
     expect(screen.getByText('Vendido')).toBeInTheDocument();
