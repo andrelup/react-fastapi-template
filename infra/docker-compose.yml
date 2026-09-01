@@ -1,0 +1,74 @@
+# Entorno de infraestructura de BookShelf.
+#
+# Las credenciales viven en el .env de la raiz del monorepo (no versionado,
+# ver .env.example) y se inyectan por interpolación, por eso el comando
+# canónico es (desde la raiz del repo):
+#
+#   make dev
+#
+# lo que equivale a (desde infra/):
+#
+#   docker compose --env-file ../.env up --build
+#
+name: bookshelf
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: bookshelf-postgres
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:?falta DB_USERNAME en el env-file}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD en el env-file}
+      POSTGRES_DB: ${DB_NAME:?falta DB_NAME en el env-file}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: bookshelf-backend
+    environment:
+      APP_NAME: ${APP_NAME:-BookShelf API}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      # Dentro de la red de Docker el backend habla con el servicio
+      # "postgres" por su nombre, no con el host/puerto expuesto al host.
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:?falta DB_USERNAME en el env-file}
+      DB_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD en el env-file}
+      DB_NAME: ${DB_NAME:?falta DB_NAME en el env-file}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Origenes permitidos para CORS (lista separada por comas). Cada entorno
+      # define en su .env solo los origenes que realmente sirve.
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?falta JWT_SECRET_KEY en el env-file}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXPIRES_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRES_MINUTES:-60}
+    ports:
+      - "8000:8000"
+    volumes:
+      # Hot reload: el código fuente se monta desde el host, así que los
+      # cambios se recogen en caliente por uvicorn --reload sin reconstruir
+      # la imagen. alembic/ también se monta para poder generar/aplicar
+      # migraciones sin reconstruir.
+      - ../backend/src:/app/src
+      - ../backend/alembic:/app/alembic
+      - ../backend/alembic.ini:/app/alembic.ini
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  postgres_data:
