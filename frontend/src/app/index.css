@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Marca / primario */
+  --color-primary: #2C6E49;
+  --color-primary-hover: #245C3D;
+  --color-primary-dark: #1B4332;
+  --color-primary-100: #CFE3D6;
+  --color-primary-50: #EAF2EC;
+  /* Neutros */
+  --color-ink: #1B211D;
+  --color-body: #4A544D;
+  --color-muted: #8A938C;
+  --color-border: #E4E8E4;
+  --color-bg: #F6F7F4;
+  --color-surface: #FFFFFF;
+  /* Destructivo */
+  --color-danger: #B23A2E;
+  --color-danger-border: #EBD3CF;
+  --color-danger-bg: #FBEEEC;
+  /* Tipografía */
+  --font-serif: 'Lora', Georgia, serif;
+  --font-sans: 'Public Sans', system-ui, sans-serif;
+  /* Radios y sombras */
+  --radius-sm: 4px;
+  --radius: 9px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, .05);
+  --shadow-float: 0 8px 30px rgba(20, 52, 42, .08);
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-bg);
+  }
+
+  /* The design system drops the native (red) password-reveal/clear icons
+     rendered by Chromium/Edge inside inputs. */
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none;
+  }
+}
