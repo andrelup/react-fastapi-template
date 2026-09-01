@@ -1,4 +1,4 @@
-# Pre-commit hooks del monorepo BookShelf.
+# Pre-commit hooks del monorepo react-fastapi-template.
 # Los git hooks son únicos por repositorio, por eso esta config vive en la raíz:
 # cada bloque filtra sus archivos con `files: ^backend/` o `files: ^frontend/`.
 #
