@@ -1,4 +1,4 @@
-# Arquitectura Hexagonal en react-fastapi-template
+# Arquitectura Hexagonal en fastapi-template
 
 Guía de la arquitectura del backend: qué es la arquitectura hexagonal, qué problemas resuelve y, en la práctica, **qué fichero crear y dónde** cuando añades funcionalidad nueva. Los ejemplos usan código real del proyecto (auth y catálogo de libros).
 

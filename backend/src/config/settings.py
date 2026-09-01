@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "BookShelf API"
+    app_name: str = "fastapi-template API"
     environment: str = "development"
     db_host: str = "localhost"
     db_port: int = 5432

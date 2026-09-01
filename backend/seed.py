@@ -1,4 +1,4 @@
-"""Populate a development database with realistic BookShelf data.
+"""Populate a development database with realistic fastapi-template data.
 
 Run with `make seed` (or `python seed.py` from `backend/`). Every row is written
 through the same repositories the application uses, so the seed can never drift

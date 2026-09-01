@@ -1,1 +1,1 @@
-"""Test suite for the BookShelf backend."""
+"""Test suite for the fastapi-template backend."""
