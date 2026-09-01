@@ -17,7 +17,7 @@ Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de
 ## Estructura del repositorio
 
 ```
-bookshelf/
+react-fastapi-template/
 ├── backend/          # API REST — Python 3.12, FastAPI, Arquitectura Hexagonal
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
 ├── infra/            # Docker Compose, Prometheus, Grafana, SonarQube

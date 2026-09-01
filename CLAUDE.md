@@ -5,7 +5,7 @@ Monorepo with a Python backend and a React frontend. Training project on Claude 
 ## Repository structure
 
 ```
-bookshelf/
+react-fastapi-template/
 ├── backend/          # REST API — Python 3.12, FastAPI, Hexagonal Architecture
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
 ├── infra/            # Docker Compose, Prometheus, Grafana, SonarQube
