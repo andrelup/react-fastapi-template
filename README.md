@@ -1,6 +1,6 @@
-# BookShelf — Tienda de libros online
+# react-fastapi-template — Tienda de libros online
 
-BookShelf es una tienda online de libros. Ofrece las mismas funcionalidades principales que esperarías de cualquier tienda de comercio electrónico moderna: registro e inicio de sesión de usuarios, navegación y búsqueda en el catálogo, compra de libros, consulta del histórico de compras, guardado de favoritos y más.
+react-fastapi-template es una tienda online de libros. Ofrece las mismas funcionalidades principales que esperarías de cualquier tienda de comercio electrónico moderna: registro e inicio de sesión de usuarios, navegación y búsqueda en el catálogo, compra de libros, consulta del histórico de compras, guardado de favoritos y más.
 
 Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de formación en Claude Code y desarrollo agéntico. Aunque ambos conviven en el mismo repositorio, se **despliegan por separado**.
 
@@ -145,7 +145,7 @@ cláusula de exención de garantías de la licencia. Si buscas una base para un
 sistema real, trátalo como material de referencia y no como código listo para
 desplegar.
 
-> **Training project — not for production use.** BookShelf is a learning
+> **Training project — not for production use.** react-fastapi-template is a learning
 > exercise. It has not been security-audited, ships development-oriented
 > configuration and synthetic seed data, offers no API or schema stability and
 > no support. Use it as a reference, at your own risk, under the MIT license terms.
@@ -154,4 +154,4 @@ desplegar.
 
 Las librerías que usa el proyecto (entre otras FastAPI, SQLAlchemy, React y
 TailwindCSS) se distribuyen bajo sus propias licencias. La licencia MIT de
-este repositorio cubre únicamente el código original de BookShelf.
+este repositorio cubre únicamente el código original de react-fastapi-template.

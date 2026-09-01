@@ -1,4 +1,4 @@
-# BookShelf — AI-powered bookstore
+# react-fastapi-template — AI-powered bookstore
 
 Monorepo with a Python backend and a React frontend. Training project on Claude Code and agentic development.
 
