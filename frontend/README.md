@@ -105,9 +105,12 @@ import { useApi } from '@/hooks/useApi';
 
 ## Puesta en marcha
 
+Desde la raíz del monorepo, `make setup` instala también las dependencias de este proyecto y
+`make dev-front` arranca el servidor de desarrollo. Dentro de `frontend/`:
+
 ```bash
 npm install
-npm run dev        # servidor de desarrollo (Vite)
+npm run dev        # servidor de desarrollo (Vite, puerto 3000)
 npm run build      # build de producción
 ```
 
