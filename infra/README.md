@@ -62,10 +62,10 @@ uvicorn src.main:app --reload --app-dir backend
 
 ```bash
 # Salud del contenedor
-docker inspect --format '{{.State.Health.Status}}' bookshelf-postgres   # → healthy
+docker inspect --format '{{.State.Health.Status}}' react-fastapi-template-postgres   # → healthy
 
 # Conexión y extensión pgvector (usuario/base según el .env de la raíz)
-docker exec -it bookshelf-postgres psql -U userAdmin -d bookShelf -c "\dx"
+docker exec -it react-fastapi-template-postgres psql -U userAdmin -d bookShelf -c "\dx"
 
 # Migraciones: el servicio backend ya ejecuta `alembic upgrade head` al
 # arrancar con `up`. Para lanzarlas a mano, hazlo dentro del contenedor:

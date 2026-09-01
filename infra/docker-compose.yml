@@ -1,4 +1,4 @@
-# Entorno de infraestructura de BookShelf.
+# Entorno de infraestructura de react-fastapi-template.
 #
 # Las credenciales viven en el .env de la raiz del monorepo (no versionado,
 # ver .env.example) y se inyectan por interpolación, por eso el comando
@@ -10,12 +10,12 @@
 #
 #   docker compose --env-file ../.env up --build
 #
-name: bookshelf
+name: react-fastapi-template
 
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: bookshelf-postgres
+    container_name: react-fastapi-template-postgres
     environment:
       POSTGRES_USER: ${DB_USERNAME:?falta DB_USERNAME en el env-file}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD en el env-file}
@@ -35,9 +35,9 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: bookshelf-backend
+    container_name: fastapi-template
     environment:
-      APP_NAME: ${APP_NAME:-BookShelf API}
+      APP_NAME: ${APP_NAME:-fastapi-template API}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       # Dentro de la red de Docker el backend habla con el servicio
       # "postgres" por su nombre, no con el host/puerto expuesto al host.
