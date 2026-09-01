@@ -1,6 +1,6 @@
-# react-fastapi-template Frontend — SPA
+# react-template Frontend — SPA
 
-Aplicación de página única (SPA) de la tienda de libros react-fastapi-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**. La búsqueda está optimizada reutilizando en sesión los datos ya obtenidos, evitando peticiones redundantes al backend.
+Aplicación de página única (SPA) de la tienda de libros react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**. La búsqueda está optimizada reutilizando en sesión los datos ya obtenidos, evitando peticiones redundantes al backend.
 
 ## Stack
 
