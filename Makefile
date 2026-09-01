@@ -38,9 +38,9 @@ seed:
 ## frontend/Dockerfile aun no existe (llegara en una tarea futura); mientras
 ## tanto este target solo construye la imagen de backend sin romper `make`.
 build:
-	docker build -t bookshelf-backend ./backend
+	docker build -t fastapi-template ./backend
 	@if [ -f frontend/Dockerfile ]; then \
-		docker build -t bookshelf-frontend ./frontend; \
+		docker build -t react-template ./frontend; \
 	else \
 		echo "build: frontend/Dockerfile aun no existe (pendiente)"; \
 	fi
