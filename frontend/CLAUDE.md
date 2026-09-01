@@ -1,4 +1,4 @@
-# BookShelf Frontend — Bulletproof React Architecture
+# react-fastapi-template Frontend — Bulletproof React Architecture
 
 SPA for a bookstore. This CLAUDE.md complements the monorepo root CLAUDE.md.
 
