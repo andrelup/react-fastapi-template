@@ -5,7 +5,7 @@ description: Creates project commits following Conventional Commits, always with
 
 # Project commits
 
-Create one or more commits from the pending changes. **The message is always in English**, even though the conversation with the user is in Spanish.
+Create one or more commits from the pending changes **The message is always in English**.
 
 ## Step 1 — Inspect the state
 
