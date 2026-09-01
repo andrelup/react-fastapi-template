@@ -6,9 +6,9 @@ project's testing conventions (`backend/CLAUDE.md`: "Integración: usar DB
 real de test"). If Docker is unavailable, these tests are skipped rather
 than failed, so the rest of the suite is unaffected.
 
-The container is fully isolated from any other BookShelf environment: it
+The container is fully isolated from any other react-fastapi-template environment: it
 uses its own name and host port, distinct from `infra/docker-compose.yml`'s
-`bookshelf-postgres` service, so it never collides with a developer's (or
+`react-fastapi-template-postgres` service, so it never collides with a developer's (or
 another agent's) locally running stack.
 
 IMPORTANT: the fixture below is named `book_db_session`, not `db_session`,
@@ -30,7 +30,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from src.adapters.outbound.persistence.sqlalchemy_models import Base, BookORM, UserORM
 
-_CONTAINER_NAME = "bookshelf-books-crud-test-db"
+_CONTAINER_NAME = "fastapi-template-books-crud-test-db"
 _HOST_PORT = 55433
 # Throwaway password for an ephemeral, local-only test container torn down
 # at the end of the test session — not a real secret.

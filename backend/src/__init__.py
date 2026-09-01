@@ -1,1 +1,1 @@
-"""BookShelf backend source package."""
+"""fastapi-template backend source package."""

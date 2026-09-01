@@ -1,6 +1,6 @@
-# react-fastapi-template Backend — API REST
+# fastapi-template Backend — API REST
 
-API REST de la tienda de libros react-fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o los servicios de IA son detalles intercambiables.
+API REST de la tienda de libros fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o los servicios de IA son detalles intercambiables.
 
 ## Stack
 
