@@ -125,10 +125,7 @@ describe('MobileTabBar', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Cuenta/ }));
 
-    expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveAttribute(
-      'href',
-      '/dashboard',
-    );
+    expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveAttribute('href', '/dashboard');
   });
 
   it('hides the seller-only dashboard entry from a customer', async () => {
@@ -148,10 +145,7 @@ describe('MobileTabBar', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Cuenta/ }));
 
-    expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(screen.getByRole('link', { name: /Dashboard/ })).toHaveAttribute('aria-current', 'page');
   });
 
   it('closes the account drawer when the dashboard entry is tapped', async () => {

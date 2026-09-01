@@ -51,7 +51,9 @@ describe('HomePage', () => {
 
     renderHomePage();
 
-    expect(await screen.findByRole('heading', { name: /Bienvenida a BookShelf/ })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: /Bienvenida a BookShelf/ }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Explorar catálogo' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Publicar un libro' })).not.toBeInTheDocument();
   });

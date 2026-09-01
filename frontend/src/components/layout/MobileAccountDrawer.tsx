@@ -220,7 +220,12 @@ export const MobileAccountDrawer = ({ open, onClose }: MobileAccountDrawerProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Cuenta">
+    <div
+      className="fixed inset-0 z-50 md:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Cuenta"
+    >
       <button
         type="button"
         aria-label="Cerrar menú de cuenta"

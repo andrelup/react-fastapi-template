@@ -31,9 +31,7 @@ const UiComponentsPage = () => {
 
   return (
     <>
-      <h1 className="font-serif text-3xl font-bold tracking-[-0.015em] text-ink">
-        Componentes UI
-      </h1>
+      <h1 className="font-serif text-3xl font-bold tracking-[-0.015em] text-ink">Componentes UI</h1>
       <p className="mt-2 text-muted">
         Catálogo de referencia de los componentes compartidos del sistema de diseño.
       </p>

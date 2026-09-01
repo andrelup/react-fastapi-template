@@ -125,6 +125,7 @@ frontend/
 2. **A feature does NOT import directly from another feature.** If `wishlist` needs the `Book` type, that type must live in the global `types/`, or the `books` feature must export it from its `index.ts` and `wishlist` imports it from `@/features/books`.
 
 3. **Each feature's `index.ts` is its public contract.** Only what is exported there is accessible from outside:
+
    ```typescript
    // features/auth/index.ts
    export { LoginForm } from './components/LoginForm';
