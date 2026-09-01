@@ -1,4 +1,4 @@
-# BookShelf Backend — Hexagonal Architecture
+# react-fastapi-template Backend — Hexagonal Architecture
 
 REST API for a bookstore. This CLAUDE.md complements the monorepo root CLAUDE.md.
 
