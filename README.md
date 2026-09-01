@@ -113,9 +113,10 @@ El frontend y el backend se desarrollan juntos en este repositorio pero se **des
 
 ## Licencia
 
-Publicado bajo licencia [GPL-3.0](LICENSE.md). Puedes usar, estudiar, modificar
-y redistribuir el código, siempre que las obras derivadas se publiquen bajo esta
-misma licencia y conserven el aviso de copyright.
+Publicado bajo licencia [MIT](LICENSE). Puedes usar, copiar, modificar,
+fusionar, publicar y redistribuir el código libremente, incluso en obras
+derivadas de licencia distinta, siempre que conserves el aviso de copyright
+y de la licencia.
 
 ### Aviso: no apto para producción
 
@@ -147,10 +148,10 @@ desplegar.
 > **Training project — not for production use.** BookShelf is a learning
 > exercise. It has not been security-audited, ships development-oriented
 > configuration and synthetic seed data, offers no API or schema stability and
-> no support. Use it as a reference, at your own risk, under the GPL-3.0 terms.
+> no support. Use it as a reference, at your own risk, under the MIT license terms.
 
 ### Dependencias de terceros
 
 Las librerías que usa el proyecto (entre otras FastAPI, SQLAlchemy, React y
-TailwindCSS) se distribuyen bajo sus propias licencias. La GPL-3.0 de este
-repositorio cubre únicamente el código original de BookShelf.
+TailwindCSS) se distribuyen bajo sus propias licencias. La licencia MIT de
+este repositorio cubre únicamente el código original de BookShelf.
