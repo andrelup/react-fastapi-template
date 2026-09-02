@@ -20,7 +20,7 @@ Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de
 react-fastapi-template/
 ├── backend/          # API REST — Python 3.12, FastAPI, Arquitectura Hexagonal
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
-├── infra/            # Docker Compose, Prometheus, Grafana, SonarQube
+├── infra/            # Docker Compose — PostgreSQL 16 + pgvector
 ├── .claude/          # Subagentes y slash commands
 ├── .github/          # GitHub Actions workflows
 └── Makefile          # Comandos unificados del proyecto
@@ -36,7 +36,7 @@ Cada subdirectorio (`backend/`, `frontend/`) tiene su propio `README.md` y `CLAU
 | Backend     | Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic                    |
 | Base de datos | PostgreSQL 16 + pgvector                                               |
 | Testing     | pytest / Vitest / Playwright (E2E)                                       |
-| Infra       | Docker Compose, Prometheus, Grafana, SonarQube                           |
+| Infra       | Docker Compose                                                           |
 | CI/CD       | GitHub Actions                                                           |
 
 Los dos proyectos son **independientes** y se comunican exclusivamente a través de la **API REST**; nunca comparten código directamente.
@@ -123,8 +123,6 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 
 - **Conventional commits** obligatorios: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`.
 - El scope indica el módulo: `feat(backend): add book search endpoint`, `fix(frontend): fix login redirect`.
-- Una rama por feature: `feature/nombre-corto`.
-- Los PRs van contra `main`, siempre con los tests en verde.
 
 ### Hooks de pre-commit
 
@@ -151,7 +149,7 @@ el Prettier de `frontend/node_modules`, así que las dependencias tienen que est
 ## Docker
 
 - `infra/docker-compose.yml` levanta el entorno completo.
-- Servicios: PostgreSQL 16, backend FastAPI, frontend React (dev), Prometheus y Grafana.
+- Servicios: PostgreSQL 16 + pgvector y backend FastAPI.
 - Dockerfiles multi-stage en cada subdirectorio (`backend/Dockerfile`, `frontend/Dockerfile`).
 
 ## Configuración y secretos
@@ -164,7 +162,7 @@ el Prettier de `frontend/node_modules`, así que las dependencias tienen que est
 
 - GitHub Actions en `.github/workflows/`.
 - Pipeline: `lint → test-backend → test-frontend → test-e2e → build → security-scan`.
-- SonarQube como *quality gate* en los PRs.
+- *Quality gate*: linters, tipado estricto y umbrales de coverage como checks obligatorios.
 
 ## Despliegue
 

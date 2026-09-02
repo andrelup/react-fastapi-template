@@ -40,7 +40,6 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 **Documented but NON-EXISTENT** — do not reference these until they are built:
 - `frontend/Dockerfile` (only `backend/Dockerfile` exists)
 - Playwright / any E2E suite (`test-e2e` is vapour)
-- Prometheus, Grafana (compose has only `postgres` + `backend`)
 - Frontend pre-commit hooks (a TODO comment in `.pre-commit-config.yaml`)
 
 **Makefile drift** — `make test-front` and `make test-e2e` are placeholder `echo`s, even though 22 vitest test files already exist and `npm run test` works. Do NOT call those targets from CI. Fix the Makefile target instead of duplicating the command in YAML.
@@ -58,7 +57,7 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 
 ### Not allowed
 
-**No SonarQube, no SonarCloud, no paid or self-hosted quality platform.** This project uses only free tools that plug natively into GitHub Actions. The quality gate is: linters + strict types + coverage thresholds enforced in config + required status checks on the PR. The SonarQube mentions in root `CLAUDE.md` and `README.md` are stale documentation — flag them for removal, never implement them.
+**No SonarQube, no SonarCloud, no paid or self-hosted quality platform.** This project uses only free tools that plug natively into GitHub Actions. The quality gate is: linters + strict types + coverage thresholds enforced in config + required status checks on the PR. Never introduce them, and never reinstate the Sonar references that were removed from the project documentation.
 
 Sanctioned toolbox:
 
