@@ -8,7 +8,7 @@ Monorepo with a Python backend and a React frontend. Training project on Claude 
 react-fastapi-template/
 ├── backend/          # REST API — Python 3.12, FastAPI, Hexagonal Architecture
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
-├── infra/            # Docker Compose, Prometheus, Grafana, SonarQube
+├── infra/            # Docker Compose — PostgreSQL 16 + pgvector
 ├── .claude/          # Subagents and slash commands
 ├── .github/          # GitHub Actions workflows
 └── Makefile          # Unified project commands
@@ -40,7 +40,7 @@ Every task originates from a GitHub issue. Always link the work back to the issu
 ## Docker
 
 - `docker-compose.yml` in `infra/` brings up the whole environment
-- Services: PostgreSQL 16, FastAPI backend, React frontend (dev), Prometheus, Grafana
+- Services: PostgreSQL 16 + pgvector, FastAPI backend
 - Multi-stage Dockerfiles in each subdirectory (`backend/Dockerfile`, `frontend/Dockerfile`)
 - Hot reload enabled in development via volumes
 
@@ -74,7 +74,7 @@ make build        → docker build of both images
 
 - GitHub Actions in `.github/workflows/`
 - Pipeline: lint → test-backend → test-frontend → test-e2e → build → security-scan
-- SonarQube as the quality gate on PRs
+- Quality gate: linters, strict types and coverage thresholds as required checks
 
 ## What NOT to do
 

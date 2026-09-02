@@ -36,7 +36,7 @@ Real examples from the repo:
 ```
 feat(backend): sistema de versionado optimista en modelos SQLAlchemy
 test(backend): alcanzar 80% de coverage en tests unitarios
-chore(infra): SonarQube Community Edition con quality gate
+chore(frontend): eslint y prettier en cada commit
 ```
 
 ## Step 3 — Write the body
