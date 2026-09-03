@@ -45,7 +45,7 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 - Conventional commits are mandatory: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`
 - The commit scope indicates the module: `feat(backend): add book search endpoint`, `fix(frontend): fix login redirect`
 - One branch per feature: `feature/short-name`
-- PRs against `develop`, always with passing tests
+- PRs against `main`, always with passing tests
 
 ### Issue-driven workflow
 
