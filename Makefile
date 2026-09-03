@@ -36,7 +36,7 @@ help:
 	@echo   make setup        deja el entorno local listo para trabajar
 	@echo   make dev-back     backend con hot reload en el host (puerto 8000)
 	@echo   make dev-front    frontend con hot reload en el host (puerto 3000)
-	@echo   make dev          todo el entorno en Docker Compose
+	@echo   make dev          todo el entorno en Docker Compose (front + back + BD)
 	@echo   make db-up        solo PostgreSQL en Docker, en background
 	@echo   make db-down      para los contenedores de infra
 	@echo   make db-logs      logs de PostgreSQL
@@ -66,9 +66,9 @@ install-hooks:
 	npm --prefix frontend ci
 	$(PYTHON) -m pre_commit install
 
-## dev: levanta todo el entorno (PostgreSQL + backend con hot reload) via
-## Docker Compose. No requiere nada instalado en local, pero para desarrollar
-## a diario es mas comodo `make dev-back` + `make dev-front`.
+## dev: levanta todo el entorno (PostgreSQL + backend + frontend, los dos con
+## hot reload) via Docker Compose. No requiere nada instalado en local, pero
+## para desarrollar a diario es mas comodo `make dev-back` + `make dev-front`.
 dev:
 	cd infra && docker compose --env-file ../.env up --build
 
@@ -132,13 +132,9 @@ migrate:
 seed:
 	cd backend && $(BACKEND_PYTHON) seed.py
 
-## build: construye las imagenes Docker de backend y frontend.
-## frontend/Dockerfile aun no existe (llegara en una tarea futura); mientras
-## tanto este target solo construye la imagen de backend sin romper `make`.
+## build: construye las imagenes Docker de produccion de backend y frontend.
+## La del frontend es la etapa final del Dockerfile (nginx sirviendo la SPA
+## compilada), no la de desarrollo que usa `make dev`.
 build:
 	docker build -t fastapi-template ./backend
-ifeq ($(wildcard frontend/Dockerfile),)
-	@echo build: frontend/Dockerfile aun no existe (pendiente)
-else
 	docker build -t react-template ./frontend
-endif

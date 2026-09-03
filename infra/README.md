@@ -1,6 +1,6 @@
 # Infraestructura react-fastapi-template
 
-Servicios del proyecto vía Docker Compose: PostgreSQL 16 con la extensión pgvector y el `backend` (FastAPI) con hot reload.
+Servicios del proyecto vía Docker Compose: PostgreSQL 16 con la extensión pgvector, el `backend` (FastAPI, puerto 8000) y el `frontend` (Vite, puerto 3000), ambos con hot reload.
 
 ## Requisitos
 
@@ -12,7 +12,7 @@ Servicios del proyecto vía Docker Compose: PostgreSQL 16 con la extensión pgve
 Desde este directorio (`infra/`). El `--env-file ../.env` apunta al `.env` de la raíz:
 
 ```bash
-# Levantar todo el entorno (BD + backend con hot reload)
+# Levantar todo el entorno (BD + backend + frontend con hot reload)
 docker compose --env-file ../.env up --build
 
 # Estado y salud de los contenedores
@@ -44,7 +44,7 @@ docker compose --env-file ../.env logs -f postgres
 docker compose --env-file ../.env stop postgres
 ```
 
-Nombrar `postgres` al final del comando hace que el servicio `backend` **no** arranque aunque esté en el mismo `docker-compose.yml`.
+Nombrar `postgres` al final del comando hace que los servicios `backend` y `frontend` **no** arranquen aunque estén en el mismo `docker-compose.yml`.
 
 Luego arranca el backend en local desde la **raíz del repo** (así lee el mismo `.env` de la raíz; `--app-dir backend` hace importable el paquete `src`). Se conecta por `localhost:${DB_PORT}`, el puerto que el contenedor expone al host:
 
