@@ -2,6 +2,10 @@
 
 REST API for a bookstore. This CLAUDE.md complements the monorepo root CLAUDE.md.
 
+## Documentation
+
+The documentation map lives in the monorepo root CLAUDE.md. Open only the document the current task calls for — never load them all.
+
 ## Stack
 
 - Python 3.12

@@ -16,6 +16,23 @@ react-fastapi-template/
 
 Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventions specific to its stack. This file only contains shared global rules.
 
+## Documentation — `docs/`
+
+`docs/` holds the detailed rules for each layer, written from the real code. **Read only the document that matches the task at hand — never load them all.** One or two are enough for any single task; loading the rest just wastes context.
+
+| Before you… | Read |
+|---|---|
+| Add or change a frontend feature, route, or backend call | `docs/frontend-architecture.md` |
+| Build or restyle any UI/screen | `docs/frontend-ui-components.md` |
+| Debug a frontend lint/format/type error | `docs/frontend-code-style.md` |
+| Write frontend tests | `docs/frontend-testing.md` |
+| Touch **anything** in `backend/src/` | `docs/backend-hexagonal-architecture.md` |
+| Read or write data, add an entity, write a migration | `docs/backend-database-sqlalchemy.md` |
+| Debug a ruff/mypy failure | `docs/backend-code-style.md` |
+| Write backend tests | `docs/backend-testing.md` |
+
+`docs/README.md` is the index; consult it only if the table above does not resolve which document applies.
+
 ## Global conventions
 
 - Code language: English (variables, functions, classes, comments)
