@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.vite/
+README.md
+CLAUDE.md
+.env
+.env.*
+!.env.example
