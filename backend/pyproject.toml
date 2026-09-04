@@ -12,7 +12,6 @@ dependencies = [
     "pydantic>=2",
     "pydantic-settings",
     "structlog",
-    "pgvector",
     "python-jose[cryptography]",
     "passlib[bcrypt]",
     # passlib 1.7.4's bcrypt backend detection breaks with bcrypt>=4.1

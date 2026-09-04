@@ -1,6 +1,6 @@
 # fastapi-template Backend — API REST
 
-API REST de la tienda de libros fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o los servicios de IA son detalles intercambiables.
+API REST de la tienda de libros fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o cualquier servicio externo son detalles intercambiables.
 
 ## Stack
 
@@ -8,7 +8,7 @@ API REST de la tienda de libros fastapi-template, construida con **Python + Fast
 - **FastAPI** (async)
 - **SQLAlchemy 2.0** (async, modelos declarativos)
 - **Alembic** (migraciones autogeneradas)
-- **PostgreSQL 16 + pgvector** (búsqueda semántica)
+- **PostgreSQL 16**
 - **pytest + pytest-asyncio + httpx** (testing)
 - **structlog** (logging estructurado)
 - **Ruff** (linting + formatting)
@@ -34,7 +34,7 @@ backend/
 │   │   │   └── middleware/    # Auth, logging, CORS, error handler
 │   │   └── outbound/          # Salida: cómo el dominio accede al exterior
 │   │       ├── persistence/   # Repositorios SQLAlchemy + database.py
-│   │       ├── ai/            # EmbeddingService, LLMService
+│   │       ├── security/      # PasswordHasher (bcrypt), TokenService (JWT)
 │   │       └── cache/         # Cachés (p. ej. recomendaciones)
 │   │
 │   ├── config/                # Settings (Pydantic) y container de DI

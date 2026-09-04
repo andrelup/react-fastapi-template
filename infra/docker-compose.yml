@@ -14,7 +14,7 @@ name: react-fastapi-template
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:16
     container_name: react-fastapi-template-postgres
     environment:
       POSTGRES_USER: ${DB_USERNAME:?falta DB_USERNAME en el env-file}
@@ -24,7 +24,6 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
