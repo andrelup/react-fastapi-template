@@ -37,7 +37,7 @@ frontend/
 │   ├── hooks/         # Hooks genéricos: useApi, useDebounce, useLocalStorage
 │   ├── lib/           # api-client.ts (instancia base de fetch con baseURL e interceptors)
 │   ├── types/         # Tipos globales: ApiResponse<T>, PaginatedResponse<T>
-│   └── utils/         # Helpers puros: format-price, validate-isbn
+│   └── utils/         # Helpers puros: format-price, get-initials
 │
 ├── e2e/               # Tests E2E con Playwright (Page Object Model)
 ├── public/
