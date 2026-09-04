@@ -23,6 +23,10 @@ RUN useradd --create-home --shell /bin/bash appuser
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY src ./src
+# Alembic viaja en la imagen: el contenedor aplica `alembic upgrade head` al
+# arrancar y ya no hay volumen del host del que leerlo.
+COPY alembic.ini ./
+COPY alembic ./alembic
 
 USER appuser
 
