@@ -7,7 +7,7 @@ Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de
 ## Funcionalidades
 
 - **Registro e inicio de sesión** — creación de cuenta e inicio de sesión seguro con JWT.
-- **Catálogo y búsqueda** — navegación por el catálogo y búsqueda por título, autor o categoría, con búsqueda semántica mediante `pgvector`.
+- **Catálogo y búsqueda** — navegación por el catálogo y búsqueda por título, autor o categoría.
 - **Compra** — añadir libros al carrito y completar la compra.
 - **Histórico de compras** — consulta de pedidos anteriores.
 - **Favoritos (wishlist)** — guardado de libros en una lista personal.
@@ -20,7 +20,7 @@ Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de
 react-fastapi-template/
 ├── backend/          # API REST — Python 3.12, FastAPI, Arquitectura Hexagonal
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
-├── infra/            # Docker Compose — PostgreSQL 16 + pgvector
+├── infra/            # Docker Compose — PostgreSQL 16
 ├── .claude/          # Subagentes y slash commands
 ├── .github/          # GitHub Actions workflows
 └── Makefile          # Comandos unificados del proyecto
@@ -34,7 +34,7 @@ Cada subdirectorio (`backend/`, `frontend/`) tiene su propio `README.md` y `CLAU
 | ----------- | ------------------------------------------------------------------------ |
 | Frontend    | React 18, TypeScript, Vite, TailwindCSS, React Router v6                 |
 | Backend     | Python 3.12, FastAPI (async), SQLAlchemy 2.0, Alembic                    |
-| Base de datos | PostgreSQL 16 + pgvector                                               |
+| Base de datos | PostgreSQL 16                                                          |
 | Testing     | pytest / Vitest / Playwright (E2E)                                       |
 | Infra       | Docker Compose                                                           |
 | CI/CD       | GitHub Actions                                                           |
@@ -149,7 +149,7 @@ el Prettier de `frontend/node_modules`, así que las dependencias tienen que est
 ## Docker
 
 - `infra/docker-compose.yml` levanta el entorno completo.
-- Servicios: PostgreSQL 16 + pgvector y backend FastAPI.
+- Servicios: PostgreSQL 16, backend FastAPI y frontend Vite.
 - Dockerfiles multi-stage en cada subdirectorio (`backend/Dockerfile`, `frontend/Dockerfile`).
 
 ## Configuración y secretos
