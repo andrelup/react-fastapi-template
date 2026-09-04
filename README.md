@@ -117,7 +117,9 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 - **Idioma del código:** inglés (variables, funciones, clases, comentarios).
 - **Idioma de la documentación:** español.
 - **Tipado estricto obligatorio** en ambos stacks (mypy strict / TypeScript strict).
-- Todo el código debe tener tests. **Coverage mínimo: 80 %.**
+- Todo el código debe tener tests. **Coverage mínimo: 80 %**, aplicado
+  automáticamente en el backend desde `[tool.coverage.report] fail_under`
+  en `backend/pyproject.toml`: `pytest --cov=src` falla si se baja del umbral.
 
 ## Git
 
@@ -160,9 +162,54 @@ el Prettier de `frontend/node_modules`, así que las dependencias tienen que est
 
 ## CI/CD
 
-- GitHub Actions en `.github/workflows/`.
-- Pipeline: `lint → test-backend → test-frontend → test-e2e → build → security-scan`.
-- *Quality gate*: linters, tipado estricto y umbrales de coverage como checks obligatorios.
+GitHub Actions en `.github/workflows/`. El pipeline se construye por
+incrementos: hoy existen **dos workflows**, uno por stack, cada uno con su
+filtro de rutas para que una PR que solo toca el frontend no ejecute los tests
+del backend.
+
+| Workflow | Jobs | Se dispara con |
+|---|---|---|
+| `ci-backend.yml` | `lint` → `test-backend` | cambios en `backend/**` |
+| `ci-frontend.yml` | `lint` → `test-frontend` | cambios en `frontend/**` |
+
+- `lint` (backend): `ruff check`, `ruff format --check`, `mypy --strict`.
+- `test-backend`: PostgreSQL 16 como `service`, `alembic upgrade head` y
+  `pytest --cov=src`.
+- `lint` (frontend): `eslint`, `prettier --check`, `tsc --noEmit`.
+- `test-frontend`: `vitest` con cobertura.
+
+*Quality gate*: linters, tipado estricto y umbrales de coverage. Los umbrales
+viven en la configuración de cada proyecto (`backend/pyproject.toml`
+→ `[tool.coverage.report] fail_under = 80`; `frontend/vite.config.ts`
+→ `coverage.thresholds`), nunca en el YAML: así el mismo comando falla
+igual en local y en CI.
+
+Todavía **no existen** las fases `test-e2e`, `build` ni `security-scan`.
+Cada una llega en su propia issue:
+
+| Fase pendiente | Issue |
+|---|---|
+| Tests E2E (Playwright) | #6 |
+| Escaneo de seguridad (CodeQL, gitleaks, Trivy) | #21 |
+| Build de imágenes Docker y publicación en GHCR | #22 |
+| Branch protection y checks obligatorios | #23 |
+
+## Roadmap
+
+Extensiones que la plantilla **no** trae de serie y que se dejan documentadas
+como punto de enganche, no como deuda:
+
+- **Búsqueda semántica con `pgvector`.** La plantilla arranca con `postgres:16`
+  a secas: la extensión estaba declarada pero ningún modelo, migración ni
+  repositorio la usaba, así que solo añadía peso a la imagen y a las
+  dependencias. Para recuperarla harían falta cuatro piezas: la imagen
+  `pgvector/pgvector:pg16` en `infra/docker-compose.yml` con un
+  `CREATE EXTENSION vector` de inicialización, el paquete `pgvector` en las
+  dependencias de `backend/pyproject.toml`, una migración de Alembic que añada
+  la columna de embeddings, y un adaptador de salida bajo
+  `backend/src/adapters/outbound/` que calcule los embeddings detrás de un
+  puerto del dominio. La búsqueda actual (`/books/search`) es un `ILIKE` y
+  seguiría siendo el fallback.
 
 ## Despliegue
 

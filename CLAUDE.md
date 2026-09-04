@@ -89,9 +89,19 @@ make build        → docker build of both images
 
 ## CI/CD
 
-- GitHub Actions in `.github/workflows/`
-- Pipeline: lint → test-backend → test-frontend → test-e2e → build → security-scan
-- Quality gate: linters, strict types and coverage thresholds as required checks
+- GitHub Actions in `.github/workflows/`, one workflow per stack with `paths:`
+  filters so a frontend-only PR never runs the backend suite
+- `ci-backend.yml`: `lint` (ruff check, ruff format --check, mypy --strict)
+  → `test-backend` (PostgreSQL 16 service, `alembic upgrade head`,
+  `pytest --cov=src`)
+- `ci-frontend.yml`: `lint` (eslint, prettier, tsc --noEmit)
+  → `test-frontend` (vitest with coverage)
+- Quality gate: linters, strict types and coverage thresholds. Thresholds live
+  in each project's config (`backend/pyproject.toml` →
+  `[tool.coverage.report] fail_under = 80`; `frontend/vite.config.ts` →
+  `coverage.thresholds`), never in the workflow YAML
+- NOT built yet, one issue each: e2e tests (#6), security scanning (#21),
+  Docker/GHCR build (#22), branch protection and required checks (#23)
 
 ## What NOT to do
 
