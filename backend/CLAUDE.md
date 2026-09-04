@@ -143,7 +143,12 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
 - Unit tests: mock the ports, test domain services in isolation
 - Integration tests: use a real test DB, verify the repositories
 - API tests: httpx.AsyncClient against the FastAPI app
-- Minimum coverage: 80%
+- Minimum coverage: 80% — enforced, not advisory. The gate lives in
+  `pyproject.toml`: `[tool.coverage.run]` measures `src/` only (excluding
+  `alembic/` and `seed.py`) and `[tool.coverage.report] fail_under = 80`
+  makes any `--cov` run exit non-zero below the threshold. CI relies on that
+  config instead of passing `--cov-fail-under` on the command line, so local
+  and CI fail identically. Never lower it — add tests.
 - Run: `pytest --cov=src --cov-report=term-missing`
 
 ## Migrations
