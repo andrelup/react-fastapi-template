@@ -116,10 +116,10 @@ class Book:
     isbn: str
     price: float
     stock: int
-    seller_id: int          # referencia por id, no por objeto ORM
+    seller_id: int  # referencia por id, no por objeto ORM
     description: str
     category: str
-    id: int | None = None   # None = todavía no persistido
+    id: int | None = None  # None = todavía no persistido
 ```
 
 ### Paso 2 — Port de persistencia → `domain/ports/repositories.py` (ampliar)
@@ -146,12 +146,12 @@ Aquí vive TODA la lógica: validaciones de negocio, permisos por rol, orquestac
 ```python
 class BookService:
     def __init__(self, book_repository: BookRepository) -> None:
-        self._book_repository = book_repository   # el port, no la implementación
+        self._book_repository = book_repository  # el port, no la implementación
 
     async def delete(self, seller: User, book_id: int) -> None:
-        self._ensure_seller(seller)                # regla de rol → ForbiddenError
+        self._ensure_seller(seller)  # regla de rol → ForbiddenError
         existing = await self._get_or_raise(book_id)  # → BookNotFoundError
-        self._ensure_owner(seller, existing)       # regla de propiedad → ForbiddenError
+        self._ensure_owner(seller, existing)  # regla de propiedad → ForbiddenError
         await self._book_repository.delete(book_id)
 ```
 
@@ -183,7 +183,7 @@ Una función `get_review_service` que construye el servicio con sus adaptadores 
 
 ```python
 def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> UserRepository:
-    return SqlAlchemyUserRepository(session)   # devuelve el PORT, construye el ADAPTER
+    return SqlAlchemyUserRepository(session)  # devuelve el PORT, construye el ADAPTER
 ```
 
 ### Paso 9 — Router → `adapters/inbound/api/review_router.py`
@@ -197,7 +197,7 @@ async def delete_book(
     book_service: Annotated[BookService, Depends(get_book_service)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> ApiResponse[None]:
-    await book_service.delete(current_user, book_id)   # el 403/404 lo decide el dominio
+    await book_service.delete(current_user, book_id)  # el 403/404 lo decide el dominio
     return ApiResponse(success=True, data=None, error=None)
 ```
 
