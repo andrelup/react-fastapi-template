@@ -8,7 +8,7 @@ Monorepo with a Python backend and a React frontend. Training project on Claude 
 react-fastapi-template/
 ├── backend/          # REST API — Python 3.12, FastAPI, Hexagonal Architecture
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
-├── infra/            # Docker Compose — PostgreSQL 16 + pgvector
+├── infra/            # Docker Compose — PostgreSQL 16 (dev) + production stack
 ├── .claude/          # Subagents and slash commands
 ├── .github/          # GitHub Actions workflows
 └── Makefile          # Unified project commands
@@ -73,10 +73,24 @@ visible, `--squash` collapses it into a single commit.
 
 ## Docker
 
-- `docker-compose.yml` in `infra/` brings up the whole environment
-- Services: PostgreSQL 16, FastAPI backend, Vite frontend
-- Multi-stage Dockerfiles in each subdirectory (`backend/Dockerfile`, `frontend/Dockerfile`)
-- Hot reload enabled in development via volumes
+- Docker is used for exactly two things: **PostgreSQL in development**, and the
+  **images that actually ship**. There is no containerised development
+  environment — the backend and the frontend run natively on the host, which is
+  where hot reload actually works and where the source tree is not mounted into
+  a container (that mount is an isolation hole: code running in the container
+  writes to your working copy)
+- `infra/docker-compose.yml` holds all three services. `postgres` has no
+  profile, so a plain `up` starts only the database; `backend` and `frontend`
+  sit behind the `prod` profile
+- Multi-stage Dockerfiles in each subdirectory (`backend/Dockerfile`,
+  `frontend/Dockerfile`), production-only: no development stage
+- The production images run as a non-root user and declare a `HEALTHCHECK`. The
+  frontend keeps port 80 by granting the nginx binary `CAP_NET_BIND_SERVICE`
+  instead of running its master process as root
+- `VITE_API_URL` is a **build arg**, not a runtime variable: Vite bakes the API
+  URL into the bundle at build time
+- `docker compose down` does **not** stop services that belong to a profile —
+  `--profile prod` is required (that is what `make db-down` does)
 
 ## Makefile (root)
 
@@ -87,7 +101,9 @@ make setup        → getting started: venv, deps, hooks, DB, migrations, seed
 make dev-back     → backend on the host with hot reload (port 8000)
 make dev-front    → frontend on the host with hot reload (port 3000)
 make db-up        → only PostgreSQL in Docker, detached
-make dev          → docker compose up (whole environment)
+make db-down      → stop every container, dev and prod alike
+make dev          → PostgreSQL only, then run dev-back / dev-front on the host
+make prod         → build and run the production stack (smoke test)
 make test         → backend (pytest) + frontend (vitest) tests
 make test-back    → backend tests only (pytest)
 make test-front   → frontend tests only (vitest)
@@ -95,7 +111,7 @@ make test-e2e     → playwright tests (pending, not configured yet)
 make lint         → backend + frontend linters
 make migrate      → alembic upgrade head
 make seed         → data seeding script
-make build        → docker build of both images
+make build        → docker build of both images (build only, no run)
 ```
 
 ## Secrets and configuration
