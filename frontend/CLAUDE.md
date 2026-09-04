@@ -99,7 +99,7 @@ frontend/
 │   │
 │   └── utils/                     # Pure helper functions (no side effects)
 │       ├── format-price.ts
-│       └── validate-isbn.ts
+│       └── get-initials.ts
 │
 ├── e2e/                           # E2E tests with Playwright
 │   ├── tests/

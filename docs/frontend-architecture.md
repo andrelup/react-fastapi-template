@@ -34,7 +34,7 @@ frontend/src/
 ├── hooks/                   Generic hooks: useApi, useDebounce, useLocalStorage
 ├── lib/                     api-client.ts — the single fetch() call site
 ├── types/                   api.ts — ApiResponse<T>, PaginatedResponse<T>, ApiError
-├── utils/                   Pure helpers: format-price, validate-isbn, get-initials
+├── utils/                   Pure helpers: format-price, get-initials
 └── test/setup.ts            Vitest setup (jest-dom matchers + RTL cleanup)
 ```
 
