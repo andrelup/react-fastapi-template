@@ -94,18 +94,17 @@ db-down:
 db-logs:
 	cd infra && docker compose --env-file ../.env logs -f postgres
 
-## test: suite completa. Por ahora solo hay tests de backend cableados;
-## test-front/test-e2e se activaran en tareas futuras.
-test: test-back
+## test: suite completa (pytest en backend + vitest en frontend). test-e2e
+## sigue pendiente hasta que se configure Playwright.
+test: test-back test-front
 
 ## test-back: tests del backend (pytest) con reporte de cobertura.
 test-back:
 	cd backend && $(BACKEND_PYTHON) -m pytest --cov=src --cov-report=term-missing
 
-## test-front: placeholder hasta que el frontend tenga suite de tests
-## configurada (ver issue futura). No debe romper `make test`.
+## test-front: tests del frontend (vitest, una sola pasada).
 test-front:
-	@echo test-front: aun no hay suite de tests configurada en frontend (pendiente)
+	npm --prefix frontend run test
 
 ## test-e2e: placeholder hasta que se configure Playwright.
 test-e2e:
