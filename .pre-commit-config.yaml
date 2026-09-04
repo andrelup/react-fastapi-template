@@ -31,7 +31,6 @@ repos:
           - "pydantic>=2"
           - pydantic-settings
           - structlog
-          - pgvector
           - asyncpg
           - alembic
           - "python-jose[cryptography]"
