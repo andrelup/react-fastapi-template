@@ -101,10 +101,10 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 | `make db-logs`       | Sigue los logs de PostgreSQL                    |
 | `make install-hooks` | Instala deps de npm del frontend + hooks de git |
 | `make dev`        | `docker compose up` — levanta todo el entorno   |
-| `make test`       | Tests de backend + frontend                     |
-| `make test-back`  | Solo tests del backend                          |
-| `make test-front` | Solo tests del frontend                         |
-| `make test-e2e`   | Tests E2E con Playwright                         |
+| `make test`       | Tests de backend (pytest) + frontend (vitest)   |
+| `make test-back`  | Solo tests del backend (pytest)                 |
+| `make test-front` | Solo tests del frontend (vitest)                |
+| `make test-e2e`   | Tests E2E con Playwright (pendiente)            |
 | `make lint`       | Linters de backend + frontend                   |
 | `make lint-front` | Solo ESLint del frontend                        |
 | `make format-front` | Reformatea el frontend con Prettier           |
