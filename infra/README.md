@@ -1,75 +1,104 @@
 # Infraestructura react-fastapi-template
 
-Servicios del proyecto vía Docker Compose: PostgreSQL 16 con la extensión pgvector, el `backend` (FastAPI, puerto 8000) y el `frontend` (Vite, puerto 3000), ambos con hot reload.
+Docker se usa aquí para **dos** cosas, y solo dos:
+
+1. **La base de datos en desarrollo** — PostgreSQL 16, el único servicio que se levanta a diario.
+2. **Las imágenes que realmente se despliegan** — el `backend` (FastAPI tras uvicorn, puerto 8000)
+   y el `frontend` (la SPA compilada servida por nginx), bajo el perfil `prod`.
+
+Lo que **no** hay es un entorno de desarrollo contenedorizado. El backend y el frontend se ejecutan
+nativos en el host (`uvicorn --reload` y `vite`), que es donde el hot reload funciona de verdad y
+donde no hace falta montar el árbol de fuentes dentro de un contenedor. Ese montaje es además una
+brecha de aislamiento: código ejecutándose en el contenedor escribiría en tu código fuente.
 
 ## Requisitos
 
 - Docker Desktop en marcha.
-- `.env` en la **raíz** del repo (copia `.env.example` de la raíz y rellena los valores). Es la **única** fuente de configuración: la usan tanto el compose como el backend en local. Las credenciales **nunca** se versionan ni se hardcodean en el compose.
+- `.env` en la **raíz** del repo (copia `.env.example` de la raíz y rellena los valores). Es la
+  **única** fuente de configuración: la usan tanto el compose como el backend en local. Las
+  credenciales **nunca** se versionan ni se hardcodean en el compose.
 
-## Uso
+## Desarrollo: solo la base de datos
 
-Desde este directorio (`infra/`). El `--env-file ../.env` apunta al `.env` de la raíz:
+Desde la raíz del repo:
 
 ```bash
-# Levantar todo el entorno (BD + backend + frontend con hot reload)
-docker compose --env-file ../.env up --build
-
-# Estado y salud de los contenedores
-docker compose --env-file ../.env ps
-
-# Parar (los datos persisten en el volumen postgres_data)
-docker compose --env-file ../.env down
-
-# Parar Y BORRAR los datos
-docker compose --env-file ../.env down -v
+make dev          # levanta PostgreSQL en background y te dice qué lanzar
+make dev-back     # terminal 2 -> API en http://localhost:8000/docs
+make dev-front    # terminal 3 -> SPA en http://localhost:3000
 ```
 
-> Equivale a `make dev` desde la raíz del repo. En Windows, si no tienes `make`, usa directamente el `docker compose` de arriba.
-
-## Depurar el backend en local con la BD en Docker
-
-Para poner breakpoints y depurar el backend en tu máquina, levanta **solo** la base de datos (sin el servicio `backend`) y arranca la API con `uvicorn` fuera de Docker.
-
-Desde este directorio (`infra/`), levanta únicamente el servicio `postgres`:
+El equivalente desde este directorio (`infra/`); el `--env-file ../.env` apunta al `.env` de la
+raíz:
 
 ```bash
-# En segundo plano (-d te devuelve la terminal)
 docker compose --env-file ../.env up -d postgres
-
-# Ver los logs de la BD
 docker compose --env-file ../.env logs -f postgres
-
-# Parar solo la BD al terminar
-docker compose --env-file ../.env stop postgres
 ```
 
-Nombrar `postgres` al final del comando hace que los servicios `backend` y `frontend` **no** arranquen aunque estén en el mismo `docker-compose.yml`.
+Los servicios `backend` y `frontend` pertenecen al perfil `prod`, así que un `up` sin perfil
+levanta únicamente `postgres`. No hace falta nombrarlo al final del comando.
 
-Luego arranca el backend en local desde la **raíz del repo** (así lee el mismo `.env` de la raíz; `--app-dir backend` hace importable el paquete `src`). Se conecta por `localhost:${DB_PORT}`, el puerto que el contenedor expone al host:
+El backend en local se conecta por `localhost:${DB_PORT}`, el puerto que el contenedor expone al
+host. Si prefieres lanzarlo a mano en vez de con `make dev-back`, desde la **raíz** del repo (así
+lee el mismo `.env`; `--app-dir backend` hace importable el paquete `src`):
 
 ```bash
-# Activar el venv del backend
-source backend/.venv/bin/activate       # Windows PowerShell: .\backend\.venv\Scripts\Activate.ps1
-
-# Arrancar la API (CWD = raíz del repo -> usa ./.env)
+source .venv/bin/activate      # Windows PowerShell: .\.venv\Scripts\Activate.ps1
 uvicorn src.main:app --reload --app-dir backend
 ```
 
-> El rol, la contraseña y la base (`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`) solo se crean la **primera** vez que se inicializa un volumen vacío, a partir de `DB_USERNAME` / `DB_PASSWORD` / `DB_NAME` del `.env`. Si cambias esas credenciales con el volumen ya creado, no tendrán efecto y verás errores tipo `role "..." does not exist`. En ese caso recrea el volumen con `down -v` y vuelve a levantar.
+## Producción: el stack completo
+
+```bash
+make prod         # construye las dos imágenes y levanta los tres servicios
+```
+
+Equivale a `docker compose --env-file ../.env --profile prod up --build`. Levanta exactamente lo
+que se despliega: sin hot reload, sin volúmenes con el código, y con el frontend sirviendo como
+usuario **no root**. Es la prueba de humo antes de publicar.
+
+- SPA en <http://localhost:3000> (nginx escucha en el 80 dentro del contenedor).
+- API en <http://localhost:8000>.
+- El backend aplica `alembic upgrade head` al arrancar, con el `alembic/` que la propia imagen
+  copia — ya no llega por volumen.
+- `VITE_API_URL` es un **build arg**, no una variable de entorno: Vite hornea la URL de la API en
+  el bundle en tiempo de build. Cambiarla exige reconstruir la imagen del frontend.
+
+## Parar
+
+```bash
+make db-down      # para y elimina los contenedores; los datos persisten
+```
+
+Equivale a `docker compose --env-file ../.env --profile prod down`. El `--profile prod` es
+**imprescindible**: sin él, `down` deja en marcha los servicios que pertenecen a un perfil.
+
+```bash
+# Parar Y BORRAR los datos
+docker compose --env-file ../.env --profile prod down -v
+```
 
 ## Verificar
 
 ```bash
-# Salud del contenedor
-docker inspect --format '{{.State.Health.Status}}' react-fastapi-template-postgres   # → healthy
+# Salud de los contenedores
+docker inspect -f '{{.State.Health.Status}}' react-fastapi-template-postgres   # healthy
+docker inspect -f '{{.State.Health.Status}}' react-template                    # healthy
+docker inspect -f '{{.State.Health.Status}}' fastapi-template                  # healthy
 
-# Conexión y extensión pgvector (usuario/base según el .env de la raíz)
-docker exec -it react-fastapi-template-postgres psql -U userAdmin -d bookShelf -c "\dx"
+# El frontend de produccion no corre como root
+docker exec react-template id                                                  # uid=101(nginx)
 
-# Migraciones: el servicio backend ya ejecuta `alembic upgrade head` al
-# arrancar con `up`. Para lanzarlas a mano, hazlo dentro del contenedor:
-docker compose --env-file ../.env run --rm backend alembic upgrade head
+# Ni el backend ni el frontend montan nada del host
+docker inspect -f '{{len .Mounts}}' react-template fastapi-template            # 0 en ambos
+
+# Conexion a la base (usuario/base segun el .env de la raiz)
+docker exec -it react-fastapi-template-postgres psql -U bookshelf -d bookshelf -c '\dt'
 ```
 
-La extensión pgvector se habilita automáticamente en el primer arranque mediante `postgres/init/01-pgvector.sql`.
+> El rol, la contraseña y la base (`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`) solo se
+> crean la **primera** vez que se inicializa un volumen vacío, a partir de `DB_USERNAME` /
+> `DB_PASSWORD` / `DB_NAME` del `.env`. Si cambias esas credenciales con el volumen ya creado, no
+> tendrán efecto y verás errores tipo `role "..." does not exist`. En ese caso recrea el volumen
+> con `down -v` y vuelve a levantar.
