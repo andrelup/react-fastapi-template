@@ -101,3 +101,19 @@ If the hook modifies the tree or the commit fails, check `git status` before ret
 ## Step 6 — Report
 
 Show the user `git log --oneline -n <commits created>` and one sentence per commit explaining what it groups. **Do not `git push` and do not open a PR unless the user asks.**
+
+## Never merge
+
+Merging is the user's job, always. **Do not run `gh pr merge`, `git merge`, `gh pr merge --auto`, or merge through the API or the web UI** — not when the checks are green, not when the PR only closes an issue you opened yourself, not when the user approved the plan that led to the PR. Approving a plan is not approving a merge.
+
+The reason is that the user reviews the code before it reaches `main`. A merge done by the agent removes that review; a green pipeline does not replace it.
+
+The same applies to what comes after: **do not delete the branch, the remote branch, or the worktree** once the PR is open. They are what the reviewer reads.
+
+Your work ends at the pull request: commits made, branch pushed, PR open with `Closes #<issue>`, checks green. Report the PR link, what changed and what deserves a closer look, and stop there.
+
+If the user explicitly asks you to merge, ask which strategy before doing it — the choice changes the history and is not yours to make:
+
+- `--merge` keeps the branch visible as a fork in the graph
+- `--rebase` replays the commits onto `main`: linear history, and the branch disappears from the graph
+- `--squash` collapses the branch into a single commit, losing the split into atomic commits
