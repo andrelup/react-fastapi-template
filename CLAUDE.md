@@ -54,10 +54,27 @@ Every task originates from a GitHub issue. Always link the work back to the issu
 - Create the feature branch from the issue (e.g. `gh issue develop <issue-number> --checkout`) so the branch is linked to the issue
 - When opening the PR, link it to the issue with a closing keyword in the PR body (`Closes #<issue-number>`) so merging the PR closes the issue, and closing the issue removes the associated PR and branch
 
+### Merging is the user's job — never the agent's
+
+**An agent must never merge a pull request or a branch.** No `gh pr merge`, no `git merge`, no
+`gh pr merge --auto`, no merge through the API or the web UI, whatever the reason and however green
+the checks are. The same goes for deleting the branch or the worktree afterwards: they are the
+reviewer's evidence and they stay until the user says otherwise.
+
+The reason is not stylistic: **the user reviews the code before it enters `main`**, and a merge
+performed by the agent takes that review away. Passing CI is not a substitute for it.
+
+An agent's work ends at the pull request: branch pushed, PR open, checks green, a summary of what
+changed and what to look at. Then it stops and hands over the PR link.
+
+Merge strategy is likewise the user's call. If asked to merge, ask which strategy first — `--rebase`
+rewrites the commits onto `main` and erases the branch from the graph, `--merge` keeps the branch
+visible, `--squash` collapses it into a single commit.
+
 ## Docker
 
 - `docker-compose.yml` in `infra/` brings up the whole environment
-- Services: PostgreSQL 16 + pgvector, FastAPI backend
+- Services: PostgreSQL 16, FastAPI backend, Vite frontend
 - Multi-stage Dockerfiles in each subdirectory (`backend/Dockerfile`, `frontend/Dockerfile`)
 - Hot reload enabled in development via volumes
 
