@@ -113,7 +113,10 @@ Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger U
 - **Unitarios:** mockean los ports y prueban los servicios de dominio en aislamiento.
 - **Integración:** usan una DB real de test para verificar los repositorios.
 - **API:** `httpx.AsyncClient` contra la app FastAPI.
-- Coverage mínimo: **80 %**.
+- Coverage mínimo: **80 %**, y no es una recomendación: el umbral vive en
+  `[tool.coverage.report] fail_under = 80` (`pyproject.toml`), así que
+  cualquier ejecución con `--cov` termina en error si se baja de ahí.
+  `[tool.coverage.run]` mide solo `src/` y excluye `alembic/` y `seed.py`.
 
 ```bash
 pytest --cov=src --cov-report=term-missing
