@@ -71,10 +71,10 @@ make dev-back     → backend on the host with hot reload (port 8000)
 make dev-front    → frontend on the host with hot reload (port 3000)
 make db-up        → only PostgreSQL in Docker, detached
 make dev          → docker compose up (whole environment)
-make test         → backend + frontend tests
-make test-back    → backend tests only
-make test-front   → frontend tests only
-make test-e2e     → playwright tests
+make test         → backend (pytest) + frontend (vitest) tests
+make test-back    → backend tests only (pytest)
+make test-front   → frontend tests only (vitest)
+make test-e2e     → playwright tests (pending, not configured yet)
 make lint         → backend + frontend linters
 make migrate      → alembic upgrade head
 make seed         → data seeding script

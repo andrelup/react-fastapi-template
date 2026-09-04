@@ -198,7 +198,11 @@ frontend/
 - **E2E tests:** Playwright with the Page Object Model
 - Colocation: unit tests next to the component (`BookCard.test.tsx` next to `BookCard.tsx`)
 - Test behavior, not implementation. Use `getByRole`, `getByText`, not `getByTestId`.
-- Run: `npx vitest run --coverage`
+- Run: `npm run test` (single pass) / `npm run test:watch` (watch mode)
+- Coverage: `npm run test:coverage` — enforces 80 % thresholds (statements, lines, branches,
+  functions) configured in the `test.coverage` block of `vite.config.ts`. The command fails if any
+  metric drops below the threshold.
+- `make test-front` from the monorepo root runs the same suite; `make test` runs backend + frontend.
 
 ## Routing
 
