@@ -108,6 +108,7 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
    ```python
    from typing import Protocol
 
+
    class BookRepository(Protocol):
        async def find_by_id(self, book_id: int) -> Book | None: ...
        async def find_all(self, skip: int, limit: int) -> list[Book]: ...
