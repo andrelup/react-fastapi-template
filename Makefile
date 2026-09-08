@@ -87,7 +87,7 @@ dev-front:
 	npm --prefix frontend run dev
 
 ## test: suite completa (pytest en backend + vitest en frontend). test-e2e
-## sigue pendiente hasta que se configure Playwright.
+## se ejecuta aparte porque necesita el entorno (API + DB + seed) levantado.
 test: test-back test-front
 
 ## test-back: tests del backend (pytest) con reporte de cobertura.
@@ -98,9 +98,13 @@ test-back:
 test-front:
 	npm --prefix frontend run test
 
-## test-e2e: placeholder hasta que se configure Playwright.
+## test-e2e: tests end-to-end (Playwright). Requiere la base de datos y la API
+## (make dev, make dev-back) sembrada con make seed, para las credenciales
+## fijas de seller@bookshelf.dev / customer@bookshelf.dev. El frontend NO hace
+## falta levantarlo: Playwright arranca su propio npm run dev via webServer, y
+## reutiliza el que ya este corriendo en el 3000 si lo hay.
 test-e2e:
-	@echo test-e2e: aun no hay tests end-to-end configurados - pendiente
+	npm --prefix frontend run test:e2e
 
 ## lint: ruff check + mypy en backend, eslint en frontend.
 lint:
