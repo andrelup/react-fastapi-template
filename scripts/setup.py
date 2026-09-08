@@ -212,7 +212,8 @@ def start_database() -> bool:
             return True
         if code == 0 and status == "unhealthy":
             warn(
-                f"el contenedor {POSTGRES_CONTAINER} esta unhealthy; revisa `make db-logs`"
+                f"el contenedor {POSTGRES_CONTAINER} esta unhealthy; revisa sus logs "
+                f"con `docker logs {POSTGRES_CONTAINER}`"
             )
             return False
         time.sleep(2)

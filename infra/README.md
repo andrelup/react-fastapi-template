@@ -54,7 +54,15 @@ uvicorn src.main:app --reload --app-dir backend
 make prod         # construye las dos imágenes y levanta los tres servicios
 ```
 
-Equivale a `docker compose --env-file ../.env --profile prod up --build`. Levanta exactamente lo
+Equivale a `docker compose --env-file ../.env --profile prod up -d --build`. Arranca en
+**background**, así que la terminal no se queda enganchada a los logs de los tres contenedores;
+para seguirlos, desde este directorio:
+
+```bash
+docker compose --env-file ../.env --profile prod logs -f
+```
+
+Levanta exactamente lo
 que se despliega: sin hot reload, sin volúmenes con el código, y con el frontend sirviendo como
 usuario **no root**. Es la prueba de humo antes de publicar.
 
@@ -67,17 +75,16 @@ usuario **no root**. Es la prueba de humo antes de publicar.
 
 ## Parar
 
-```bash
-make db-down      # para y elimina los contenedores; los datos persisten
-```
-
-Equivale a `docker compose --env-file ../.env --profile prod down`. El `--profile prod` es
-**imprescindible**: sin él, `down` deja en marcha los servicios que pertenecen a un perfil.
+El Makefile no tiene target para parar; se hace desde este directorio:
 
 ```bash
-# Parar Y BORRAR los datos
-docker compose --env-file ../.env --profile prod down -v
+docker compose --env-file ../.env --profile prod down      # los datos persisten
+docker compose --env-file ../.env --profile prod down -v   # borra tambien el volumen
 ```
+
+El `--profile prod` es **imprescindible**: sin él, `down` deja en marcha los servicios que
+pertenecen a un perfil, así que sirve igual para parar la BD de `make dev` y el stack de
+`make prod`.
 
 ## Verificar
 
