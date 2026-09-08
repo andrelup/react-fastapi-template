@@ -23,4 +23,17 @@ test.describe('Login', () => {
     await expect(page).toHaveURL('/');
     await expect(heading).toBeVisible();
   });
+
+  test('rejects a wrong password without opening a session', async ({ page }) => {
+    const loginPage = new LoginPage(page);
+    await loginPage.goto();
+
+    await loginPage.login(CUSTOMER_EMAIL, 'not-the-right-password');
+
+    await expect(loginPage.errorMessage).toBeVisible();
+    // Still on the form, and with nothing persisted: a failed login must not
+    // leave a half-open session behind.
+    await expect(page).toHaveURL(/\/login$/);
+    expect(await loginPage.storedAuthToken()).toBeNull();
+  });
 });
