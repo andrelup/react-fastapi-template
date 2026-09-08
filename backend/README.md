@@ -24,18 +24,18 @@ backend/
 │   ├── domain/                # NÚCLEO — lógica de negocio pura, sin dependencias externas
 │   │   ├── models/            # Entidades de dominio (dataclasses / Pydantic)
 │   │   ├── ports/             # Interfaces (Protocol) de repositorios y servicios
-│   │   ├── services/          # Casos de uso (auth, book, search, recommendation)
+│   │   ├── services/          # Casos de uso (auth, book, favourite list)
 │   │   └── exceptions.py      # Excepciones de dominio
 │   │
 │   ├── adapters/
 │   │   ├── inbound/           # Entrada: cómo el mundo llama al dominio
 │   │   │   ├── api/           # Routers FastAPI
 │   │   │   ├── schemas/       # Schemas Pydantic (request/response)
-│   │   │   └── middleware/    # Auth, logging, CORS, error handler
+│   │   │   └── middleware/    # Dependencia de auth, middleware de logging, error handler
 │   │   └── outbound/          # Salida: cómo el dominio accede al exterior
 │   │       ├── persistence/   # Repositorios SQLAlchemy + database.py
 │   │       ├── security/      # PasswordHasher (bcrypt), TokenService (JWT)
-│   │       └── cache/         # Cachés (p. ej. recomendaciones)
+│   │       └── cache/         # Paquete vacío, reservado. Hoy no hay nada dentro
 │   │
 │   ├── config/                # Settings (Pydantic) y container de DI
 │   └── main.py                # Entrypoint FastAPI
@@ -137,7 +137,7 @@ Revisa siempre el SQL generado antes de aplicarlo.
 
 ## Logging y linting
 
-- **structlog:** JSON en producción, *pretty-print* en desarrollo. Campos automáticos: `timestamp`, `request_id`, `user_id`, `endpoint`, `method`, `status_code`, `duration_ms`. Nunca se usa `print()`.
+- **structlog:** JSON salvo en desarrollo, donde la salida es legible en consola. Cada peticion emite un evento con `timestamp`, `request_id`, `method`, `path`, `status_code` y `duration_ms`, y el `request_id` vuelve en la cabecera `X-Request-ID`. No hay campo `user_id`: lo resuelve la dependencia `get_current_user`, invisible para un middleware externo. Nunca se usa `print()`. Detalle en `docs/backend-logging.md`.
 - **Ruff** como linter y formatter único; **mypy** en strict mode. Pre-commit hooks: `ruff check`, `ruff format`, `mypy`.
 
 ## Qué NO hacer

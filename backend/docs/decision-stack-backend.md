@@ -2,11 +2,18 @@
 
 Registro de decisión de arquitectura (ADR): por qué el backend de fastapi-template está construido con **Python 3.12 + FastAPI** en lugar de **Node.js + Express** (u otro framework del ecosistema JavaScript como NestJS o Fastify).
 
+> **Nota de contexto (documento histórico).** Este ADR se escribió cuando el proyecto se planteaba
+> como una tienda de libros con IA aplicada al catálogo. Esa dirección se abandonó después: hoy
+> react-fastapi-template es una **plantilla**, sin embeddings, sin pgvector y sin LLMs, y el
+> `/books/search` que existe es un `ILIKE`. El razonamiento se conserva tal como se tomó —un ADR
+> que se reescribe deja de ser un registro— pero léelo en pasado. El criterio 4, el que más pesó
+> entonces, es justamente el que ha dejado de aplicar; ver el apartado «Vigencia» al final.
+
 ---
 
 ## Contexto
 
-fastapi-template es una tienda de libros cuyo diferencial es la **IA aplicada al catálogo**: búsqueda semántica con embeddings sobre PostgreSQL + pgvector, y recomendaciones generadas con LLMs. El backend es una API REST consumida por una SPA React independiente, organizada en arquitectura hexagonal (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
+En el momento de esta decisión, fastapi-template se planteaba como una tienda de libros cuyo diferencial iba a ser la **IA aplicada al catálogo**: búsqueda semántica con embeddings sobre PostgreSQL + pgvector, y recomendaciones generadas con LLMs. El backend es una API REST consumida por una SPA React independiente, organizada en arquitectura hexagonal (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
 
 Los dos candidatos finalistas fueron los stacks dominantes para APIs REST:
 
@@ -45,7 +52,7 @@ Empate técnico con matices. TypeScript es un sistema de tipos más maduro y su 
 
 ### 4. Ecosistema de IA — el factor decisivo
 
-fastapi-template necesita generar embeddings, hablar con LLMs y hacer búsqueda vectorial. **Python es la lengua franca del machine learning**: los SDKs de los proveedores de IA tratan Python como ciudadano de primera clase, y librerías como numpy o los clientes de pgvector tienen su mejor soporte ahí. El ecosistema JS tiene equivalentes, pero llegan más tarde, con menos documentación y comunidades más pequeñas.
+El proyecto planeaba entonces generar embeddings, hablar con LLMs y hacer búsqueda vectorial. **Python es la lengua franca del machine learning**: los SDKs de los proveedores de IA tratan Python como ciudadano de primera clase, y librerías como numpy o los clientes de pgvector tienen su mejor soporte ahí. El ecosistema JS tiene equivalentes, pero llegan más tarde, con menos documentación y comunidades más pequeñas.
 
 Elegir Node habría significado nadar contra corriente exactamente en la parte del proyecto que lo diferencia. Este criterio, por sí solo, habría bastado para decidir.
 
@@ -65,7 +72,7 @@ Ambos ecosistemas son enormes y no hubo diferencia práctica. Express tiene más
 
 **Python 3.12 + FastAPI**, por este orden de peso:
 
-1. **Ecosistema de IA** — el corazón diferencial del proyecto (embeddings, LLMs, pgvector) vive en Python.
+1. **Ecosistema de IA** — lo que entonces se consideraba el corazón diferencial del proyecto (embeddings, LLMs, pgvector) vive en Python.
 2. **Productividad tipada** — validación, serialización y documentación OpenAPI derivadas de una única declaración de tipos, sin boilerplate.
 3. **Encaje con la arquitectura hexagonal** — `typing.Protocol` + inyección de dependencias nativa hacen naturales los ports & adapters.
 
@@ -96,3 +103,20 @@ El rendimiento, pese a la creencia popular en ambas direcciones, fue neutral: ni
 - [Backend Battle 2025: FastAPI vs Express (Slincom)](https://www.slincom.com/blog/programming/fastapi-vs-express-backend-comparison-2025)
 - [FastAPI vs Express for Solo Developers (SoloDevStack)](https://solodevstack.com/blog/fastapi-vs-expressjs-solo-developers)
 - [FastAPI — Alternatives, Inspiration and Comparisons](https://fastapi.tiangolo.com/alternatives/)
+
+---
+
+## Vigencia
+
+El criterio 4 —el ecosistema de IA, que en su momento fue el desempate— **ya no aplica**: el
+proyecto dejó de perseguir esa dirección y no queda una sola línea de embeddings, pgvector ni LLMs
+en el repositorio.
+
+La decisión, sin embargo, se sostiene sin él. Los criterios 2 y 3 bastan por sí solos para una
+plantilla de API REST: Pydantic da validación en runtime y documentación OpenAPI desde una única
+declaración de tipos, y `typing.Protocol` hace que los ports de la arquitectura hexagonal se
+implementen por tipado estructural, sin herencia. Nada de eso dependía de la IA.
+
+Se conserva el documento porque el razonamiento sigue siendo útil para quien parta de esta
+plantilla y se pregunte lo mismo — incluido el hecho de que un criterio decisivo puede evaporarse
+y la decisión seguir siendo correcta por otros motivos.

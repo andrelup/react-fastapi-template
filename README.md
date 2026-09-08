@@ -1,18 +1,31 @@
 # react-fastapi-template — Tienda de libros online
 
-react-fastapi-template es una tienda online de libros. Ofrece las mismas funcionalidades principales que esperarías de cualquier tienda de comercio electrónico moderna: registro e inicio de sesión de usuarios, navegación y búsqueda en el catálogo, compra de libros, consulta del histórico de compras, guardado de favoritos y más.
+react-fastapi-template es una **plantilla de proyecto** full-stack. Usa una tienda de libros como dominio de ejemplo, con la autenticación resuelta de punta a punta y el resto del catálogo deliberadamente a medio hacer: lo que se lleva de aquí es la arquitectura, las convenciones y el andamiaje, no la tienda.
 
 Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de formación en Claude Code y desarrollo agéntico. Aunque ambos conviven en el mismo repositorio, se **despliegan por separado**.
 
 ## Funcionalidades
 
-- **Registro e inicio de sesión** — creación de cuenta e inicio de sesión seguro con JWT.
-- **Catálogo y búsqueda** — navegación por el catálogo y búsqueda por título, autor o categoría.
-- **Compra** — añadir libros al carrito y completar la compra.
-- **Histórico de compras** — consulta de pedidos anteriores.
-- **Favoritos (wishlist)** — guardado de libros en una lista personal.
-- **Recomendaciones** — sugerencias basadas en IA.
-- **Rol de vendedor (seller)** — panel para gestionar el catálogo de libros propios.
+El dominio de ejemplo es una librería, y está deliberadamente a medio construir: la plantilla existe
+para enseñar la arquitectura, no para vender libros. Esto es lo que hay hoy, sin adornos.
+
+**Completo, de punta a punta:**
+
+- **Registro e inicio de sesión** — alta de cuenta y autenticación con JWT, con la sesión persistida
+  en el cliente y restaurada al recargar.
+- **Roles diferenciados** — `seller` y `customer`, con rutas de la SPA protegidas por rol.
+- **Logging estructurado** — cada petición emite un evento con `request_id`, `status_code` y
+  `duration_ms`, correlacionable desde la cabecera `X-Request-ID` de la respuesta.
+
+**Solo en la API, sin pantalla todavía:**
+
+- **Catálogo y búsqueda** — `GET /books` y `GET /books/search` funcionan; la búsqueda es un `ILIKE`
+  sobre título y autor. La SPA aún no tiene pantalla de catálogo.
+- **Listas de favoritos** — CRUD completo en la API. El módulo `wishlist/` del frontend está vacío.
+
+Lo que **no** existe —carrito, compra, histórico de pedidos, recomendaciones con IA— vive en el
+[Roadmap](#roadmap), no aquí. Si has llegado desde «Use this template», eso es precisamente lo que
+te toca construir.
 
 ## Estructura del repositorio
 
@@ -20,7 +33,7 @@ Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de
 react-fastapi-template/
 ├── backend/          # API REST — Python 3.12, FastAPI, Arquitectura Hexagonal
 ├── frontend/         # SPA — React 18, TypeScript, Bulletproof React Architecture
-├── infra/            # Docker Compose — PostgreSQL 16
+├── infra/            # Docker Compose — PostgreSQL 16 (dev) + stack de produccion
 ├── .claude/          # Subagentes y slash commands
 ├── .github/          # GitHub Actions workflows
 └── Makefile          # Comandos unificados del proyecto
@@ -63,6 +76,21 @@ make setup
 Si Docker no está arrancado, el paso 6 se salta con un aviso y el resto se completa igual; luego basta con `make dev && make migrate && make seed`.
 
 Variantes: `make setup ARGS="--skip-db"`, `ARGS="--skip-front"`, `ARGS="--no-seed"`.
+
+#### Credenciales de desarrollo
+
+El seed crea dos cuentas de email fijo, pensadas para entrar a mano y para los tests e2e:
+
+| Email                    | Rol        | Contraseña      |
+| ------------------------ | ---------- | --------------- |
+| `seller@bookshelf.dev`   | `seller`   | `BookShelf123!` |
+| `customer@bookshelf.dev` | `customer` | `BookShelf123!` |
+
+El resto de usuarios sembrados los genera Faker con semilla fija. Estas dos son literales
+precisamente para que no cambien al actualizar la librería.
+
+> Son **datos de desarrollo**, nunca credenciales válidas fuera de una base de datos local. No las
+> reutilices en ningún entorno real.
 
 ### Desarrollo del día a día
 
@@ -117,7 +145,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 | `make test`       | Tests de backend (pytest) + frontend (vitest)   |
 | `make test-back`  | Solo tests del backend (pytest)                 |
 | `make test-front` | Solo tests del frontend (vitest)                |
-| `make test-e2e`   | Tests E2E con Playwright (pendiente)            |
+| `make test-e2e`   | Tests E2E con Playwright (requiere API y seed)  |
 | `make lint`       | Linters de backend + frontend                   |
 | `make lint-front` | Solo ESLint del frontend                        |
 | `make format-front` | Reformatea el frontend con Prettier           |
@@ -128,7 +156,10 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 ## Convenciones globales
 
 - **Idioma del código:** inglés (variables, funciones, clases, comentarios).
-- **Idioma de la documentación:** español.
+- **Idioma de la documentación, según a quién va dirigida:** **español** para lo
+  que leen personas — los cuatro `README.md` y los ADR de `backend/docs/`—, e
+  **inglés** para lo que leen los agentes — `CLAUDE.md`, `docs/` y `.claude/`.
+  Los textos de la interfaz, en español.
 - **Tipado estricto obligatorio** en ambos stacks (mypy strict / TypeScript strict).
 - Todo el código debe tener tests. **Coverage mínimo: 80 %**, aplicado
   automáticamente en el backend desde `[tool.coverage.report] fail_under`
@@ -197,12 +228,14 @@ viven en la configuración de cada proyecto (`backend/pyproject.toml`
 → `coverage.thresholds`), nunca en el YAML: así el mismo comando falla
 igual en local y en CI.
 
-Todavía **no existen** las fases `test-e2e`, `build` ni `security-scan`.
-Cada una llega en su propia issue:
+Los tests E2E existen (`make test-e2e`) pero **no corren en CI**: necesitan la
+API levantada y la base sembrada, así que de momento son un target manual.
+Las fases `build` y `security-scan` todavía no existen. Cada pendiente llega en
+su propia issue:
 
 | Fase pendiente | Issue |
 |---|---|
-| Tests E2E (Playwright) | #6 |
+| E2E dentro del pipeline | #33 |
 | Escaneo de seguridad (CodeQL, gitleaks, Trivy) | #21 |
 | Build de imágenes Docker y publicación en GHCR | #22 |
 | Branch protection y checks obligatorios | #23 |
@@ -223,6 +256,21 @@ como punto de enganche, no como deuda:
   `backend/src/adapters/outbound/` que calcule los embeddings detrás de un
   puerto del dominio. La búsqueda actual (`/books/search`) es un `ILIKE` y
   seguiría siendo el fallback.
+
+- **Compra, carrito e histórico de pedidos.** Nunca han existido: no hay modelo
+  de dominio, ni router, ni migración. El README los anunciaba en presente y
+  eso se ha corregido. Construirlos es, de hecho, un buen primer ejercicio
+  sobre la plantilla: una entidad nueva recorre las tres capas y `docs/backend-hexagonal-architecture.md`
+  lleva el paso a paso.
+
+- **Recomendaciones con IA.** Cayeron con `pgvector`, por el mismo motivo.
+  `backend/docs/decision-stack-backend.md` conserva el razonamiento original y
+  explica por qué la decisión de stack se sostiene igual sin ellas.
+
+- **Pantallas de catálogo y de favoritos.** La API existe y está probada
+  (`GET /books`, `/books/search` y el CRUD de listas de favoritos); lo que falta
+  es el frontend. Los módulos `frontend/src/features/books/` y `wishlist/` están
+  creados y vacíos, con su `index.ts` exportando nada, listos para llenarse.
 
 ## Despliegue
 

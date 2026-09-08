@@ -20,7 +20,9 @@ git log --oneline -10
 
 The `git log` is there to match the repo's recent message style, not to copy it blindly.
 
-This repository is a template offered to the community: once published, contributors are expected to follow the issue-driven, one-branch-per-feature workflow described in CLAUDE.md. Until then, while the sole author is building the template itself, commit directly on `master` — do not create a feature branch or block the commit just because the current branch is `master`/`main`.
+The repository's integration branch is `main`. There is no `develop` and no `master` — never assume either exists.
+
+`CLAUDE.md` describes an issue-driven workflow: one branch per issue, created with `gh issue develop <n> --checkout` so it stays linked, and a PR against `main` carrying `Closes #<n>`. Follow it — but **never create a branch on your own initiative**. If the current branch already belongs to the work being committed, commit there; if it does not, ask the user before starting a new one.
 
 ## Step 2 — Group into atomic commits
 
@@ -54,7 +56,7 @@ Format: `<type>(<scope>): <subject>`
 Close the message with the trailer:
 
 ```
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 Valid examples from the repo:
@@ -87,7 +89,7 @@ feat(backend): add book search endpoint
 Search runs on the persistence adapter to avoid loading the full
 catalog into memory.
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 )"
 ```
