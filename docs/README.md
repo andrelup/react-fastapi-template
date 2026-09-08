@@ -25,14 +25,18 @@ The live component catalogue is the app itself, at the route **`/componentes-ui`
 | [Database Access with SQLAlchemy](./backend-database-sqlalchemy.md) | Reading or writing data. ORM models, sessions and transactions, query patterns, migrations. |
 | [Code Style](./backend-code-style.md) | Always. Ruff rule families and mypy strict, and what they demand. |
 | [Testing](./backend-testing.md) | Every change. The three test tiers, fixtures, fakes and templates. |
+| [Logging](./backend-logging.md) | Adding any log line, or touching the logging config or the request middleware. The structlog pipeline, `request_id` correlation through contextvars, and the rules a log line must follow. |
 
 ## Ground rules that apply to both stacks
 
-- **Code in English**, documentation in Spanish, UI copy in Spanish.
+- **Code in English.** Documentation splits by audience: Spanish for what humans read (the four
+  `README.md` files and the ADRs under `backend/docs/`), English for what agents read (`CLAUDE.md`,
+  this `docs/` tree, `.claude/`). UI copy is in Spanish.
 - **Types are mandatory**: mypy strict in the backend, TypeScript strict in the frontend.
 - **Everything is tested.** Project minimum coverage: 80 %.
 - **Conventional Commits** with a module scope: `feat(backend): …`, `fix(frontend): …`.
-- **One branch per issue**, PR against `develop`, linked to the issue with a closing keyword.
+- **One branch per issue**, PR against `main`, linked to the issue with a closing keyword. There is
+  no `develop` branch.
 - Never commit without the pre-commit hooks passing; never commit a secret.
 - `backend/` and `frontend/` are independent projects joined by a REST API — they never import each
   other.
