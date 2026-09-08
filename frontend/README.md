@@ -117,12 +117,32 @@ npm run build      # build de producción
 ## Testing
 
 - **Unit:** Vitest + React Testing Library. Los tests se colocan junto al componente (`BookCard.test.tsx`). Se testea comportamiento, no implementación (`getByRole`, `getByText`, no `getByTestId`).
-- **E2E:** Playwright con Page Object Model.
+- **E2E:** Playwright con Page Object Model, en `e2e/` (`e2e/tests/` los specs, `e2e/page-objects/` las páginas).
 
 ```bash
 npx vitest run --coverage   # unit + coverage
-npx playwright test         # E2E
+npm run test:e2e            # E2E (equivalente a `make test-e2e` desde la raíz)
 ```
+
+### Requisitos para los tests E2E
+
+Los tests E2E asumen un entorno completo levantado, no solo el frontend:
+
+1. `make dev` — levanta PostgreSQL en Docker.
+2. `make dev-back` — API en `http://localhost:8000` (en otra terminal).
+3. `make seed` — puebla la base de datos, incluidas dos cuentas fijas pensadas
+   para el login manual y para los propios specs:
+
+   | Email                    | Rol      | Contraseña      |
+   | ------------------------ | -------- | --------------- |
+   | `seller@bookshelf.dev`   | seller   | `BookShelf123!` |
+   | `customer@bookshelf.dev` | customer | `BookShelf123!` |
+
+   Son datos de desarrollo únicamente — nunca credenciales válidas fuera de una
+   base de datos local.
+
+Playwright arranca el propio `npm run dev` (puerto 3000) a través de `webServer`
+en `playwright.config.ts`, así que no hace falta tenerlo corriendo aparte.
 
 ## Qué NO hacer
 
