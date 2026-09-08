@@ -212,7 +212,8 @@ def start_database() -> bool:
             return True
         if code == 0 and status == "unhealthy":
             warn(
-                f"el contenedor {POSTGRES_CONTAINER} esta unhealthy; revisa `make db-logs`"
+                f"el contenedor {POSTGRES_CONTAINER} esta unhealthy; revisa sus logs "
+                f"con `docker logs {POSTGRES_CONTAINER}`"
             )
             return False
         time.sleep(2)
@@ -247,7 +248,8 @@ def print_summary() -> None:
         "  make dev-back     -> API en http://localhost:8000/docs\n"
         "  make dev-front    -> SPA en http://localhost:3000\n"
         "\nOtros comandos:\n"
-        "  make dev          -> todo el entorno en Docker (sin instalar nada en local)\n"
+        "  make dev          -> solo PostgreSQL en Docker, lista para los de arriba\n"
+        "  make prod         -> stack completo con las imagenes de produccion\n"
         "  make test         -> tests de backend + frontend\n"
         "  make lint         -> ruff + mypy + eslint\n"
         "\nLos targets del Makefile llaman al .venv directamente, no hace falta "
