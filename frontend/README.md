@@ -1,6 +1,8 @@
 # react-template Frontend — SPA
 
-Aplicación de página única (SPA) de la tienda de libros react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**. La búsqueda está optimizada reutilizando en sesión los datos ya obtenidos, evitando peticiones redundantes al backend.
+Aplicación de página única (SPA) de la tienda de libros react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**.
+
+Está deliberadamente a medio construir: el feature de autenticación está completo de punta a punta, y `books/` y `wishlist/` son módulos vacíos a la espera de que alguien los llene. Es una plantilla, no un producto.
 
 ## Stack
 
@@ -24,9 +26,9 @@ frontend/
 │   │
 │   ├── features/      # MÓDULOS DE DOMINIO — cada feature es autónomo
 │   │   ├── auth/      # Login, registro, ProtectedRoute, useAuth
-│   │   ├── books/     # Catálogo, detalle, búsqueda
-│   │   ├── wishlist/  # Favoritos
-│   │   └── seller/    # Panel de vendedor
+│   │   ├── books/     # VACÍO — index.ts es `export {};`
+│   │   ├── wishlist/  # VACÍO — index.ts es `export {};`
+│   │   └── seller/    # Solo SellerDashboard.tsx
 │   │       ├── api/       # Llamadas al backend
 │   │       ├── components/# Componentes exclusivos del feature
 │   │       ├── hooks/     # Hooks del feature
@@ -40,10 +42,11 @@ frontend/
 │   └── utils/         # Helpers puros: format-price, get-initials
 │
 ├── e2e/               # Tests E2E con Playwright (Page Object Model)
-├── public/
 ├── package.json
 ├── vite.config.ts
+├── playwright.config.ts
 ├── tailwind.config.ts
+├── nginx.conf         # Lo usa la imagen de produccion
 └── Dockerfile
 ```
 
@@ -59,7 +62,7 @@ frontend/
 ## Convenciones de código
 
 - Functional components con hooks. **No** class components.
-- `PascalCase` para componentes (`BookCard.tsx`), `camelCase` para hooks (`useAuth.ts`), `kebab-case` para utilidades y API (`books-api.ts`).
+- `PascalCase` para componentes (`LoginForm.tsx`), `camelCase` para hooks (`useAuth.ts`), `kebab-case` para utilidades y API (`auth-api.ts`).
 - TypeScript strict. Prohibido `any` — usar `unknown` con _narrowing_.
 - **Named exports** siempre (salvo páginas para lazy loading).
 - Props definidas con `interface`, no con `type`.
@@ -68,7 +71,7 @@ frontend/
 
 - **React Context** solo para auth (usuario logueado, token), en `app/providers.tsx`.
 - **Estado local** (`useState`, `useReducer`) para todo lo demás. Sin Redux ni Zustand.
-- **Datos del servidor** gestionados con el hook `useApi` (loading / error / data). Los datos se reutilizan en sesión para optimizar la búsqueda.
+- **Datos del servidor** gestionados con el hook `useApi` (loading / error / data).
 - Un estado necesario en más de un feature se eleva a Context o a un hook compartido.
 
 ## API Client
@@ -91,7 +94,8 @@ frontend/
 - React Router v6 con rutas en `app/router.tsx`.
 - Lazy loading para las páginas principales.
 - Rutas protegidas con el componente `ProtectedRoute` de `features/auth`.
-- Rutas de seller separadas con su propio layout.
+- Rutas restringidas por rol con `RoleRoute` (`/dashboard` es solo para `seller`). Hay un único
+  `Layout`: el rol condiciona el acceso a una ruta, no le da un layout propio.
 
 ## Path Aliases
 
@@ -116,7 +120,7 @@ npm run build      # build de producción
 
 ## Testing
 
-- **Unit:** Vitest + React Testing Library. Los tests se colocan junto al componente (`BookCard.test.tsx`). Se testea comportamiento, no implementación (`getByRole`, `getByText`, no `getByTestId`).
+- **Unit:** Vitest + React Testing Library. Los tests se colocan junto al componente (`Button.test.tsx`). Se testea comportamiento, no implementación (`getByRole`, `getByText`, no `getByTestId`).
 - **E2E:** Playwright con Page Object Model, en `e2e/` (`e2e/tests/` los specs, `e2e/page-objects/` las páginas).
 
 ```bash
