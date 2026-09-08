@@ -27,22 +27,21 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 - Ruff: line-length 100, rules `E,F,I,N,UP,B,SIM,S`
 - mypy: `strict = true`
 - pytest: `asyncio_mode = "auto"`, `pythonpath = ["."]`
-- **No `[tool.coverage]` section** — the documented 80% minimum is NOT enforced anywhere. If you add a coverage gate, add it to config, not only to the workflow
+- **Coverage IS gated in config**: `[tool.coverage.run]` (source `src`, omitting `alembic/*` and `seed.py`) plus `[tool.coverage.report] fail_under = 80`. The threshold lives there, never on a command line — do not restate it in the workflow, and never lower it
 - `backend/tests/integration/conftest.py` starts Postgres through the **Docker CLI**, not testcontainers. On a runner you must either keep that (Docker is available on `ubuntu-latest`) or switch those tests to an Actions `services:` Postgres — decide explicitly and say which
 
 **Frontend** (`frontend/package.json`):
 - npm (`package-lock.json`). No pnpm, no yarn
-- Real scripts: `dev`, `build` (`tsc --noEmit && vite build`), `preview`, `lint` (`eslint src`), `typecheck` (`tsc --noEmit`), `test` (`vitest run`), `test:watch`
-- **No `coverage` script** despite `@vitest/coverage-v8` being installed → `npx vitest run --coverage`, or add the script
-- **No `engines`, no `.nvmrc`, no `packageManager`** → Node version is unpinned. Pin it in the workflow (`node-version: 22`) and propose an `.nvmrc`
-- Vitest is configured inside `vite.config.ts`, not a separate config. No coverage thresholds set
+- Real scripts: `dev`, `build` (`tsc --noEmit && vite build`), `preview`, `lint` (`eslint src e2e --max-warnings=0`), `lint:fix`, `format`, `format:check`, `typecheck`, `test` (`vitest run`), `test:watch`, `test:coverage`, `test:e2e` (`playwright test`)
+- **No `engines`, no `.nvmrc`, no `packageManager`** → the Node version is unpinned in the repo and the workflows pin `node-version: '24'` themselves. Issue #27 is open to move it to a single source
+- Vitest is configured inside `vite.config.ts`, not a separate config, **with coverage thresholds at 80** for statements, lines, branches and functions. `test.exclude` keeps Vitest away from `e2e/**` — do not remove it, or `make test-front` will try to run the Playwright specs
 
-**Documented but NON-EXISTENT** — do not reference these until they are built:
-- `frontend/Dockerfile` (only `backend/Dockerfile` exists)
-- Playwright / any E2E suite (`test-e2e` is vapour)
-- Frontend pre-commit hooks (a TODO comment in `.pre-commit-config.yaml`)
+**E2E** — Playwright is wired: `frontend/playwright.config.ts`, specs in `frontend/e2e/tests/`, page objects in `frontend/e2e/page-objects/`, and `make test-e2e` runs it for real. Its `webServer` starts the SPA itself, but it still needs a running API and a seeded database, so **it is not a drop-in CI job**: decide explicitly how to provide both before adding one.
 
-**Makefile drift** — `make test-front` and `make test-e2e` are placeholder `echo`s, even though 22 vitest test files already exist and `npm run test` works. Do NOT call those targets from CI. Fix the Makefile target instead of duplicating the command in YAML.
+**Still NON-EXISTENT** — do not reference these until they are built:
+- `.github/dependabot.yml` (issue #16)
+- `security.yml` (issue #21), `docker.yml` (issue #22)
+- Branch protection and required checks (issue #23)
 
 **Rule:** if something does not exist, say so and either propose creating it or leave it out of the workflow. Never write a step that references a file, script or service that is not there.
 
@@ -64,8 +63,8 @@ Sanctioned toolbox:
 | Need | Tool |
 |---|---|
 | Lint / format / types (backend) | `ruff check`, `ruff format --check`, `mypy --strict` |
-| Lint / types (frontend) | `eslint src`, `tsc --noEmit` |
-| Coverage gate | `pytest --cov --cov-fail-under=80`, vitest `coverage.thresholds` |
+| Lint / types (frontend) | `eslint src e2e`, `tsc --noEmit` |
+| Coverage gate | `fail_under` in `backend/pyproject.toml`, `coverage.thresholds` in `frontend/vite.config.ts` — both already set to 80, never on a command line |
 | Coverage reporting | GitHub job summary / PR comment. Codecov only if the user opts in |
 | SAST | `github/codeql-action` |
 | Secret scanning | `gitleaks` action + GitHub push protection |
@@ -92,7 +91,7 @@ Sanctioned toolbox:
 - **Matrices only when they earn their cost.** One Python version and one Node version unless the user asks otherwise
 - **`working-directory`** at job or step level for `backend/` and `frontend/` — never `cd` inside `run:`
 - **Reuse the `Makefile`** when the target is already correct. If it is wrong or a placeholder, fix the Makefile — do not duplicate the command in YAML
-- **`pull_request` + `push` to the main branches only.** Respect the issue-driven flow: PRs target `develop`, bodies carry `Closes #N`. Never add automation that closes issues or deletes branches by itself — merging the linked PR already does that
+- **`pull_request` + `push` to the main branches only.** Respect the issue-driven flow: PRs target `main` (there is no `develop` branch), bodies carry `Closes #N`. Never add automation that closes issues or deletes branches by itself — merging the linked PR already does that
 
 ## Approach
 
@@ -125,7 +124,7 @@ Sanctioned toolbox:
 - [ ] Dependency caching enabled for pip and npm
 - [ ] Job dependency graph (`needs:`) matches the intended pipeline order
 - [ ] No SonarQube / SonarCloud / paid tooling introduced
-- [ ] Issue-driven flow untouched (PRs to `develop`, `Closes #N` still does the closing)
+- [ ] Issue-driven flow untouched (PRs to `main`, `Closes #N` still does the closing)
 - [ ] Conventional commit message suggested, scoped `ci:` (e.g. `ci: add backend test workflow`)
 
 ## Output

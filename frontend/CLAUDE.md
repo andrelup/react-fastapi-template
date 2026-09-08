@@ -24,103 +24,68 @@ frontend/
 ├── src/
 │   ├── app/                       # Entrypoint, global providers, router
 │   │   ├── App.tsx                # Root component
-│   │   ├── providers.tsx          # AuthProvider, QueryProvider, etc.
-│   │   └── router.tsx             # Route definitions with React Router v6
+│   │   ├── main.tsx               # ReactDOM entrypoint
+│   │   ├── providers.tsx          # Global provider composition
+│   │   ├── router.tsx             # Route table (react-router-dom)
+│   │   └── pages/                 # One component per route
+│   │       ├── HomePage.tsx
+│   │       ├── LoginPage.tsx
+│   │       ├── RegisterPage.tsx
+│   │       ├── DashboardPage.tsx          # Seller-only, behind RoleRoute
+│   │       ├── UiComponentsPage.tsx       # Live catalogue at /componentes-ui
+│   │       └── NotFoundPage.tsx
 │   │
-│   ├── features/                  # DOMAIN MODULES — each feature is autonomous
-│   │   ├── auth/
-│   │   │   ├── api/               # Backend calls (login, register, logout)
-│   │   │   │   └── auth-api.ts
-│   │   │   ├── components/        # Components exclusive to auth
+│   ├── features/                  # Self-contained feature modules
+│   │   ├── auth/                  # The only fully built feature
+│   │   │   ├── api/auth-api.ts            # /auth/login, /auth/register, /auth/me
+│   │   │   ├── components/
+│   │   │   │   ├── AuthProvider.tsx       # Session state, restored from localStorage
 │   │   │   │   ├── LoginForm.tsx
 │   │   │   │   ├── RegisterForm.tsx
-│   │   │   │   └── ProtectedRoute.tsx
-│   │   │   ├── hooks/             # Auth hooks
-│   │   │   │   ├── useAuth.ts
-│   │   │   │   └── useLogin.ts
-│   │   │   ├── types/             # Auth TypeScript types
-│   │   │   │   └── index.ts
-│   │   │   └── index.ts           # Feature public API (re-exports)
-│   │   │
-│   │   ├── books/
-│   │   │   ├── api/
-│   │   │   │   └── books-api.ts
-│   │   │   ├── components/
-│   │   │   │   ├── BookCard.tsx
-│   │   │   │   ├── BookList.tsx
-│   │   │   │   ├── BookDetail.tsx
-│   │   │   │   └── BookSearch.tsx
-│   │   │   ├── hooks/
-│   │   │   │   ├── useBooks.ts
-│   │   │   │   └── useBookSearch.ts
-│   │   │   ├── types/
-│   │   │   │   └── index.ts
-│   │   │   └── index.ts
-│   │   │
-│   │   ├── wishlist/
-│   │   │   ├── api/
-│   │   │   ├── components/
-│   │   │   ├── hooks/
-│   │   │   ├── types/
-│   │   │   └── index.ts
-│   │   │
-│   │   └── seller/
-│   │       ├── api/
-│   │       ├── components/
-│   │       │   ├── SellerDashboard.tsx
-│   │       │   ├── BookForm.tsx
-│   │       │   └── SellerBookList.tsx
-│   │       ├── hooks/
-│   │       ├── types/
-│   │       └── index.ts
+│   │   │   │   ├── ProtectedRoute.tsx     # Requires a session
+│   │   │   │   └── RoleRoute.tsx          # Requires a session AND a role
+│   │   │   ├── context/auth-context.ts
+│   │   │   ├── hooks/                     # useAuth, useLogin
+│   │   │   ├── types/index.ts
+│   │   │   └── index.ts                   # Public contract of the feature
+│   │   ├── seller/                # Only SellerDashboard.tsx so far
+│   │   ├── books/                 # EMPTY: index.ts is `export {};`
+│   │   └── wishlist/              # EMPTY: index.ts is `export {};`
 │   │
-│   ├── components/                # SHARED components (generic reusable UI)
-│   │   ├── ui/                    # Primitives: Button, Input, Modal, Card, Spinner
-│   │   │   ├── Button.tsx
-│   │   │   ├── Input.tsx
-│   │   │   ├── Modal.tsx
-│   │   │   ├── Card.tsx
-│   │   │   └── Spinner.tsx
-│   │   └── layout/                # Layout: Header, Footer, Sidebar, PageContainer
-│   │       ├── Header.tsx
-│   │       ├── Footer.tsx
-│   │       └── PageContainer.tsx
+│   ├── components/
+│   │   ├── ui/                    # Generic, no business logic
+│   │   │   ├── Button.tsx  Input.tsx  Card.tsx  Modal.tsx  Spinner.tsx
+│   │   │   ├── Avatar.tsx  Badge.tsx
+│   │   │   └── EmptyState.tsx  NoResultsState.tsx  NotFoundState.tsx
+│   │   │       ServerErrorState.tsx  SystemStateCard.tsx
+│   │   └── layout/                # Layout, Header, Footer, Sidebar, PageContainer,
+│   │                              # MobileTabBar, MobileActionBar, MobileAccountDrawer
 │   │
-│   ├── hooks/                     # SHARED hooks (generic, not feature-specific)
-│   │   ├── useApi.ts              # fetch wrapper with auth header and error handling
-│   │   ├── useDebounce.ts
-│   │   └── useLocalStorage.ts
-│   │
-│   ├── lib/                       # External library configuration
-│   │   └── api-client.ts          # Base fetch/axios instance with baseURL and interceptors
-│   │
-│   ├── types/                     # Shared global types
-│   │   └── api.ts                 # ApiResponse<T>, PaginatedResponse<T>, etc.
-│   │
-│   └── utils/                     # Pure helper functions (no side effects)
-│       ├── format-price.ts
-│       └── get-initials.ts
+│   ├── hooks/                     # Generic: useApi, useDebounce, useLocalStorage
+│   ├── lib/api-client.ts          # The ONLY place allowed to call fetch
+│   ├── types/api.ts               # ApiResponse<T>, PaginatedResponse<T>
+│   ├── utils/                     # format-price, get-initials
+│   └── test/setup.ts              # Vitest setup (jest-dom + cleanup)
 │
-├── e2e/                           # E2E tests with Playwright
-│   ├── tests/
-│   │   ├── auth.spec.ts
-│   │   ├── books.spec.ts
-│   │   └── wishlist.spec.ts
-│   └── page-objects/              # Page Object Model
-│       ├── LoginPage.ts
-│       └── CatalogPage.ts
+├── e2e/                           # Playwright, Page Object Model
+│   ├── tests/auth.spec.ts
+│   ├── page-objects/LoginPage.ts
+│   └── tsconfig.json              # e2e/ is outside the src tsconfig
 │
-├── public/
-├── index.html
 ├── package.json
+├── vite.config.ts                 # Vite + Vitest + coverage thresholds
 ├── tsconfig.json
-├── vite.config.ts
 ├── tailwind.config.ts
 ├── eslint.config.js
 ├── prettier.config.js
 ├── playwright.config.ts
+├── nginx.conf                     # Used by the production image
 └── Dockerfile
 ```
+
+Unit tests are colocated next to what they cover (`Button.test.tsx`) and are omitted from the tree.
+Anything not listed above does not exist yet — in particular `books/` and `wishlist/` hold only a
+`.gitkeep` and an `index.ts` exporting nothing.
 
 ## Bulletproof React Architecture rules
 
@@ -148,9 +113,9 @@ frontend/
 ## Code conventions
 
 - Functional components with hooks. No class components.
-- PascalCase for components: `BookCard.tsx`, `LoginForm.tsx`
-- camelCase for hooks: `useAuth.ts`, `useBooks.ts`
-- kebab-case for utility and API files: `books-api.ts`, `format-price.ts`
+- PascalCase for components: `LoginForm.tsx`, `SystemStateCard.tsx`
+- camelCase for hooks: `useAuth.ts`, `useLocalStorage.ts`
+- kebab-case for utility and API files: `auth-api.ts`, `format-price.ts`
 - TypeScript strict mode is mandatory. Do not use `any` — use `unknown` and narrowing.
 - Named exports always. No default exports (except pages, for lazy loading).
 - Props defined with `interface`, not `type`:
@@ -196,7 +161,7 @@ frontend/
 
 - **Unit tests:** Vitest + React Testing Library
 - **E2E tests:** Playwright with the Page Object Model
-- Colocation: unit tests next to the component (`BookCard.test.tsx` next to `BookCard.tsx`)
+- Colocation: unit tests next to the component (`Button.test.tsx` next to `Button.tsx`)
 - Test behavior, not implementation. Use `getByRole`, `getByText`, not `getByTestId`.
 - Run: `npm run test` (single pass) / `npm run test:watch` (watch mode)
 - Coverage: `npm run test:coverage` — enforces 80 % thresholds (statements, lines, branches,
@@ -209,16 +174,17 @@ frontend/
 - React Router v6 with routes defined in `app/router.tsx`
 - Lazy loading for the main pages:
   ```typescript
-  const BookDetail = lazy(() => import('@/features/books/components/BookDetail'));
+  const HomePage = lazy(() => import('@/app/pages/HomePage'));
   ```
 - Protected routes with the `ProtectedRoute` component from `features/auth`
-- Seller routes kept separate with their own layout
+- Role-restricted routes with `RoleRoute` (e.g. `/dashboard` for `seller`). There is a single
+  `Layout`; roles gate a route, they do not get a layout of their own
 
 ## Path aliases
 
 - `@/` points to `src/`:
   ```typescript
-  import { BookCard } from '@/features/books';
+  import { useAuth } from '@/features/auth';
   import { Button } from '@/components/ui/Button';
   import { useApi } from '@/hooks/useApi';
   ```
