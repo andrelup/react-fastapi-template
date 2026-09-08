@@ -18,6 +18,13 @@ FROM python:3.12-slim AS runtime
 
 WORKDIR /app
 
+# Sin bufer en stdout/stderr. La salida propia de la aplicacion ya pasa por
+# logging.StreamHandler, que hace flush en cada registro, pero esto cubre lo
+# que no pasa por logging -- un print de una libreria de terceros, o el
+# traceback que el interprete escribe al morir -- para que una muerte brusca
+# del proceso no se lleve por delante las ultimas lineas.
+ENV PYTHONUNBUFFERED=1
+
 RUN useradd --create-home --shell /bin/bash appuser
 
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages

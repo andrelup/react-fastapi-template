@@ -16,10 +16,24 @@
 # `docker compose up` sin perfil levanta unicamente postgres.
 name: react-fastapi-template
 
+# Rotacion del fichero de log que el demonio de Docker mantiene en el host por
+# cada contenedor (/var/lib/docker/containers/<id>/<id>-json.log; en Windows,
+# dentro del disco de la VM de WSL2). El driver json-file rota por TAMANO, no
+# por tiempo: no existe una opcion de "30 dias". 20 MB por fichero y 15
+# ficheros son 300 MB de tope duro por contenedor, muchisimo mas de 30 dias
+# con el volumen de este proyecto. La retencion expresada en dias es cosa del
+# agregador de logs, cuando lo haya.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "15"
+
 services:
   postgres:
     image: postgres:16
     container_name: react-fastapi-template-postgres
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${DB_USERNAME:?falta DB_USERNAME en el env-file}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD en el env-file}
@@ -40,6 +54,12 @@ services:
       context: ../backend
       dockerfile: Dockerfile
     container_name: fastapi-template
+    # Solo los servicios del perfil "prod" reinician solos: son los que
+    # representan el despliegue real, donde nadie esta mirando cuando algo
+    # cae. postgres se queda sin politica a proposito, porque en desarrollo se
+    # levanta y se para a voluntad.
+    restart: unless-stopped
+    logging: *default-logging
     environment:
       APP_NAME: ${APP_NAME:-fastapi-template API}
       ENVIRONMENT: ${ENVIRONMENT:-production}
@@ -79,6 +99,8 @@ services:
         # la URL tal y como la ve el navegador del host, no la red interna.
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     container_name: react-template
+    restart: unless-stopped
+    logging: *default-logging
     # nginx sirve la SPA compilada en el 80 del contenedor (como usuario no
     # root); al host se publica en el 3000, el mismo puerto que en desarrollo,
     # para que CORS_ALLOWED_ORIGINS valga sin cambios.
