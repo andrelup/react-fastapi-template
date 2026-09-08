@@ -90,7 +90,9 @@ visible, `--squash` collapses it into a single commit.
 - `VITE_API_URL` is a **build arg**, not a runtime variable: Vite bakes the API
   URL into the bundle at build time
 - `docker compose down` does **not** stop services that belong to a profile —
-  `--profile prod` is required (that is what `make db-down` does)
+  `--profile prod` is required. There is no Make target for stopping: it is run
+  by hand from `infra/`
+  (`docker compose --env-file ../.env --profile prod down`)
 
 ## Makefile (root)
 
@@ -100,10 +102,8 @@ All commands run from the monorepo root:
 make setup        → getting started: venv, deps, hooks, DB, migrations, seed
 make dev-back     → backend on the host with hot reload (port 8000)
 make dev-front    → frontend on the host with hot reload (port 3000)
-make db-up        → only PostgreSQL in Docker, detached
-make db-down      → stop every container, dev and prod alike
-make dev          → PostgreSQL only, then run dev-back / dev-front on the host
-make prod         → build and run the production stack (smoke test)
+make dev          → only PostgreSQL in Docker, detached; then run dev-back / dev-front on the host
+make prod         → build and run the production stack, detached (smoke test)
 make test         → backend (pytest) + frontend (vitest) tests
 make test-back    → backend tests only (pytest)
 make test-front   → frontend tests only (vitest)

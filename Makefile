@@ -26,7 +26,7 @@ ARGS ?=
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup install-hooks dev dev-back dev-front db-up db-down db-logs \
+.PHONY: help setup install-hooks dev dev-back dev-front \
         test test-back test-front test-e2e lint lint-front format-front \
         migrate seed build prod
 
@@ -38,9 +38,6 @@ help:
 	@echo   make dev-front    frontend con hot reload en el host, puerto 3000
 	@echo   make dev          solo PostgreSQL en Docker, lista para dev-back/dev-front
 	@echo   make prod         stack completo con las imagenes de produccion
-	@echo   make db-up        solo PostgreSQL en Docker, en background
-	@echo   make db-down      para los contenedores de infra
-	@echo   make db-logs      logs de PostgreSQL
 	@echo   make migrate      alembic upgrade head
 	@echo   make seed         datos de ejemplo en la base de datos
 	@echo   make test         tests de backend + frontend
@@ -67,10 +64,13 @@ install-hooks:
 	npm --prefix frontend ci
 	$(PYTHON) -m pre_commit install
 
-## dev: prepara el entorno de desarrollo. Docker solo levanta PostgreSQL; el
-## backend y el frontend se ejecutan nativos en el host, que es donde el hot
-## reload funciona de verdad y donde no hace falta montar el codigo fuente
-## dentro de un contenedor. Deja la BD en background e imprime que lanzar.
+## dev: prepara el entorno de desarrollo. Docker solo levanta PostgreSQL, en
+## background; el backend y el frontend se ejecutan nativos en el host, que es
+## donde el hot reload funciona de verdad y donde no hace falta montar el
+## codigo fuente dentro de un contenedor.
+##
+## Para parar los contenedores (esta BD o el stack de `make prod`), desde
+## infra/: docker compose --env-file ../.env --profile prod down
 dev:
 	cd infra && docker compose --env-file ../.env up -d postgres
 	@echo PostgreSQL levantada. Ahora, en dos terminales:
@@ -78,28 +78,13 @@ dev:
 	@echo   make dev-front    SPA en http://localhost:3000
 
 ## dev-back: backend en el host con hot reload, contra la PostgreSQL de Docker.
-## Requiere `make setup` (o al menos `make db-up`) hecho antes.
+## Requiere `make setup` (o al menos `make dev`) hecho antes.
 dev-back:
 	cd backend && $(BACKEND_PYTHON) -m uvicorn src.main:app --reload --port 8000
 
 ## dev-front: frontend en el host con hot reload (Vite, puerto 3000).
 dev-front:
 	npm --prefix frontend run dev
-
-## db-up: levanta solo PostgreSQL en background (lo que necesita `make dev-back`).
-db-up:
-	cd infra && docker compose --env-file ../.env up -d postgres
-
-## db-down: para y elimina los contenedores de infra, los de `make dev` y los de
-## `make prod` (los datos sobreviven en el volumen postgres_data). El
-## `--profile prod` es imprescindible: sin el, `down` deja en marcha los
-## servicios que pertenecen a un perfil.
-db-down:
-	cd infra && docker compose --env-file ../.env --profile prod down
-
-## db-logs: sigue los logs de PostgreSQL.
-db-logs:
-	cd infra && docker compose --env-file ../.env logs -f postgres
 
 ## test: suite completa (pytest en backend + vitest en frontend). test-e2e
 ## sigue pendiente hasta que se configure Playwright.
@@ -142,8 +127,15 @@ seed:
 ## backend + frontend). Sin hot reload, sin volumenes con el codigo y sin root:
 ## es exactamente lo que se despliega, util como prueba de humo antes de subir.
 ## La SPA queda en http://localhost:3000 y la API en http://localhost:8000.
+##
+## Arranca en background: la terminal queda libre en vez de quedarse enganchada
+## a los logs de los tres contenedores. Para verlos, desde infra/:
+## docker compose --env-file ../.env --profile prod logs -f
 prod:
-	cd infra && docker compose --env-file ../.env --profile prod up --build
+	cd infra && docker compose --env-file ../.env --profile prod up -d --build
+	@echo Stack de produccion levantado:
+	@echo   SPA en http://localhost:3000
+	@echo   API en http://localhost:8000/docs
 
 ## build: construye las imagenes Docker de produccion de backend y frontend y
 ## las etiqueta. `make prod` ademas las levanta; esto solo las construye, que es
