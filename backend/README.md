@@ -94,12 +94,13 @@ python -m venv .venv                  # en la raíz, no en backend/
 .venv\Scripts\Activate.ps1            # Linux/macOS: source .venv/bin/activate
 pip install -e "backend[dev]"
 pre-commit install                    # git hooks (config en la raíz del monorepo)
-make db-up                            # PostgreSQL en Docker
+make dev                              # PostgreSQL en Docker
 make migrate                          # alembic upgrade head
 make seed                             # datos de ejemplo
 ```
 
-Alternativa sin instalar nada en local: `make dev` levanta backend + PostgreSQL en Docker Compose.
+Docker se usa solo para la base de datos: el backend corre nativo en el host con `make dev-back`.
+Para ver el stack completo con las imágenes de producción, `make prod`.
 
 Los targets del Makefile invocan el intérprete de `.venv` por ruta, así que no requieren tenerlo activado.
 

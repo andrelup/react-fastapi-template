@@ -60,31 +60,46 @@ make setup
 5. Engancha los hooks de `pre-commit` en `.git/hooks/pre-commit`.
 6. Levanta PostgreSQL en Docker, aplica las migraciones de Alembic y carga los datos de ejemplo.
 
-Si Docker no está arrancado, el paso 6 se salta con un aviso y el resto se completa igual; luego basta con `make db-up && make migrate && make seed`.
+Si Docker no está arrancado, el paso 6 se salta con un aviso y el resto se completa igual; luego basta con `make dev && make migrate && make seed`.
 
 Variantes: `make setup ARGS="--skip-db"`, `ARGS="--skip-front"`, `ARGS="--no-seed"`.
 
 ### Desarrollo del día a día
 
-Backend y frontend se ejecutan **en el host**, cada uno con su propio hot reload, contra la PostgreSQL de Docker. Dos terminales:
+Docker se usa solo para la **base de datos**: backend y frontend se ejecutan **en el host**, cada uno con su propio hot reload, contra la PostgreSQL del contenedor. Tres terminales:
 
 ```bash
+make dev         # PostgreSQL 16 en Docker, en background
 make dev-back    # API      → http://localhost:8000/docs
 make dev-front   # SPA      → http://localhost:3000
 ```
 
 Los targets del Makefile llaman al intérprete de `.venv` por ruta, así que **no hace falta activar el entorno virtual**. Para lanzar comandos a mano sí conviene: `.venv\Scripts\Activate.ps1` (Windows) o `source .venv/bin/activate` (Linux/macOS).
 
-### Solo Docker
+### Stack de producción
 
-Para ver la aplicación funcionando sin instalar nada en local:
+Para ver la aplicación funcionando tal y como se despliega, sin hot reload ni código montado por volúmenes:
 
 ```bash
 cp .env.example .env
-make dev
+make prod
 ```
 
-Levanta todo el entorno con Docker Compose (hot reload del backend vía volúmenes). Es la vía más simple para arrancar la app, pero para iterar en código a diario es más cómoda la combinación `make dev-back` + `make dev-front`.
+Construye y levanta las tres imágenes (PostgreSQL + backend + frontend) con el perfil `prod` de Compose: la SPA en <http://localhost:3000> y la API en <http://localhost:8000>, ambas corriendo como usuario no root. Es la prueba de humo antes de publicar, no el entorno de trabajo diario.
+
+Igual que `make dev`, arranca en **background** y no vuelca los logs de los contenedores en la terminal. Para verlos: `cd infra && docker compose --env-file ../.env --profile prod logs -f`.
+
+### Parar los contenedores
+
+El Makefile no tiene target para parar; se hace desde `infra/`:
+
+```bash
+cd infra
+docker compose --env-file ../.env --profile prod down      # datos intactos
+docker compose --env-file ../.env --profile prod down -v   # borra también el volumen
+```
+
+El `--profile prod` es **imprescindible**: sin él, `down` deja en marcha los servicios que pertenecen a un perfil.
 
 ## Comandos (Makefile)
 
@@ -96,11 +111,9 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 | `make setup`         | Getting started: entorno local listo para trabajar |
 | `make dev-back`      | Backend en el host con hot reload (puerto 8000)  |
 | `make dev-front`     | Frontend en el host con hot reload (puerto 3000) |
-| `make db-up`         | Solo PostgreSQL en Docker, en background        |
-| `make db-down`       | Para los contenedores de infra                  |
-| `make db-logs`       | Sigue los logs de PostgreSQL                    |
+| `make dev`           | Solo PostgreSQL en Docker, en background        |
+| `make prod`          | Stack completo con las imágenes de producción   |
 | `make install-hooks` | Instala deps de npm del frontend + hooks de git |
-| `make dev`        | `docker compose up` — levanta todo el entorno   |
 | `make test`       | Tests de backend (pytest) + frontend (vitest)   |
 | `make test-back`  | Solo tests del backend (pytest)                 |
 | `make test-front` | Solo tests del frontend (vitest)                |
