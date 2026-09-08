@@ -26,10 +26,12 @@ from src.adapters.outbound.persistence.favourite_list_repository import (
 )
 from src.adapters.outbound.persistence.user_repository import SqlAlchemyUserRepository
 from src.adapters.outbound.security.password_hasher import BcryptPasswordHasher
+from src.config.logging import configure_logging
 from src.domain.models.book import Book
 from src.domain.models.favourite import FavouriteList
 from src.domain.models.user import User, UserRole
 
+configure_logging()
 logger = structlog.get_logger(__name__)
 
 # Fixing the Faker seed makes the whole fixture reproducible: the same emails,

@@ -86,9 +86,55 @@ El `--profile prod` es **imprescindible**: sin él, `down` deja en marcha los se
 pertenecen a un perfil, así que sirve igual para parar la BD de `make dev` y el stack de
 `make prod`.
 
+## Logs y reinicio
+
+La aplicación **no escribe logs a ningún fichero**: escupe un flujo estructurado por `stdout` y ahí
+acaba su responsabilidad. Quien lo ejecuta decide qué hacer con él, que es como funcionan las
+aplicaciones contenedorizadas ([twelve-factor](https://12factor.net/logs), punto XI). En el backend
+ese flujo sale en JSON de una línea, con `request_id`, `status_code` y `duration_ms`, listo para que
+un agregador lo indexe sin necesidad de expresiones regulares.
+
+Que la aplicación no escriba a fichero **no significa que los logs se pierdan**. El demonio de
+Docker los recoge y los guarda él, en el disco del host:
+
+```
+/var/lib/docker/containers/<id-del-contenedor>/<id-del-contenedor>-json.log
+```
+
+`docker logs` no hace más que leer ese fichero. Sobrevive a que el proceso reviente, a un
+`docker restart` y a reiniciar la máquina. Lo que sí se lo lleva por delante es **eliminar el
+contenedor**, y eso incluye `docker compose down`.
+
+```bash
+docker logs fastapi-template                 # todo el historico, incluidos reinicios
+docker logs -f --tail 50 fastapi-template    # en vivo
+docker logs fastapi-template > logs.json     # llevartelo a un fichero
+```
+
+Dos ajustes del `docker-compose.yml` alrededor de esto:
+
+- **`logging`** (los tres servicios) fija `max-size: 20m` y `max-file: 15`, un tope duro de 300 MB
+  por contenedor. Sin esos límites el fichero crece sin freno hasta llenar el disco — en Windows,
+  el disco de la VM de WSL2, que no se ve venir mirando el espacio libre de `C:`. Ojo: el driver
+  `json-file` rota **por tamaño, no por tiempo**; no existe una opción de «30 días». La retención
+  en días es una función del agregador de logs, y llegará con él.
+- **`restart: unless-stopped`** solo en `backend` y `frontend`. Son los del perfil `prod`, los que
+  representan el despliegue real, donde nadie está mirando a las tres de la madrugada. `postgres`
+  se queda sin política a propósito: en desarrollo se levanta y se para a voluntad, y un reinicio
+  automático estorba más que ayuda.
+
+> Hay dos cosas que ningún sistema de logs recupera: un fallo *antes* de que el logging esté
+> configurado (el traceback lo escribe el intérprete a `stderr`, se ve pero sin estructura), y una
+> muerte violenta como un `OOMKilled`, que no llega a generar traceback. Para el segundo caso el
+> diagnóstico está en `docker inspect -f '{{.State.OOMKilled}}' fastapi-template`, no en los logs.
+
 ## Verificar
 
 ```bash
+# Politica de reinicio y rotacion de logs de los servicios de produccion
+docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' fastapi-template         # unless-stopped
+docker inspect -f '{{.HostConfig.LogConfig.Config}}' fastapi-template           # map[max-file:15 max-size:20m]
+
 # Salud de los contenedores
 docker inspect -f '{{.State.Health.Status}}' react-fastapi-template-postgres   # healthy
 docker inspect -f '{{.State.Health.Status}}' react-template                    # healthy
