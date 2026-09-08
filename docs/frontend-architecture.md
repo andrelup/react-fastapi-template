@@ -210,9 +210,9 @@ const { data, isLoading, error, execute } = useApi(loginUser);
 
 | Item | Rule | Example |
 |---|---|---|
-| Component files | `PascalCase.tsx` | `BookCard.tsx` |
-| Hook files | `camelCase.ts`, prefixed `use` | `useBookSearch.ts` |
-| API / util / context files | `kebab-case.ts` | `books-api.ts`, `format-price.ts` |
+| Component files | `PascalCase.tsx` | `LoginForm.tsx` |
+| Hook files | `camelCase.ts`, prefixed `use` | `useLocalStorage.ts` |
+| API / util / context files | `kebab-case.ts` | `auth-api.ts`, `format-price.ts` |
 | Exports | Named, always | `export const Button = …` |
 | Default exports | Only `app/pages/*`, for `React.lazy` | `export default HomePage;` |
 | Props | `interface XxxProps`, never `type` | `interface BookCardProps { … }` |
