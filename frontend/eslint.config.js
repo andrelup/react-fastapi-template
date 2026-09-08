@@ -9,7 +9,7 @@ export default tseslint.config(
   { ignores: ['dist'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
@@ -21,6 +21,20 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    // e2e/: Playwright specs and page objects run under Node, not the
+    // browser, and are plain TypeScript modules — no React, no hooks.
+    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    files: ['e2e/**/*.ts'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.node,
+    },
+    rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
     },

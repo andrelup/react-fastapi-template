@@ -8,9 +8,18 @@ Insertion order is dictated by the foreign keys: users first (a book needs a
 seller, a favourite list needs a customer), then books, then the favourite lists
 that reference them.
 
-The script is idempotent: it is keyed on a fixed Faker seed, so the accounts it
-would create are the same on every run. If any of them is already in the
-database, the run is a no-op instead of a duplicate-key crash.
+Two accounts are created before anything else, with literal (non-Faker) emails:
+`seller@bookshelf.dev` and `customer@bookshelf.dev`. They exist so a human can
+log in by hand and so the frontend's Playwright login spec has stable
+credentials that do not shift if the Faker-generated pool below ever changes.
+They are inserted into the very same seller/customer id pools the rest of the
+script uses, so they end up with published books and favourite lists exactly
+like any other seeded user.
+
+The script is idempotent: it is keyed on a fixed Faker seed (plus the two fixed
+emails above), so the accounts it would create are the same on every run. If
+any of them is already in the database, the run is a no-op instead of a
+duplicate-key crash.
 """
 
 import asyncio
@@ -103,6 +112,17 @@ class _UserSpec:
     email: str
     name: str
     role: UserRole
+
+
+# Fixed, literal accounts — not drawn from Faker — so they never change across
+# a Faker version bump and so they double as the credentials a human types in
+# by hand. Created before the Faker-generated pool below, and folded into the
+# same seller/customer id lists so they get books and favourite lists like
+# everyone else.
+FIXED_USER_SPECS: list[_UserSpec] = [
+    _UserSpec(email="seller@bookshelf.dev", name="Demo Seller", role=UserRole.SELLER),
+    _UserSpec(email="customer@bookshelf.dev", name="Demo Customer", role=UserRole.CUSTOMER),
+]
 
 
 def _build_user_specs(fake: Faker) -> list[_UserSpec]:
@@ -219,7 +239,8 @@ async def _seed(session: AsyncSession) -> None:
     Faker.seed(FAKER_SEED)
 
     user_repository = SqlAlchemyUserRepository(session)
-    specs = _build_user_specs(fake)
+    # Fixed accounts first, then the Faker-generated pool.
+    specs = FIXED_USER_SPECS + _build_user_specs(fake)
 
     already_seeded = await _find_seeded_users(user_repository, specs)
     if already_seeded:
