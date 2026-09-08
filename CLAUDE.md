@@ -1,6 +1,6 @@
-# react-fastapi-template — AI-powered bookstore
+# react-fastapi-template — full-stack project template
 
-Monorepo with a Python backend and a React frontend. Training project on Claude Code and agentic development.
+Monorepo with a Python backend and a React frontend, using a bookstore as its example domain. Training project on Claude Code and agentic development. There is no AI in the codebase: the name refers to how it is built, not to what it does.
 
 ## Repository structure
 
@@ -30,13 +30,14 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 | Read or write data, add an entity, write a migration | `docs/backend-database-sqlalchemy.md` |
 | Debug a ruff/mypy failure | `docs/backend-code-style.md` |
 | Write backend tests | `docs/backend-testing.md` |
+| Add a log line, or touch the logging config or middleware | `docs/backend-logging.md` |
 
 `docs/README.md` is the index; consult it only if the table above does not resolve which document applies.
 
 ## Global conventions
 
 - Code language: English (variables, functions, classes, comments)
-- Documentation language: Spanish
+- Documentation language, by audience: **Spanish** for what humans read — the four `README.md` files and the ADRs under `backend/docs/`; **English** for what agents read — `CLAUDE.md`, `docs/` and `.claude/`. UI copy is Spanish
 - Type hints / strict types are mandatory in both stacks
 - All code must have tests. Minimum coverage: 80%
 
@@ -44,8 +45,8 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 
 - Conventional commits are mandatory: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`
 - The commit scope indicates the module: `feat(backend): add book search endpoint`, `fix(frontend): fix login redirect`
-- One branch per feature: `feature/short-name`
-- PRs against `main`, always with passing tests
+- One branch per issue, created with `gh issue develop <n> --checkout` so it stays linked to the issue. The name it generates (`<n>-<slugified-title>`) is the convention — do not rename it
+- PRs against `main`, always with passing tests. There is no `develop` branch
 
 ### Issue-driven workflow
 
@@ -107,7 +108,7 @@ make prod         → build and run the production stack, detached (smoke test)
 make test         → backend (pytest) + frontend (vitest) tests
 make test-back    → backend tests only (pytest)
 make test-front   → frontend tests only (vitest)
-make test-e2e     → playwright tests (pending, not configured yet)
+make test-e2e     → playwright tests (needs the API running and the DB seeded)
 make lint         → backend + frontend linters
 make migrate      → alembic upgrade head
 make seed         → data seeding script
@@ -133,7 +134,8 @@ make build        → docker build of both images (build only, no run)
   in each project's config (`backend/pyproject.toml` →
   `[tool.coverage.report] fail_under = 80`; `frontend/vite.config.ts` →
   `coverage.thresholds`), never in the workflow YAML
-- NOT built yet, one issue each: e2e tests (#6), security scanning (#21),
+- E2E exists (`make test-e2e`, Playwright) but does NOT run in CI: it needs a live
+  API and a seeded database. Not built yet, one issue each: security scanning (#21),
   Docker/GHCR build (#22), branch protection and required checks (#23)
 
 ## What NOT to do
@@ -141,4 +143,4 @@ make build        → docker build of both images (build only, no run)
 - Do not import code directly between `backend/` and `frontend/` — they are independent projects connected by a REST API
 - Do not install global dependencies — each subdirectory manages its own
 - Do not commit without the pre-commit hooks passing
-- Do not use `print()` for debugging — use the configured logging system (structlog in the backend)
+- Do not use `print()` for debugging — use the configured logging system (structlog in the backend; see `docs/backend-logging.md`)

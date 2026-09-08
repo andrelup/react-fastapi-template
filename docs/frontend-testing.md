@@ -311,19 +311,30 @@ Never `await` a `getBy*` and never wrap an assertion in `setTimeout`.
 
 ---
 
-## 9. What is not set up yet
+## 9. E2E tests, and what is still missing
 
-Be aware, so you do not rely on it:
+**E2E is wired.** `@playwright/test` is installed, `frontend/playwright.config.ts` exists, and specs
+live in `frontend/e2e/tests/` with page objects in `frontend/e2e/page-objects/` — the Page Object
+Model is mandatory. `make test-e2e` runs them for real.
 
-- **No E2E tests.** There is no `e2e/` directory, no `playwright.config.ts` and no
-  `@playwright/test` dependency. The `make test-e2e` target is a placeholder. The Playwright +
-  Page Object Model layout described in `frontend/CLAUDE.md` is target design, not current state.
-- **No enforced coverage threshold** for the frontend: `@vitest/coverage-v8` is installed but no
-  `test.coverage` block exists. The 80 % minimum is a project rule you uphold manually — check with
-  `npx --prefix frontend vitest run --coverage`.
-- **`make test` only runs the backend suite.** Run the frontend suite explicitly with
-  `npm --prefix frontend run test`.
-- **The pre-commit hooks do not run tests or `tsc`.** Run them yourself before opening a PR.
+Two things to know before touching it:
+
+- **Playwright starts the SPA itself** through `webServer`, reusing an existing server on port 3000
+  if there is one. It does **not** start the API: e2e needs `make dev`, `make dev-back` and
+  `make seed` first, for the fixed accounts `seller@bookshelf.dev` / `customer@bookshelf.dev`.
+- **`vite.config.ts` excludes `e2e/**` from Vitest.** Without that, Vitest's default glob would pick
+  up the Playwright specs and break `make test-front`. Do not remove it.
+
+E2E coverage is intentionally thin: one spec for the login happy path and one for a wrong password.
+Issue #33 tracks the rest, deliberately scheduled after the fase-02 refactors that rename the
+domain out from under any spec written today.
+
+Still missing, so you do not rely on it:
+
+- **The pre-commit hooks do not run tests or `tsc`** — only ESLint and Prettier. Run the suites
+  yourself before opening a PR.
+- **E2E does not run in CI.** It needs a live API and a seeded database, so it stays a manual target
+  until someone decides how to provide both on a runner.
 
 ---
 
