@@ -14,12 +14,21 @@ export class LoginPage {
   readonly emailInput: Locator;
   readonly passwordInput: Locator;
   readonly submitButton: Locator;
+  readonly errorMessage: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.emailInput = page.getByLabel('Correo electrónico');
     this.passwordInput = page.locator('#password');
     this.submitButton = page.getByRole('button', { name: 'Entrar' });
+    // `LoginForm.tsx` renders the failure as a `role="alert"` paragraph, so
+    // the assertion targets the role rather than the copy inside it.
+    this.errorMessage = page.getByRole('alert');
+  }
+
+  /** The persisted session token, or null when there is no session. */
+  async storedAuthToken(): Promise<string | null> {
+    return this.page.evaluate(() => window.localStorage.getItem('auth-token'));
   }
 
   async goto(): Promise<void> {
