@@ -16,9 +16,13 @@ describe('NoResultsState', () => {
   });
 
   it('renders custom title and description when provided', () => {
-    render(<NoResultsState title="Sin libros" description="Prueba otra categoría." />);
+    render(
+      <NoResultsState title="Sin resultados personalizados" description="Prueba otra categoría." />,
+    );
 
-    expect(screen.getByRole('heading', { name: 'Sin libros' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Sin resultados personalizados' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Prueba otra categoría.')).toBeInTheDocument();
   });
 

@@ -13,7 +13,7 @@ describe('useApi', () => {
   });
 
   it('exposes the result of a successful request', async () => {
-    const requestFn = vi.fn().mockResolvedValue({ id: 1, title: 'Some book' });
+    const requestFn = vi.fn().mockResolvedValue({ id: 1, name: 'Some item' });
 
     const { result } = renderHook(() => useApi(requestFn));
 
@@ -21,7 +21,7 @@ describe('useApi', () => {
       await result.current.execute();
     });
 
-    await waitFor(() => expect(result.current.data).toEqual({ id: 1, title: 'Some book' }));
+    await waitFor(() => expect(result.current.data).toEqual({ id: 1, name: 'Some item' }));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
