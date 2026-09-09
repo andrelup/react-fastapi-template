@@ -87,7 +87,7 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
         </NavGroup>
 
         <NavGroup label="Desarrollo">
-          <NavLink to="/componentes-ui" className={navLinkClassName}>
+          <NavLink to="/components-ui" className={navLinkClassName}>
             Componentes UI
           </NavLink>
         </NavGroup>
