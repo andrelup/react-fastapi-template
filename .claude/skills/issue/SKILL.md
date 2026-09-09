@@ -71,17 +71,17 @@ Rules for the body:
 
 ## Step 4 — Pick labels
 
-Only use labels that already exist (`gh label list`). Never create a new one without asking the user. Each issue normally carries three axes:
+Only use labels that already exist (`gh label list`). Never create a new one without asking the user. Each issue normally carries two axes, plus an optional third:
 
 | Axis | Labels | Rule |
 |---|---|---|
-| Phase | `fase-0` … `fase-5` | The project phase the work belongs to. |
-| Module | `backend`, `frontend`, `infra`, `agente` | One or more, matching the title's scope. |
-| Week | `semana-1` … `semana-14` | The planned week. Ask the user if it isn't obvious. |
+| Phase | `fase-01` … `fase-06` | The project phase the work belongs to. Zero-padded — `fase-1` does not exist. |
+| Module | `backend`, `frontend`, `infra`, `CI/CD`, `agente` | One or more, matching the title's scope. |
+| Kind | `documentation`, `enhancement`, `bug`, `decision`, `gate` | Optional. `decision` marks work that needs a product call; `gate` marks work that blocks publication. |
 
-`bug`, `documentation`, `enhancement` and the other GitHub defaults are available but aren't part of the repo's usual scheme — don't add them unless the user asks.
+There is no `semana-*` axis: those labels do not exist in this repo.
 
-If you can't infer phase or week from context, **ask the user** rather than guessing.
+If you can't infer the phase from context, **ask the user** rather than guessing.
 
 ## Step 5 — Create the issue
 
@@ -91,12 +91,36 @@ Write the body to a file first and pass it with `--body-file`. Do **not** inline
 gh issue create \
   --title "feat(backend): sistema de versionado optimista en modelos SQLAlchemy" \
   --body-file <scratchpad>/issue-body.md \
-  --label fase-1 --label backend --label semana-3
+  --label fase-02 --label backend
 ```
 
 Write `issue-body.md` in the session scratchpad directory, as UTF-8, never inside the repo. Spanish text keeps its accents (`Descripción`, `Añadir`, `Criterio de aceptación`).
 
 Before running the command, show the user the title, the rendered body and the labels, and **wait for confirmation**. Creating an issue is outward-facing and hard to undo.
+
+## Step 5b — Dependencies and sub-issues
+
+Two conventions, and they are not interchangeable:
+
+**A sibling that must land first** goes in a footer at the very end of the body, after a `---` rule:
+
+```markdown
+---
+
+**Blocked by:** #9 (el cambio de dominio) y #11 (los roles genéricos)
+```
+
+**A piece of a larger epic** becomes a real GitHub sub-issue of the parent. The parent then shows the progress bar and the navigable breakdown, and closing a child updates it on its own. The REST endpoint takes the child's **database id**, not its issue number:
+
+```bash
+R="repos/andrelup/react-fastapi-template"
+id=$(gh api "$R/issues/35" --jq .id)
+gh api -X POST "$R/issues/9/sub_issues" -F sub_issue_id="$id"
+```
+
+Attach them **in dependency order**: the panel renders them in the order they were added, so the list doubles as the plan of execution. `gh api "$R/issues/9/sub_issues"` lists what is already attached.
+
+Use a sub-issue when the child is part of finishing the parent; use `Blocked by:` when the two are separate pieces of work that merely have an order.
 
 ## Step 6 — Report
 
