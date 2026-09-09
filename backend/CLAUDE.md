@@ -64,7 +64,6 @@ backend/
 │   │       ├── security/          # Implementations of the service ports
 │   │       │   ├── password_hasher.py         # Implements PasswordHasher (bcrypt)
 │   │       │   └── jwt_token_service.py       # Implements TokenService
-│   │       └── cache/             # Empty package, reserved. Nothing here yet
 │   │
 │   ├── config/                    # Application configuration
 │   │   ├── settings.py            # Pydantic Settings (env vars)
