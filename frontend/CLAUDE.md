@@ -32,7 +32,7 @@ frontend/
 │   │       ├── LoginPage.tsx
 │   │       ├── RegisterPage.tsx
 │   │       ├── DashboardPage.tsx          # Seller-only, behind RoleRoute
-│   │       ├── UiComponentsPage.tsx       # Live catalogue at /componentes-ui
+│   │       ├── UiComponentsPage.tsx       # Live catalogue at /components-ui
 │   │       └── NotFoundPage.tsx
 │   │
 │   ├── features/                  # Self-contained feature modules
