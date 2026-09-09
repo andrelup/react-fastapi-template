@@ -68,7 +68,7 @@ class BookRepository(Protocol):
 
 - Python 3.12, FastAPI, SQLAlchemy 2.0 (async), asyncpg
 - Alembic for migrations (autogenerate from ORM models)
-- PostgreSQL 16 (plain — no pgvector, no vector search)
+- PostgreSQL 16, with no extensions
 - pytest + pytest-asyncio + httpx for testing
 - structlog for structured logging
 - Ruff for linting + formatting, mypy strict for type checking

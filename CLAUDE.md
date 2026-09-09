@@ -1,6 +1,6 @@
 # react-fastapi-template — full-stack project template
 
-Monorepo with a Python backend and a React frontend, using a bookstore as its example domain. Training project on Claude Code and agentic development. There is no AI in the codebase: the name refers to how it is built, not to what it does.
+Monorepo with a Python backend and a React frontend, using a bookstore as its example domain. Training project on Claude Code and agentic development.
 
 ## Repository structure
 

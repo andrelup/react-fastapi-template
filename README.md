@@ -23,9 +23,8 @@ para enseñar la arquitectura, no para vender libros. Esto es lo que hay hoy, si
   sobre título y autor. La SPA aún no tiene pantalla de catálogo.
 - **Listas de favoritos** — CRUD completo en la API. El módulo `wishlist/` del frontend está vacío.
 
-Lo que **no** existe —carrito, compra, histórico de pedidos, recomendaciones con IA— vive en el
-[Roadmap](#roadmap), no aquí. Si has llegado desde «Use this template», eso es precisamente lo que
-te toca construir.
+Lo que **no** existe —carrito, compra, histórico de pedidos— vive en el [Roadmap](#roadmap), no
+aquí. Si has llegado desde «Use this template», eso es precisamente lo que te toca construir.
 
 ## Estructura del repositorio
 
@@ -242,30 +241,14 @@ su propia issue:
 
 ## Roadmap
 
-Extensiones que la plantilla **no** trae de serie y que se dejan documentadas
-como punto de enganche, no como deuda:
-
-- **Búsqueda semántica con `pgvector`.** La plantilla arranca con `postgres:16`
-  a secas: la extensión estaba declarada pero ningún modelo, migración ni
-  repositorio la usaba, así que solo añadía peso a la imagen y a las
-  dependencias. Para recuperarla harían falta cuatro piezas: la imagen
-  `pgvector/pgvector:pg16` en `infra/docker-compose.yml` con un
-  `CREATE EXTENSION vector` de inicialización, el paquete `pgvector` en las
-  dependencias de `backend/pyproject.toml`, una migración de Alembic que añada
-  la columna de embeddings, y un adaptador de salida bajo
-  `backend/src/adapters/outbound/` que calcule los embeddings detrás de un
-  puerto del dominio. La búsqueda actual (`/books/search`) es un `ILIKE` y
-  seguiría siendo el fallback.
+Piezas del dominio de ejemplo que la plantilla deja a medias a propósito. No son
+deuda técnica: son el trabajo que se espera que hagas tú al partir de aquí.
 
 - **Compra, carrito e histórico de pedidos.** Nunca han existido: no hay modelo
   de dominio, ni router, ni migración. El README los anunciaba en presente y
   eso se ha corregido. Construirlos es, de hecho, un buen primer ejercicio
   sobre la plantilla: una entidad nueva recorre las tres capas y `docs/backend-hexagonal-architecture.md`
   lleva el paso a paso.
-
-- **Recomendaciones con IA.** Cayeron con `pgvector`, por el mismo motivo.
-  `backend/docs/decision-stack-backend.md` conserva el razonamiento original y
-  explica por qué la decisión de stack se sostiene igual sin ellas.
 
 - **Pantallas de catálogo y de favoritos.** La API existe y está probada
   (`GET /books`, `/books/search` y el CRUD de listas de favoritos); lo que falta
