@@ -5,12 +5,10 @@ import { EmptyState } from './EmptyState';
 
 describe('EmptyState', () => {
   it('renders the given title and description', () => {
-    render(
-      <EmptyState title="Tu carrito está vacío" description="Añade libros para verlos aquí." />,
-    );
+    render(<EmptyState title="No hay elementos" description="Añade elementos para verlos aquí." />);
 
-    expect(screen.getByRole('heading', { name: 'Tu carrito está vacío' })).toBeInTheDocument();
-    expect(screen.getByText('Añade libros para verlos aquí.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'No hay elementos' })).toBeInTheDocument();
+    expect(screen.getByText('Añade elementos para verlos aquí.')).toBeInTheDocument();
   });
 
   it('does not render an action when actionLabel/onAction are missing', () => {
