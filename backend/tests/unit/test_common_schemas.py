@@ -18,13 +18,13 @@ def test_api_response_success_serializes_data_and_null_error() -> None:
 
 def test_api_response_failure_carries_error_message_and_null_data() -> None:
     # Arrange
-    response = ApiResponse[dict[str, str]](success=False, error="Book not found")
+    response = ApiResponse[dict[str, str]](success=False, error="Resource not found")
 
     # Act
     payload = response.model_dump()
 
     # Assert
-    assert payload == {"success": False, "data": None, "error": "Book not found"}
+    assert payload == {"success": False, "data": None, "error": "Resource not found"}
 
 
 def test_api_response_data_and_error_default_to_none() -> None:

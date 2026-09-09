@@ -20,14 +20,8 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from src.adapters.inbound.schemas.common import ApiResponse
 from src.domain.exceptions import (
-    BookNotFoundError,
-    BookValidationError,
     DomainError,
     DuplicateEmailError,
-    DuplicateFavouriteBookError,
-    DuplicateFavouriteListNameError,
-    FavouriteListNotFoundError,
-    FavouriteListValidationError,
     ForbiddenError,
     InvalidCredentialsError,
     UnauthorizedError,
@@ -36,16 +30,10 @@ from src.domain.exceptions import (
 logger = structlog.get_logger(__name__)
 
 _STATUS_CODES: dict[type[DomainError], int] = {
-    BookNotFoundError: 404,
     UnauthorizedError: 401,
     InvalidCredentialsError: 401,
     ForbiddenError: 403,
     DuplicateEmailError: 409,
-    BookValidationError: 422,
-    FavouriteListNotFoundError: 404,
-    DuplicateFavouriteListNameError: 409,
-    DuplicateFavouriteBookError: 409,
-    FavouriteListValidationError: 422,
 }
 _DEFAULT_STATUS_CODE = 500
 
