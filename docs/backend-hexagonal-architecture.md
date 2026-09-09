@@ -70,12 +70,12 @@ backend/src/
         ├── persistence/             SQLAlchemy models, session factory, repository implementations
         ├── security/                BcryptPasswordHasher, JwtTokenService
         ├── ai/                      Empty package — reserved for embeddings / LLM
-        └── cache/                   Empty package — reserved, nothing in it yet
 ```
 
-`adapters/outbound/cache/` is an empty package today (docstring-only `__init__.py`). There is no
-`adapters/outbound/ai/` at all: semantic search and LLM recommendations are roadmap, not shipped
-behaviour, and nothing in the tree is reserved for them.
+`adapters/outbound/` holds only `persistence/` and `security/`. There is no `ai/` package and no
+`cache/` package: semantic search, LLM recommendations and their cache are roadmap, not shipped
+behaviour, and nothing in the tree is reserved for them. Add a package when you add the adapter,
+not before.
 
 ---
 

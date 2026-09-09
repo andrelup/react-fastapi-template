@@ -1,6 +1,6 @@
 """Ports for external services consumed by the domain (Protocol interfaces).
 
-Concrete implementations (bcrypt, JWT, embeddings, LLMs, ...) live in
+Concrete implementations (bcrypt, JWT...) live in
 `adapters/outbound`. The domain only ever depends on these contracts.
 """
 
