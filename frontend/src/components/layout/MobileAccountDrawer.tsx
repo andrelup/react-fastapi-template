@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `Sidebar`/`Header` already
 // rely on), so the drawer reads it directly via `useAuth()`.
@@ -34,56 +34,6 @@ const ChevronRightIcon = () => (
     aria-hidden="true"
   >
     <path d="M9 6l6 6-6 6" />
-  </svg>
-);
-
-const DashboardIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <rect x="3" y="3" width="7" height="9" rx="1" />
-    <rect x="14" y="3" width="7" height="5" rx="1" />
-    <rect x="14" y="12" width="7" height="9" rx="1" />
-    <rect x="3" y="16" width="7" height="5" rx="1" />
-  </svg>
-);
-
-const HeartIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
-  </svg>
-);
-
-const OrdersIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M21 8l-9-5-9 5 9 5 9-5Z" />
-    <path d="M3 8v8l9 5 9-5V8" />
-    <path d="M12 13v8" />
   </svg>
 );
 
@@ -165,34 +115,6 @@ const DrawerItem = ({ icon, label, soon }: DrawerItemProps) => (
   </button>
 );
 
-interface DrawerLinkProps {
-  icon: ReactNode;
-  label: string;
-  to: string;
-  /** Closes the drawer, so the destination screen is not left behind the overlay. */
-  onNavigate: () => void;
-}
-
-// Navigable counterpart of `DrawerItem`, for the entries that already have a
-// route. Mirrors the desktop `Sidebar` active styling.
-const DrawerLink = ({ icon, label, to, onNavigate }: DrawerLinkProps) => (
-  <NavLink
-    to={to}
-    onClick={onNavigate}
-    className={({ isActive }) =>
-      `flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-[15px] ${
-        isActive ? 'bg-primary-50 font-semibold text-primary-dark' : 'text-ink hover:bg-bg'
-      }`
-    }
-  >
-    <span className="text-body">{icon}</span>
-    <span className="flex-1">{label}</span>
-    <span className="text-muted">
-      <ChevronRightIcon />
-    </span>
-  </NavLink>
-);
-
 export interface MobileAccountDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -201,9 +123,8 @@ export interface MobileAccountDrawerProps {
 /**
  * Mobile-only slide-in "Cuenta" panel opened from the `MobileTabBar` account
  * tab. Surfaces the secondary navigation and the logout action that, on
- * desktop, live in the full `Sidebar`. Role-aware: sellers see profile and
- * messages, customers see favourites, orders and profile (design system
- * section 10).
+ * desktop, live in the full `Sidebar`. Single list, no role branching:
+ * Editar perfil and Mensajes (upcoming).
  */
 export const MobileAccountDrawer = ({ open, onClose }: MobileAccountDrawerProps) => {
   const { user, logout } = useAuth();
@@ -257,29 +178,8 @@ export const MobileAccountDrawer = ({ open, onClose }: MobileAccountDrawerProps)
         </div>
 
         <nav aria-label="Cuenta" className="flex-1 overflow-auto px-4 py-3">
-          {user.role === 'seller' ? (
-            <>
-              {/*
-                The bottom tab bar has no room for the dashboard (Inicio + FAB
-                + Cuenta), so this is its only mobile entry point. Seller-only:
-                customers would get a 404 from `RoleRoute`.
-              */}
-              <DrawerLink
-                icon={<DashboardIcon />}
-                label="Dashboard"
-                to="/dashboard"
-                onNavigate={onClose}
-              />
-              <DrawerItem icon={<ProfileIcon />} label="Editar perfil" />
-              <DrawerItem icon={<MessagesIcon />} label="Mensajes" soon="Próximamente" />
-            </>
-          ) : (
-            <>
-              <DrawerItem icon={<HeartIcon />} label="Mis favoritos" />
-              <DrawerItem icon={<OrdersIcon />} label="Mis pedidos" />
-              <DrawerItem icon={<ProfileIcon />} label="Editar perfil" />
-            </>
-          )}
+          <DrawerItem icon={<ProfileIcon />} label="Editar perfil" />
+          <DrawerItem icon={<MessagesIcon />} label="Mensajes" soon="Próximamente" />
         </nav>
 
         <div className="border-t border-border p-4">
