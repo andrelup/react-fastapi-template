@@ -35,7 +35,6 @@ backend/
 │   │   └── outbound/          # Salida: cómo el dominio accede al exterior
 │   │       ├── persistence/   # Repositorios SQLAlchemy + database.py
 │   │       ├── security/      # PasswordHasher (bcrypt), TokenService (JWT)
-│   │       └── cache/         # Paquete vacío, reservado. Hoy no hay nada dentro
 │   │
 │   ├── config/                # Settings (Pydantic) y container de DI
 │   └── main.py                # Entrypoint FastAPI
