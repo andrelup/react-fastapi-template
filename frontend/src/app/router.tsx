@@ -41,12 +41,8 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: '/componentes-ui',
-        element: (
-          <ProtectedRoute>
-            <UiComponentsPage />
-          </ProtectedRoute>
-        ),
+        path: '/components-ui',
+        element: <UiComponentsPage />,
       },
       {
         path: '*',

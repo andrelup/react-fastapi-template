@@ -4,7 +4,7 @@ Every new screen is built out of the primitives that already exist in
 `frontend/src/components/ui/` and the layout shell in `frontend/src/components/layout/`.
 **Do not hand-roll UI that the catalogue already provides.**
 
-The live catalogue is the internal styleguide page at the route **`/componentes-ui`**
+The live catalogue is the internal styleguide page at the route **`/components-ui`**
 (`app/pages/UiComponentsPage.tsx`, reachable from the "Desarrollo" group in the sidebar). Open it
 before designing a screen: it renders every primitive in its real states.
 
@@ -282,7 +282,7 @@ the route.
 
 ## 6. Checklist for a new screen
 
-- [ ] Opened `/componentes-ui` and reused what already exists.
+- [ ] Opened `/components-ui` and reused what already exists.
 - [ ] Buttons, inputs, cards, avatars, badges, spinners and dialogs come from `components/ui`.
 - [ ] Empty / no-results / 404 / server-error states use the four state components.
 - [ ] Only token classes; no hex values, no `style` attribute, no new `.css` file.

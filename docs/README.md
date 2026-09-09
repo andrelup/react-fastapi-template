@@ -15,7 +15,7 @@ Read the document for the layer you are about to touch **before** writing code.
 | [Code Style](./frontend-code-style.md) | Always. ESLint, Prettier and the strict TypeScript settings, and what they forbid. |
 | [Testing](./frontend-testing.md) | Every change. Vitest + React Testing Library conventions and copy-paste templates. |
 
-The live component catalogue is the app itself, at the route **`/componentes-ui`**.
+The live component catalogue is the app itself, at the route **`/components-ui`**.
 
 ## Backend — `backend/`
 

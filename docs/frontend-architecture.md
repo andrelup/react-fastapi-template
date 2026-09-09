@@ -82,7 +82,7 @@ All routes live in a single `createBrowserRouter` call in `app/router.tsx`, nest
 | `/login` | `LoginPage` | public |
 | `/register` | `RegisterPage` | public |
 | `/dashboard` | `DashboardPage` | `RoleRoute allow={['seller']}` |
-| `/componentes-ui` | `UiComponentsPage` (internal styleguide) | `ProtectedRoute` |
+| `/components-ui` | `UiComponentsPage` (internal styleguide) | public |
 | `*` | `NotFoundPage` | public |
 
 Rules:
