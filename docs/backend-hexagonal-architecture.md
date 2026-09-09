@@ -68,8 +68,7 @@ backend/src/
     │
     └── outbound/                    How the domain reaches the world
         ├── persistence/             SQLAlchemy models, session factory, repository implementations
-        ├── security/                BcryptPasswordHasher, JwtTokenService
-        ├── ai/                      Empty package — reserved for embeddings / LLM
+        └── security/                BcryptPasswordHasher, JwtTokenService
 ```
 
 `adapters/outbound/` holds only `persistence/` and `security/`. There is no `ai/` package and no

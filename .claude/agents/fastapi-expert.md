@@ -34,7 +34,6 @@ backend/src/
 │   │   └── middleware/  # Auth, logging, error handling
 │   └── outbound/        # How the domain reaches the outside
 │       ├── persistence/ # SQLAlchemy models + repository implementations
-│       ├── ai/          # LLM and embedding service implementations
 │       └── cache/       # Cache implementations
 └── config/              # Settings, dependency injection container
 ```
@@ -69,7 +68,7 @@ class BookRepository(Protocol):
 
 - Python 3.12, FastAPI, SQLAlchemy 2.0 (async), asyncpg
 - Alembic for migrations (autogenerate from ORM models)
-- PostgreSQL 16 + pgvector
+- PostgreSQL 16 (plain — no pgvector, no vector search)
 - pytest + pytest-asyncio + httpx for testing
 - structlog for structured logging
 - Ruff for linting + formatting, mypy strict for type checking
