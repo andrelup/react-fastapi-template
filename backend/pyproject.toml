@@ -1,7 +1,7 @@
 [project]
 name = "fastapi-template"
 version = "0.1.0"
-description = "fastapi-template API — tienda de libros con IA (Hexagonal Architecture)"
+description = "fastapi-template API — plantilla FastAPI con arquitectura hexagonal"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",

@@ -9,7 +9,7 @@ Guía de la arquitectura del backend: qué es la arquitectura hexagonal, qué pr
 La arquitectura hexagonal (también llamada **Ports & Adapters**, propuesta por Alistair Cockburn) organiza el código en dos zonas con una frontera estricta entre ellas:
 
 - **El dominio (el hexágono)**: la lógica de negocio pura. Sabe *qué* hace la aplicación (registrar usuarios, vender libros, comprobar permisos), pero no sabe *cómo* se habla con el exterior. No conoce FastAPI, ni SQLAlchemy, ni PostgreSQL, ni JWT.
-- **Los adaptadores (fuera del hexágono)**: el código que conecta el dominio con tecnologías concretas — la API HTTP, la base de datos, servicios de IA, caché...
+- **Los adaptadores (fuera del hexágono)**: el código que conecta el dominio con tecnologías concretas — la API HTTP, la base de datos, el hasher de contraseñas, un servicio de email...
 
 La comunicación entre ambas zonas ocurre siempre a través de **ports**: interfaces que define el dominio. Un adaptador *implementa* un port (o lo *invoca*), pero el dominio solo conoce la interfaz.
 
@@ -23,7 +23,7 @@ La comunicación entre ambas zonas ocurre siempre a través de **ports**: interf
                  │        │                                 │
   middleware ──► │        ▼                                 │ ◄─── bcrypt / JWT
   (auth, errors) │     models/  +  exceptions.py            │
-                 │  (entidades puras)                       │ ◄─── servicios IA
+                 │  (entidades puras)                       │
                  └──────────────────────────────────────────┘
                         Las flechas de dependencia SIEMPRE
                         apuntan hacia dentro (al dominio)
@@ -34,7 +34,7 @@ La comunicación entre ambas zonas ocurre siempre a través de **ports**: interf
 | Problema sin hexagonal | Cómo lo resuelve |
 |---|---|
 | La lógica de negocio queda mezclada con el framework (endpoints con queries SQL y reglas de permisos dentro) | El negocio vive en `domain/services/`, aislado. El router solo valida input, llama al servicio y formatea la respuesta. |
-| Cambiar de tecnología (otra BD, otro proveedor de IA) obliga a reescribir el negocio | Solo se reescribe el adaptador. El dominio no cambia porque depende de la interfaz (port), no de la implementación. |
+| Cambiar de tecnología (otra BD, otro proveedor externo) obliga a reescribir el negocio | Solo se reescribe el adaptador. El dominio no cambia porque depende de la interfaz (port), no de la implementación. |
 | Testear el negocio requiere levantar BD y servidor | Los servicios de dominio se testean en aislamiento con fakes/mocks de sus ports: tests unitarios rápidos, sin I/O. |
 | Las dependencias crecen en cualquier dirección y todo acaba acoplado con todo | Regla única y verificable: **los imports siempre apuntan hacia dentro**. `domain/` no importa de `adapters/` jamás. |
 
@@ -73,9 +73,7 @@ backend/src/
 │   │   └── middleware/              #    auth (JWT), error_handler, logging
 │   └── outbound/                    # ← SALIDA: el dominio llama al mundo
 │       ├── persistence/             #    ORM SQLAlchemy + repositorios + database.py
-│       ├── security/                #    bcrypt (hasher), python-jose (JWT)
-│       ├── ai/                      #    embeddings, LLM (futuros)
-│       └── cache/
+│       └── security/                #    bcrypt (hasher), python-jose (JWT)
 │
 ├── config/
 │   ├── settings.py                  #    Pydantic Settings (variables de entorno)
@@ -237,7 +235,7 @@ Chuleta de decisión — "quiero hacer X → el fichero va en Y":
 | Una regla de negocio o caso de uso | `domain/services/<contexto>_service.py` | El negocio vive junto, testeable sin infraestructura. |
 | Un error de negocio (ej. "sin stock") | `domain/exceptions.py` | El dominio expresa el fallo; el HTTP status lo decide el middleware. |
 | Guardar/leer algo de la BD | Port en `domain/ports/repositories.py` + implementación en `adapters/outbound/persistence/<x>_repository.py` | El dominio define el contrato; SQLAlchemy queda fuera del hexágono. |
-| Llamar a un servicio externo (LLM, embeddings, email...) | Port en `domain/ports/services.py` + adaptador en `adapters/outbound/ai/` (u otro subpaquete) | Igual que la persistencia: contrato dentro, tecnología fuera. Ejemplo real: `PasswordHasher` y `TokenService` son ports, y bcrypt/python-jose viven en `adapters/outbound/security/`. |
+| Llamar a un servicio externo (email, pasarela de pago, almacenamiento...) | Port en `domain/ports/services.py` + adaptador en su propio subpaquete de `adapters/outbound/` | Igual que la persistencia: contrato dentro, tecnología fuera. Ejemplo real: `PasswordHasher` y `TokenService` son ports, y bcrypt/python-jose viven en `adapters/outbound/security/`. |
 | Una tabla nueva o columna nueva | `adapters/outbound/persistence/sqlalchemy_models.py` + migración en `alembic/versions/` | El esquema de BD es un detalle del adaptador de persistencia. |
 | Un endpoint nuevo | `adapters/inbound/api/<contexto>_router.py` | Los routers son adaptadores de entrada, finos. |
 | El formato del JSON de entrada/salida | `adapters/inbound/schemas/<contexto>_schemas.py` | El contrato HTTP es cosa del adaptador, no del dominio. |
