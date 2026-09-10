@@ -1,8 +1,8 @@
 # react-template Frontend — SPA
 
-Aplicación de página única (SPA) de la tienda de libros react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**.
+Aplicación de página única (SPA) de la plantilla react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**.
 
-Está deliberadamente a medio construir: el feature de autenticación está completo de punta a punta, y `books/` y `wishlist/` son módulos vacíos a la espera de que alguien los llene. Es una plantilla, no un producto.
+Está deliberadamente a medio construir: el feature de autenticación está completo de punta a punta y hoy es el único que existe. El dominio de ejemplo —`Item`, el recurso publicable del catálogo, y `Collection`, la agrupación editorial que lo ordena— lo levantan las issues #39 a #43 en `features/items/` y `features/collections/`. Es una plantilla, no un producto.
 
 ## Stack
 
@@ -26,10 +26,7 @@ frontend/
 │   ├── app/           # Entrypoint, providers globales y router
 │   │
 │   ├── features/      # MÓDULOS DE DOMINIO — cada feature es autónomo
-│   │   ├── auth/      # Login, registro, ProtectedRoute, useAuth
-│   │   ├── books/     # VACÍO — index.ts es `export {};`
-│   │   ├── wishlist/  # VACÍO — index.ts es `export {};`
-│   │   └── seller/    # Solo SellerDashboard.tsx
+│   │   └── auth/      # El único que existe: login, registro, ProtectedRoute, useAuth
 │   │       ├── api/       # Llamadas al backend
 │   │       ├── components/# Componentes exclusivos del feature
 │   │       ├── hooks/     # Hooks del feature
@@ -40,7 +37,7 @@ frontend/
 │   ├── hooks/         # Hooks genéricos: useApi, useDebounce, useLocalStorage
 │   ├── lib/           # api-client.ts (fetch con baseURL e interceptors) y utils.ts (`cn`)
 │   ├── types/         # Tipos globales: ApiResponse<T>, PaginatedResponse<T>
-│   └── utils/         # Helpers puros: format-price, get-initials
+│   └── utils/         # Helpers puros: get-initials
 │
 ├── e2e/               # Tests E2E con Playwright (Page Object Model)
 ├── package.json
@@ -50,6 +47,9 @@ frontend/
 ├── nginx.conf         # Lo usa la imagen de produccion
 └── Dockerfile
 ```
+
+Lo que no aparece en el árbol todavía no existe: `features/` solo contiene `auth/`, y los features
+del catálogo de ejemplo (`items/` y `collections/`) los añaden las issues #39 a #43.
 
 ### Reglas de la arquitectura
 
@@ -82,7 +82,7 @@ frontend/
   const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   ```
 - Todas las llamadas al backend pasan por este client; el token JWT se inyecta automáticamente desde el `AuthContext`.
-- Respuestas tipadas con generics: `ApiResponse<Book>`, `ApiResponse<Book[]>`.
+- Respuestas tipadas con generics: `ApiResponse<Item>`, `ApiResponse<Item[]>`.
 
 ## Estilos
 
@@ -135,7 +135,8 @@ usarlo. Los detalles están en
 - React Router v6 con rutas en `app/router.tsx`.
 - Lazy loading para las páginas principales.
 - Rutas protegidas con el componente `ProtectedRoute` de `features/auth`.
-- Rutas restringidas por rol con `RoleRoute` (`/dashboard` es solo para `seller`). Hay un único
+- Rutas restringidas por rol con `RoleRoute`, que exige sesión **y** rol (`allow={['seller']}`).
+  Ninguna ruta lo usa todavía: `router.tsx` solo protege `/`, con `ProtectedRoute`. Hay un único
   `Layout`: el rol condiciona el acceso a una ruta, no le da un layout propio.
 
 ## Path Aliases
@@ -143,7 +144,7 @@ usarlo. Los detalles están en
 `@/` apunta a `src/` (configurado en `tsconfig.json` y `vite.config.ts`):
 
 ```typescript
-import { BookCard } from '@/features/books';
+import { useAuth } from '@/features/auth';
 import { Button } from '@/components/ui/Button';
 import { useApi } from '@/hooks/useApi';
 ```
@@ -175,14 +176,10 @@ Los tests E2E asumen un entorno completo levantado, no solo el frontend:
 
 1. `make dev` — levanta PostgreSQL en Docker.
 2. `make dev-back` — API en `http://localhost:8000` (en otra terminal).
-3. `make seed` — puebla la base de datos, incluidas dos cuentas fijas pensadas
-   para el login manual y para los propios specs:
-
-   | Email                    | Rol      | Contraseña      |
-   | ------------------------ | -------- | --------------- |
-   | `seller@bookshelf.dev`   | seller   | `BookShelf123!` |
-   | `customer@bookshelf.dev` | customer | `BookShelf123!` |
-
+3. `make seed` — puebla la base de datos, incluidas dos cuentas fijas (una
+   `seller` y otra `customer`) pensadas para el login manual y para los propios
+   specs. Sus credenciales literales viven en `backend/seed.py`, que es su única
+   fuente de verdad, y el spec de login las repite en `e2e/tests/auth.spec.ts`.
    Son datos de desarrollo únicamente — nunca credenciales válidas fuera de una
    base de datos local.
 
