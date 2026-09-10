@@ -15,7 +15,7 @@ test.describe('Login', () => {
     await loginPage.login(CUSTOMER_EMAIL, CUSTOMER_PASSWORD);
 
     await expect(page).toHaveURL('/');
-    const heading = page.getByRole('heading', { name: /^Bienvenida/ });
+    const heading = page.getByRole('heading', { name: /^Hola/ });
     await expect(heading).toBeVisible();
 
     await page.reload();

@@ -30,42 +30,29 @@ describe('HomePage', () => {
     vi.clearAllMocks();
   });
 
-  it('shows a welcome message and both CTAs for a seller', async () => {
+  it('greets the logged-in user by name', async () => {
     const { apiClient } = await import('@/lib/api-client');
     vi.mocked(apiClient.get).mockResolvedValueOnce(rawSellerUser);
     window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
 
     renderHomePage();
 
-    expect(
-      await screen.findByRole('heading', { name: 'Bienvenida, Ada Lovelace' }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Publicar un libro' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Explorar catálogo' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Hola, Ada Lovelace' })).toBeInTheDocument();
   });
 
-  it('shows a welcome message and only the catalog CTA for a customer', async () => {
+  it('greets a different logged-in user by their own name', async () => {
     const { apiClient } = await import('@/lib/api-client');
     vi.mocked(apiClient.get).mockResolvedValueOnce(rawCustomerUser);
     window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
 
     renderHomePage();
 
-    expect(
-      await screen.findByRole('heading', { name: /Bienvenida a BookShelf/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Explorar catálogo' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Publicar un libro' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Hola, Bob Smith' })).toBeInTheDocument();
   });
 
-  it('renders the placeholder CTAs as disabled', async () => {
-    const { apiClient } = await import('@/lib/api-client');
-    vi.mocked(apiClient.get).mockResolvedValueOnce(rawSellerUser);
-    window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
-
+  it('shows a generic welcome heading before the session is known', () => {
     renderHomePage();
 
-    expect(await screen.findByRole('button', { name: 'Publicar un libro' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Explorar catálogo' })).toBeDisabled();
+    expect(screen.getByRole('heading', { name: 'Hola' })).toBeInTheDocument();
   });
 });

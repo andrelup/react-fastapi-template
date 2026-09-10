@@ -13,7 +13,7 @@ export const Footer = ({ className = '' }: FooterProps) => (
     className={`flex h-11 items-center justify-center border-t border-border bg-surface text-[11px] text-muted md:h-[50px] md:text-[13px] ${className}`}
   >
     <p>
-      © 2026 BookShelf.
+      © 2026 Mi App.
       <span className="hidden md:inline"> Todos los derechos reservados.</span>
     </p>
   </footer>
