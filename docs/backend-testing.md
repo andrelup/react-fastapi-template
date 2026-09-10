@@ -108,18 +108,16 @@ authenticated_as(user)   # overrides get_current_user to return that user
 
 Call it to authenticate; skip it to test the 401 path.
 
-### `tests/integration/conftest.py` — integration tier
+### Integration tier — no conftest of its own
 
-Spins up a **throwaway `postgres:16-alpine` Docker container** once per session, and per test
-creates the schema from `Base.metadata`, seeds the rows needed to satisfy foreign keys, yields a
-session, then drops everything.
+`tests/integration/` has no `conftest.py`: its tests take the global `db_session` directly, so they
+run against the developer's dev database inside a transaction that is rolled back at teardown.
+`alembic upgrade head` must have been run first.
 
-Fixtures are deliberately named per entity — `book_db_session`, `favourite_db_session` — **not**
-`db_session`, so they do not shadow the global fixture for the whole directory. Keep that
-convention when you add one.
-
-`two_book_sessions` / `two_favourite_sessions` return two independent sessions on the same engine,
-used to prove that concurrent writes raise `StaleDataError`.
+If a tier-specific fixture is ever needed there, name it **per entity** — `item_db_session`, not
+`db_session` — so it cannot shadow the global fixture for the whole directory. The same applies to
+a pair of independent sessions on one engine, which is how a test proves that concurrent writes
+raise `StaleDataError`.
 
 ---
 
