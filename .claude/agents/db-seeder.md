@@ -62,7 +62,7 @@ Read them off the ORM, do not trust this list to stay current — but as of toda
 - `collections.name` is unique through the named constraint `uq_collections_name` (`String(200)`).
 - `tags.name` is **unique** and `String(50)` — short. Truncate or, better, draw from a fixed vocabulary.
 - `item_tags` and `item_collections` have a **composite primary key** over their two foreign keys, so the same pair cannot be inserted twice: sample tag ids and collection ids **without replacement**.
-- There is no money and no stock anywhere in this domain. If you find yourself generating a price, you are seeding the wrong schema.
+- Seed only the columns the ORM actually declares. If you find yourself inventing a field that is not on the model, stop and re-read the schema instead of guessing.
 
 ## Constraints (NON-NEGOTIABLE)
 
