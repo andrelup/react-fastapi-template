@@ -6,7 +6,7 @@ Registro de decisión de arquitectura (ADR): por qué el backend de fastapi-temp
 
 ## Contexto
 
-fastapi-template es una plantilla de proyecto full-stack, con una tienda de libros como dominio de ejemplo. El backend es una API REST consumida por una SPA React independiente, organizada en arquitectura hexagonal (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
+fastapi-template es una plantilla de proyecto full-stack, con un catálogo neutro (artículos, colecciones y etiquetas) como dominio de ejemplo. El backend es una API REST consumida por una SPA React independiente, organizada en arquitectura hexagonal (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
 
 Los dos candidatos finalistas fueron los stacks dominantes para APIs REST:
 
