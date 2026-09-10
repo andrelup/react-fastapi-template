@@ -126,4 +126,4 @@ Use a sub-issue when the child is part of finishing the parent; use `Blocked by:
 
 Give the user the issue number and URL that `gh` returns, plus a one-line summary of what was filed. Don't assign, don't add it to a project board and don't start implementing it unless asked.
 
-If the work is picked up later, the commits that close it reference the number as a subject suffix, as the `commit` skill describes: `feat(backend): add optimistic locking to Book and FavouriteList (#42)`.
+If the work is picked up later, the commits that close it reference the number as a subject suffix, as the `commit` skill describes: `feat(backend): add optimistic locking to Item and Collection (#42)`.
