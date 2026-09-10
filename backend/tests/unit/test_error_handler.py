@@ -8,8 +8,6 @@ from fastapi import FastAPI
 from sqlalchemy.exc import IntegrityError
 from src.adapters.inbound.middleware.error_handler import register_exception_handlers
 from src.domain.exceptions import (
-    BookNotFoundError,
-    BookValidationError,
     DomainError,
     DuplicateEmailError,
     ForbiddenError,
@@ -22,17 +20,13 @@ def _make_app() -> FastAPI:
     app = FastAPI()
     register_exception_handlers(app)
 
-    @app.get("/book-not-found")
-    async def book_not_found() -> None:
-        raise BookNotFoundError("Book 1 not found")
-
     @app.get("/unauthorized")
     async def unauthorized() -> None:
         raise UnauthorizedError("Missing authentication credentials")
 
     @app.get("/forbidden")
     async def forbidden() -> None:
-        raise ForbiddenError("Only sellers can manage book listings")
+        raise ForbiddenError("You do not have permission to perform this action")
 
     @app.get("/invalid-credentials")
     async def invalid_credentials() -> None:
@@ -41,10 +35,6 @@ def _make_app() -> FastAPI:
     @app.get("/duplicate-email")
     async def duplicate_email() -> None:
         raise DuplicateEmailError("Email already registered")
-
-    @app.get("/book-validation")
-    async def book_validation() -> None:
-        raise BookValidationError("Price must be greater than zero")
 
     @app.get("/unmapped")
     async def unmapped() -> None:
@@ -67,12 +57,10 @@ async def client() -> AsyncGenerator[httpx.AsyncClient, None]:
 @pytest.mark.parametrize(
     ("path", "expected_status", "expected_error"),
     [
-        ("/book-not-found", 404, "Book 1 not found"),
         ("/unauthorized", 401, "Missing authentication credentials"),
-        ("/forbidden", 403, "Only sellers can manage book listings"),
+        ("/forbidden", 403, "You do not have permission to perform this action"),
         ("/invalid-credentials", 401, "Email or password is incorrect"),
         ("/duplicate-email", 409, "Email already registered"),
-        ("/book-validation", 422, "Price must be greater than zero"),
         ("/unmapped", 500, "Something went wrong"),
         ("/integrity-error", 409, "Conflict: the resource already exists"),
     ],

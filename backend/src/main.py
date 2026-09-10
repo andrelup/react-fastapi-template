@@ -8,8 +8,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.adapters.inbound.api.auth_router import router as auth_router
-from src.adapters.inbound.api.book_router import router as book_router
-from src.adapters.inbound.api.favourite_list_router import router as favourite_list_router
 from src.adapters.inbound.api.health_router import router as health_router
 from src.adapters.inbound.middleware.error_handler import register_exception_handlers
 from src.adapters.inbound.middleware.logging import RequestLoggingMiddleware
@@ -43,5 +41,3 @@ app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(health_router)
 app.include_router(auth_router)
-app.include_router(book_router)
-app.include_router(favourite_list_router)

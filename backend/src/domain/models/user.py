@@ -16,7 +16,7 @@ class UserRole(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class User:
-    """A registered user of the BookShelf store."""
+    """A registered user of the application."""
 
     email: str
     name: str
