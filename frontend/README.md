@@ -134,13 +134,13 @@ Los tests E2E asumen un entorno completo levantado, no solo el frontend:
 
 1. `make dev` — levanta PostgreSQL en Docker.
 2. `make dev-back` — API en `http://localhost:8000` (en otra terminal).
-3. `make seed` — puebla la base de datos, incluidas las cuentas fijas pensadas
-   para el login manual y para los propios specs.
+3. `make seed` — puebla la base de datos, incluidas dos cuentas fijas pensadas
+   para el login manual y para los propios specs:
 
-   > **En obras.** El seed está a medio migrar al catálogo neutro: una cuenta
-   > fija por rol (`ADMIN` / `EDITOR` / `VIEWER`), pendiente de #11 y #12. Hasta
-   > que entren no hay credenciales con las que entrar, así que los specs de
-   > login fallan. Se documentan aquí en cuanto el #12 las fije.
+   | Email                    | Rol      | Contraseña      |
+   | ------------------------ | -------- | --------------- |
+   | `seller@bookshelf.dev`   | seller   | `BookShelf123!` |
+   | `customer@bookshelf.dev` | customer | `BookShelf123!` |
 
    Son datos de desarrollo únicamente — nunca credenciales válidas fuera de una
    base de datos local.
