@@ -31,8 +31,8 @@ _ERROR_DESCRIPTIONS: dict[int, str] = {
 
 _ERROR_EXAMPLES: dict[int, str] = {
     401: "Missing authentication credentials",
-    403: "Only sellers can manage book listings",
-    404: "Book 1 not found",
+    403: "You do not have permission to perform this action",
+    404: "User 1 not found",
     409: "Conflict: the resource already exists",
 }
 
