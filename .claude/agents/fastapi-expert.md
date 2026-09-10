@@ -34,9 +34,13 @@ backend/src/
 │   │   └── middleware/  # Auth, logging, error handling
 │   └── outbound/        # How the domain reaches the outside
 │       ├── persistence/ # SQLAlchemy models + repository implementations
-│       └── cache/       # Cache implementations
+│       │   └── example/ # ORM models of the example catalogue, deletable as a unit
+│       └── security/    # PasswordHasher (bcrypt), TokenService (JWT)
 └── config/              # Settings, dependency injection container
 ```
+
+Only `persistence/` and `security/` exist under `outbound/`. Nothing is reserved or stubbed there:
+add a package when you add the adapter that fills it, never before.
 
 ### Import Rules (NON-NEGOTIABLE)
 
@@ -53,15 +57,15 @@ If you find yourself importing SQLAlchemy, FastAPI, httpx, or any infrastructure
 ```python
 from typing import Protocol
 
-class BookRepository(Protocol):
-    async def find_by_id(self, book_id: int) -> Book | None: ...
-    async def save(self, book: Book) -> Book: ...
+class ItemRepository(Protocol):
+    async def find_by_id(self, item_id: int) -> Item | None: ...
+    async def save(self, item: Item) -> Item: ...
 ```
 
 ### Domain Models Are NOT SQLAlchemy Models
 
 - Domain models: `domain/models/` → dataclasses or Pydantic BaseModel
-- ORM models: `adapters/outbound/persistence/sqlalchemy_models.py` → SQLAlchemy
+- ORM models: `adapters/outbound/persistence/sqlalchemy_models.py` (the template's own tables) and `adapters/outbound/persistence/example/` (the example catalogue) → SQLAlchemy
 - A mapper function converts between the two
 
 ## Stack
@@ -94,7 +98,7 @@ class BookRepository(Protocol):
 - Type hints mandatory on all functions (mypy strict)
 - Docstrings on domain services and complex functions
 - API responses always: `{"success": bool, "data": ..., "error": ...}`
-- Pydantic schemas per operation: `BookCreate`, `BookUpdate`, `BookResponse`
+- Pydantic schemas per operation: `ItemCreate`, `ItemUpdate`, `ItemResponse`
 - Domain exceptions translate to HTTP codes via error_handler middleware
 - Use `var` naming: `sut` for system under test, descriptive names everywhere else
 

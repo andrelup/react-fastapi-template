@@ -1,13 +1,14 @@
-# react-fastapi-template — Tienda de libros online
+# react-fastapi-template — Plantilla full-stack
 
-react-fastapi-template es una **plantilla de proyecto** full-stack. Usa una tienda de libros como dominio de ejemplo, con la autenticación resuelta de punta a punta y el resto del catálogo deliberadamente a medio hacer: lo que se lleva de aquí es la arquitectura, las convenciones y el andamiaje, no la tienda.
+react-fastapi-template es una **plantilla de proyecto** full-stack. Usa un catálogo genérico (artículos, colecciones y etiquetas) como dominio de ejemplo, con la autenticación resuelta de punta a punta y el catálogo deliberadamente a medio hacer: lo que se lleva de aquí es la arquitectura, las convenciones y el andamiaje, no el dominio.
 
 Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de formación en Claude Code y desarrollo agéntico. Aunque ambos conviven en el mismo repositorio, se **despliegan por separado**.
 
 ## Funcionalidades
 
-El dominio de ejemplo es una librería, y está deliberadamente a medio construir: la plantilla existe
-para enseñar la arquitectura, no para vender libros. Esto es lo que hay hoy, sin adornos.
+El dominio de ejemplo es un catálogo genérico, y está deliberadamente a medio construir: la plantilla
+existe para enseñar la arquitectura, no para resolver un negocio concreto. Esto es lo que hay hoy,
+sin adornos.
 
 **Completo, de punta a punta:**
 
@@ -17,14 +18,17 @@ para enseñar la arquitectura, no para vender libros. Esto es lo que hay hoy, si
 - **Logging estructurado** — cada petición emite un evento con `request_id`, `status_code` y
   `duration_ms`, correlacionable desde la cabecera `X-Request-ID` de la respuesta.
 
-**Solo en la API, sin pantalla todavía:**
+**Cimientos puestos, vertical por construir:**
 
-- **Catálogo y búsqueda** — `GET /books` y `GET /books/search` funcionan; la búsqueda es un `ILIKE`
-  sobre título y autor. La SPA aún no tiene pantalla de catálogo.
-- **Listas de favoritos** — CRUD completo en la API. El módulo `wishlist/` del frontend está vacío.
+- **Esquema del catálogo de ejemplo** — las tablas `items` (con `slug` único y dueño),
+  `collections`, `tags` y sus tablas de asociación existen, con bloqueo optimista y una única
+  migración de Alembic. Sus modelos ORM viven aislados en
+  `backend/src/adapters/outbound/persistence/example/`, para que borrar el dominio de ejemplo de un
+  proyecto generado sea un `rm -rf` de ese directorio.
 
-Lo que **no** existe —carrito, compra, histórico de pedidos— vive en el [Roadmap](#roadmap), no
-aquí. Si has llegado desde «Use this template», eso es precisamente lo que te toca construir.
+Lo que **no** existe —el dominio, los repositorios, la API y las pantallas del catálogo— vive en el
+[Roadmap](#roadmap), no aquí. Si has llegado desde «Use this template», eso es precisamente lo que
+te toca construir.
 
 ## Estructura del repositorio
 
@@ -165,7 +169,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 ## Git
 
 - **Conventional commits** obligatorios: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`.
-- El scope indica el módulo: `feat(backend): add book search endpoint`, `fix(frontend): fix login redirect`.
+- El scope indica el módulo: `feat(backend): add the item search endpoint`, `fix(frontend): fix login redirect`.
 
 ### Hooks de pre-commit
 
@@ -248,10 +252,11 @@ deuda técnica: son el trabajo que se espera que hagas tú al partir de aquí.
   sobre la plantilla: una entidad nueva recorre las tres capas y `docs/backend-hexagonal-architecture.md`
   lleva el paso a paso.
 
-- **Pantallas de catálogo y de favoritos.** La API existe y está probada
-  (`GET /books`, `/books/search` y el CRUD de listas de favoritos); lo que falta
-  es el frontend. Los módulos `frontend/src/features/books/` y `wishlist/` están
-  creados y vacíos, con su `index.ts` exportando nada, listos para llenarse.
+- **La vertical del catálogo de ejemplo.** De `items`, `collections` y `tags` están
+  puestos y cubiertos por tests solo los modelos ORM y su migración. Encima no hay
+  nada todavía: ni modelos de dominio, ni ports, ni servicios, ni repositorios, ni
+  routers, ni pantallas. Construir esa vertical atraviesa las tres capas de una vez
+  y `docs/backend-hexagonal-architecture.md` lleva el paso a paso.
 
 ## Despliegue
 
