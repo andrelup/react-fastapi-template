@@ -4,7 +4,7 @@ How tests are written in `backend/`: pytest + pytest-asyncio + httpx, organised 
 mirror the hexagonal layers. This document describes the conventions the existing suite actually
 follows, so a new test looks like the ones already there.
 
-The suite is deliberately small right now. The bookstore example domain was deleted, and the
+The suite is deliberately small right now. The previous example domain was deleted, and the
 neutral catalogue that replaces it (`items`, `collections`, `tags`) exists so far only as ORM
 models, so what remains covers authentication, the shared adapters, the middleware and the ORM
 metadata. Some scaffolding went with the old domain: there is no `tests/factories.py` and no
