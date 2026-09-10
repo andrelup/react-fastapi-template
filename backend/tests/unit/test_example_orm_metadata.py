@@ -47,9 +47,9 @@ def _indexed_column_names(table: Table) -> set[str]:
 
 def test_base_metadata_registers_exactly_the_template_and_catalogue_tables() -> None:
     # Arrange
-    # Deliberately exhaustive rather than a subset check: the bookstore
-    # revisions once outlived the ORM models they described, and equality is
-    # what catches a stale or orphaned table next time.
+    # Deliberately exhaustive rather than a subset check: the previous example
+    # domain's revisions once outlived the ORM models they described, and
+    # equality is what catches a stale or orphaned table next time.
     expected = {"users", *CATALOGUE_TABLES}
 
     # Act
