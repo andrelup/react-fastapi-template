@@ -37,13 +37,13 @@ async def test_get_health_logs_request_id_matching_response_header(
     assert request_event["log_level"] == "info"
 
 
-async def test_get_book_when_unauthenticated_logs_domain_error_with_matching_request_id(
+async def test_get_me_when_unauthenticated_logs_domain_error_with_matching_request_id(
     client: httpx.AsyncClient,
 ) -> None:
     # Arrange / Act - no `authenticated_as(...)` call, so `get_current_user`
     # raises the real `UnauthorizedError`, mapped by error_handler.py to 401.
     with structlog.testing.capture_logs(processors=_CONTEXTVARS_PROCESSOR) as captured:
-        response = await client.get("/books/1")
+        response = await client.get("/auth/me")
 
     # Assert
     assert response.status_code == 401
