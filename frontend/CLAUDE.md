@@ -11,7 +11,10 @@ The documentation map lives in the monorepo root CLAUDE.md. Open only the docume
 - React 18
 - TypeScript (strict mode)
 - Vite (build + dev server)
-- TailwindCSS (styling)
+- TailwindCSS (styling) + `tailwindcss-animate`
+- shadcn/ui as the component base — copied into `components/ui/`, not a dependency — over Radix
+  primitives, with `class-variance-authority` for variants, `clsx` + `tailwind-merge` behind the
+  `cn` helper, and `lucide-react` for icons
 - React Router v6 (routing)
 - Vitest + React Testing Library (testing)
 - Playwright (E2E)
@@ -53,9 +56,9 @@ frontend/
 │   │   └── wishlist/              # EMPTY: index.ts is `export {};`
 │   │
 │   ├── components/
-│   │   ├── ui/                    # Generic, no business logic
-│   │   │   ├── Button.tsx  Input.tsx  Card.tsx  Modal.tsx  Spinner.tsx
-│   │   │   ├── Avatar.tsx  Badge.tsx
+│   │   ├── ui/                    # Generic, no business logic. shadcn/ui, on the project tokens
+│   │   │   ├── Button.tsx  Input.tsx  InputControl.tsx  Label.tsx
+│   │   │   ├── Card.tsx  Dialog.tsx  Avatar.tsx  Badge.tsx  Spinner.tsx
 │   │   │   └── EmptyState.tsx  NoResultsState.tsx  NotFoundState.tsx
 │   │   │       ServerErrorState.tsx  SystemStateCard.tsx
 │   │   └── layout/                # Layout, Header, Footer, Sidebar, PageContainer,
@@ -63,6 +66,7 @@ frontend/
 │   │
 │   ├── hooks/                     # Generic: useApi, useDebounce, useLocalStorage
 │   ├── lib/api-client.ts          # The ONLY place allowed to call fetch
+│   ├── lib/utils.ts               # `cn` — the only sanctioned way to build a class string
 │   ├── types/api.ts               # ApiResponse<T>, PaginatedResponse<T>
 │   ├── utils/                     # format-price, get-initials
 │   └── test/setup.ts              # Vitest setup (jest-dom + cleanup)
@@ -75,7 +79,8 @@ frontend/
 ├── package.json
 ├── vite.config.ts                 # Vite + Vitest + coverage thresholds
 ├── tsconfig.json
-├── tailwind.config.ts
+├── tailwind.config.ts             # Only var(--…) mappings — no values live here
+├── components.json                # shadcn/ui CLI config (written by hand, never `init`)
 ├── eslint.config.js
 ├── prettier.config.js
 ├── playwright.config.ts
@@ -104,7 +109,7 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
    export type { User, LoginCredentials } from './types';
    ```
 
-4. **Components in the root `components/` are generic UI** with no business logic: Button, Input, Modal, Card, Spinner. They import from no feature.
+4. **Components in the root `components/` are generic UI** with no business logic: Button, Input, Dialog, Card, Spinner. They import from no feature.
 
 5. **Hooks in the root `hooks/` are generic** and reusable in any feature: useApi, useDebounce, useLocalStorage. They contain no business logic.
 
@@ -139,13 +144,27 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
 
 ## Styling
 
+Full rules in [docs/frontend-ui-components.md](../docs/frontend-ui-components.md). The short version:
+
 - TailwindCSS for all styling. No CSS modules, no styled-components, no inline CSS.
-- Tailwind classes directly in the JSX.
-- For component variants, use conditional logic with template literals:
-  ```typescript
-  const buttonClass = `px-4 py-2 rounded ${variant === 'primary' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`;
-  ```
+- **The palette is changed in exactly one place:** the `:root` block of `src/app/index.css`.
+  `tailwind.config.ts` holds no values, only `var(--…)` mappings — never write a literal there.
+- **No colour value in a component.** No hex, no `rgb()`, no default Tailwind palette class
+  (`slate-*`, `zinc-*`, `neutral-*`, `gray-*`, `blue-*`…), no arbitrary colour between brackets.
+  Only the token classes: `bg-primary`, `text-ink`, `text-body`, `text-muted`, `border-border`,
+  `bg-bg`, `bg-surface`, `text-danger`. There are no blue tokens.
+- **Compose classes with `cn`** (`@/lib/utils`), so a caller's `className` wins over the
+  component's defaults. **Declare variants with `cva`**, exported next to the component.
+- **Icons come from `lucide-react`.** No hand-written inline SVG, no second icon library.
 - Do not create `.css` files other than `index.css` with the Tailwind directives.
+
+## The `/components-ui` catalogue is binding
+
+**No screen uses a component that is not shown in `/components-ui`**
+(`src/app/pages/UiComponentsPage.tsx`). If a feature needs one that is not there: take it from the
+shadcn/ui docs, adapt it to the tokens and to the conventions above, add it to `/components-ui` with
+its real states (disabled, loading, with an error, empty), write its test, and only then use it.
+Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` with its own tokens.
 
 ## API Client
 
@@ -196,6 +215,8 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
 - Do not put business logic in the root `components/` — those are pure UI
 - Do not use `any` — use `unknown` with type guards
 - Do not create individual CSS files — use Tailwind
+- Do not write a colour in a component, and do not add a value to `tailwind.config.ts` — the palette lives in the `:root` of `app/index.css` and nowhere else
+- Do not use in a screen a component that is not in `/components-ui`
 - Do not use `useEffect` to fetch data — use the `useApi` hook, which already handles loading/error
 - Do not put global state (Context) in place for data that only one feature uses
 - Do not fetch directly with `window.fetch` — always go through `lib/api-client.ts`
