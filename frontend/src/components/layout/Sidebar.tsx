@@ -65,23 +65,15 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
           <NavLink to="/" end className={navLinkClassName}>
             Inicio
           </NavLink>
-          {/* Seller-only route: hidden for customers, who would get a 404. */}
-          {user?.role === 'seller' && (
-            <NavLink to="/dashboard" className={navLinkClassName}>
-              Dashboard
-            </NavLink>
-          )}
           <InactiveNavItem label="Explorar catálogo" />
         </NavGroup>
 
-        <NavGroup label="Vender">
-          <InactiveNavItem label="Publicar libro" />
-          <InactiveNavItem label="Mis libros" />
-          <InactiveNavItem label="Ventas y pedidos" badge={2} />
+        <NavGroup label="Colecciones">
+          <InactiveNavItem label="Mis colecciones" />
+          <InactiveNavItem label="Colecciones destacadas" />
         </NavGroup>
 
         <NavGroup label="Cuenta">
-          <InactiveNavItem label="Favoritos" />
           <InactiveNavItem label="Mensajes" badge={1} />
           <InactiveNavItem label="Ajustes" />
         </NavGroup>

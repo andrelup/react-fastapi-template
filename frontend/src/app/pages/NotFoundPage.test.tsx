@@ -23,7 +23,7 @@ describe('NotFoundPage', () => {
     render(
       <MemoryRouter initialEntries={['/unknown-route']}>
         <Routes>
-          <Route path="/" element={<h1>Welcome to BookShelf</h1>} />
+          <Route path="/" element={<h1>Welcome home</h1>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </MemoryRouter>,
@@ -31,14 +31,14 @@ describe('NotFoundPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Volver al inicio' }));
 
-    expect(screen.getByRole('heading', { name: 'Welcome to BookShelf' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome home' })).toBeInTheDocument();
   });
 
   it('renders the 404 page for an unknown route within the app routing', () => {
     render(
       <MemoryRouter initialEntries={['/this-page-does-not-exist']}>
         <Routes>
-          <Route path="/" element={<h1>Welcome to BookShelf</h1>} />
+          <Route path="/" element={<h1>Welcome home</h1>} />
           <Route path="/login" element={<h1>Log in</h1>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

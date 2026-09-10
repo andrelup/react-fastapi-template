@@ -6,12 +6,12 @@ describe('MobileActionBar', () => {
   it('renders its children', () => {
     render(
       <MobileActionBar>
-        <span>€14,00</span>
-        <button type="button">Añadir al carrito</button>
+        <span>Total: 14,00 €</span>
+        <button type="button">Confirmar</button>
       </MobileActionBar>,
     );
 
-    expect(screen.getByText('€14,00')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Añadir al carrito' })).toBeInTheDocument();
+    expect(screen.getByText('Total: 14,00 €')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument();
   });
 });

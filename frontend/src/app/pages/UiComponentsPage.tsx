@@ -63,8 +63,8 @@ const UiComponentsPage = () => {
 
       <Section title="Tarjeta">
         <Card className="max-w-sm">
-          <h3 className="font-serif text-lg font-bold text-ink">El nombre del viento</h3>
-          <p className="mt-1 text-sm text-body">Patrick Rothfuss</p>
+          <h3 className="font-serif text-lg font-bold text-ink">Título de ejemplo</h3>
+          <p className="mt-1 text-sm text-body">Subtítulo de ejemplo</p>
           <p className="mt-3 text-sm text-muted">
             Contenido de ejemplo dentro de una tarjeta genérica del sistema de diseño.
           </p>
@@ -113,10 +113,10 @@ const UiComponentsPage = () => {
       <Section title="Estados del sistema">
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <EmptyState
-            title="Tu carrito está vacío"
-            description="Todavía no has añadido ningún libro a tu carrito."
-            actionLabel="Explorar catálogo"
-            onAction={() => setLastAction('explorar-catalogo')}
+            title="No hay elementos"
+            description="Todavía no has añadido ningún elemento."
+            actionLabel="Ver más"
+            onAction={() => setLastAction('ver-mas')}
           />
           <NoResultsState onClearSearch={() => setLastAction('limpiar-busqueda')} />
           <NotFoundState onGoHome={() => setLastAction('volver-al-inicio')} />

@@ -7,7 +7,6 @@ import { Layout } from './Layout';
 import { Sidebar } from './Sidebar';
 
 const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'customer' };
-const rawSellerUser = { id: 2, email: 'bob@example.com', name: 'Bob Smith', role: 'seller' };
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {
@@ -31,9 +30,9 @@ describe('Sidebar', () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter initialEntries={['/dashboard']}>
+        <MemoryRouter initialEntries={['/']}>
           <Routes>
-            <Route path="/dashboard" element={<Sidebar />} />
+            <Route path="/" element={<Sidebar />} />
           </Routes>
         </MemoryRouter>
       </AuthProvider>,
@@ -49,9 +48,9 @@ describe('Sidebar', () => {
 
     render(
       <AuthProvider>
-        <MemoryRouter initialEntries={['/dashboard']}>
+        <MemoryRouter initialEntries={['/']}>
           <Routes>
-            <Route path="/dashboard" element={<Sidebar />} />
+            <Route path="/" element={<Sidebar />} />
             <Route path="/login" element={<h1>Log in</h1>} />
           </Routes>
         </MemoryRouter>
@@ -66,7 +65,7 @@ describe('Sidebar', () => {
     expect(window.localStorage.getItem('auth-token')).toBeNull();
   });
 
-  it('hides the seller-only "Dashboard" link for a customer', async () => {
+  it('shows the main navigation entries', async () => {
     window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
 
     render(
@@ -81,28 +80,10 @@ describe('Sidebar', () => {
 
     await screen.findByText('Ada Lovelace');
 
-    expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Inicio' })).toBeInTheDocument();
-  });
-
-  it('shows the "Dashboard" link for a seller', async () => {
-    const { apiClient } = await import('@/lib/api-client');
-    vi.mocked(apiClient.get).mockResolvedValueOnce(rawSellerUser);
-    window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
-
-    render(
-      <AuthProvider>
-        <MemoryRouter initialEntries={['/']}>
-          <Routes>
-            <Route path="/" element={<Sidebar />} />
-          </Routes>
-        </MemoryRouter>
-      </AuthProvider>,
-    );
-
-    await screen.findByText('Bob Smith');
-
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByText('Explorar catálogo')).toBeInTheDocument();
+    expect(screen.getByText('Mis colecciones')).toBeInTheDocument();
+    expect(screen.getByText('Colecciones destacadas')).toBeInTheDocument();
   });
 
   it('is not rendered when there is no session', () => {

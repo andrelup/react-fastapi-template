@@ -31,16 +31,16 @@ describe('apiClient', () => {
 
   it('unwraps the data of a successful envelope', async () => {
     fetchMock.mockResolvedValueOnce(
-      jsonResponse({ success: true, data: { id: 1, title: 'Some book' }, error: null }),
+      jsonResponse({ success: true, data: { id: 1, name: 'Some item' }, error: null }),
     );
 
-    await expect(apiClient.get('/books/1')).resolves.toEqual({ id: 1, title: 'Some book' });
+    await expect(apiClient.get('/items/1')).resolves.toEqual({ id: 1, name: 'Some item' });
   });
 
   it('sends the JSON content type and no Authorization header when there is no token', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, data: [], error: null }));
 
-    await apiClient.get('/books');
+    await apiClient.get('/items');
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
@@ -62,19 +62,19 @@ describe('apiClient', () => {
   it('serializes the body and merges custom headers on a POST', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, data: { id: 7 }, error: null }));
 
-    await apiClient.post('/books', { title: 'New book' }, { 'X-Trace': 'abc' });
+    await apiClient.post('/items', { name: 'New item' }, { 'X-Trace': 'abc' });
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('/books');
+    expect(url).toContain('/items');
     expect(init.method).toBe('POST');
-    expect(init.body).toBe(JSON.stringify({ title: 'New book' }));
+    expect(init.body).toBe(JSON.stringify({ name: 'New item' }));
     expect((init.headers as Record<string, string>)['X-Trace']).toBe('abc');
   });
 
   it.each([
-    ['put', () => apiClient.put('/books/1', { title: 'Updated' }), 'PUT'],
-    ['patch', () => apiClient.patch('/books/1', { title: 'Patched' }), 'PATCH'],
-    ['delete', () => apiClient.delete('/books/1'), 'DELETE'],
+    ['put', () => apiClient.put('/items/1', { name: 'Updated' }), 'PUT'],
+    ['patch', () => apiClient.patch('/items/1', { name: 'Patched' }), 'PATCH'],
+    ['delete', () => apiClient.delete('/items/1'), 'DELETE'],
   ])('uses the %s HTTP verb', async (_name, call, method) => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: true, data: null, error: null }));
 
@@ -87,7 +87,7 @@ describe('apiClient', () => {
   it('throws an ApiError when the network is unreachable', async () => {
     fetchMock.mockRejectedValueOnce(new Error('offline'));
 
-    await expect(apiClient.get('/books')).rejects.toThrow(
+    await expect(apiClient.get('/items')).rejects.toThrow(
       new ApiError('Network error: unable to reach the server'),
     );
   });
@@ -107,7 +107,7 @@ describe('apiClient', () => {
   it('falls back to the status code when a failed envelope carries no message', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ success: false, data: null, error: null }, 500));
 
-    await expect(apiClient.get('/books')).rejects.toMatchObject({
+    await expect(apiClient.get('/items')).rejects.toMatchObject({
       message: 'Request failed with status 500',
       status: 500,
     });
@@ -116,7 +116,7 @@ describe('apiClient', () => {
   it('reports the status when a failed response is not a valid envelope', async () => {
     fetchMock.mockResolvedValueOnce(brokenResponse(502));
 
-    await expect(apiClient.get('/books')).rejects.toMatchObject({
+    await expect(apiClient.get('/items')).rejects.toMatchObject({
       message: 'Request failed with status 502',
       status: 502,
     });
@@ -125,7 +125,7 @@ describe('apiClient', () => {
   it('reports an unexpected format when a successful response is not a valid envelope', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ id: 1 }));
 
-    await expect(apiClient.get('/books')).rejects.toMatchObject({
+    await expect(apiClient.get('/items')).rejects.toMatchObject({
       message: 'Unexpected response format from the server',
       status: 200,
     });
