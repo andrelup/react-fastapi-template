@@ -40,7 +40,11 @@ Los servicios `backend` y `frontend` pertenecen al perfil `prod`, así que un `u
 levanta únicamente `postgres`. No hace falta nombrarlo al final del comando.
 
 El backend en local se conecta por `localhost:${DB_PORT}`, el puerto que el contenedor expone al
-host. Si prefieres lanzarlo a mano en vez de con `make dev-back`, desde la **raíz** del repo (así
+host. Dentro del contenedor PostgreSQL escucha siempre en el 5432; `DB_PORT` solo decide en qué
+puerto del host se publica. Conviene dejarlo fuera del 5432 por defecto (esta plantilla usa el
+**5434**) para que puedas tener levantada a la vez la base de otro proyecto sin que choquen.
+
+Si prefieres lanzar el backend a mano en vez de con `make dev-back`, desde la **raíz** del repo (así
 lee el mismo `.env`; `--app-dir backend` hace importable el paquete `src`):
 
 ```bash
@@ -147,7 +151,7 @@ docker exec react-template id                                                  #
 docker inspect -f '{{len .Mounts}}' react-template fastapi-template            # 0 en ambos
 
 # Conexion a la base (usuario/base segun el .env de la raiz)
-docker exec -it react-fastapi-template-postgres psql -U bookshelf -d bookshelf -c '\dt'
+docker exec -it react-fastapi-template-postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -c '\dt'
 ```
 
 > El rol, la contraseña y la base (`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`) solo se

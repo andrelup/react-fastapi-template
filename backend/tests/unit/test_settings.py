@@ -22,14 +22,14 @@ def test_database_url_composed_from_discrete_fields() -> None:
         db_port=5433,
         db_username="alice",
         db_password="secret",
-        db_name="bookshelf_test",
+        db_name="catalogue_test",
     )
 
     # Act
     url = settings.database_url
 
     # Assert
-    assert url == "postgresql+asyncpg://alice:secret@db.example.com:5433/bookshelf_test"
+    assert url == "postgresql+asyncpg://alice:secret@db.example.com:5433/catalogue_test"
 
 
 def test_database_url_when_password_has_special_chars_is_url_encoded() -> None:
@@ -37,7 +37,7 @@ def test_database_url_when_password_has_special_chars_is_url_encoded() -> None:
     settings = make_settings(
         db_username="alice",
         db_password="p@ss:w/rd+1",
-        db_name="bookshelf_test",
+        db_name="catalogue_test",
     )
 
     # Act

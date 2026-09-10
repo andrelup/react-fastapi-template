@@ -33,10 +33,10 @@ class Settings(BaseSettings):
     environment: str = "development"
     db_host: str = "localhost"
     db_port: int = 5432
-    db_username: str = "bookshelf"
+    db_username: str = "admin"
     # Required on purpose: secrets must come from the environment, never code.
     db_password: str
-    db_name: str = "bookshelf"
+    db_name: str = "react-fastapi-template"
     log_level: str = "INFO"
     # Origins allowed to call the API from a browser (CORS). Comma-separated
     # in the .env file, e.g. "http://localhost:3000,http://localhost:5173".
