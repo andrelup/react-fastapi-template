@@ -314,7 +314,11 @@ chained after the users migration and could carry a real FK.
 Adding a `NOT NULL` column to a populated table uses `server_default` to backfill in one step,
 as the `version` migration does.
 
-Current history is linear: users → books → favourite lists/items → version columns.
+Current history is a single initial revision, `d5d3e24a6992` (`down_revision = None`), which
+creates `users` together with the example catalogue — `items`, `collections`, `tags` and the
+`item_tags` / `item_collections` association tables. It replaced the four bookstore revisions
+(users → books → favourite lists/items → version columns), deleted along with that example
+domain: their tables no longer had ORM models, so autogenerate wanted to drop them again.
 
 ---
 
