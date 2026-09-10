@@ -12,7 +12,7 @@ describe('Footer', () => {
       screen.getByText(
         (_, element) =>
           element?.tagName.toLowerCase() === 'p' &&
-          element.textContent === '© 2026 BookShelf. Todos los derechos reservados.',
+          element.textContent === '© 2026 Mi App. Todos los derechos reservados.',
       ),
     ).toBeInTheDocument();
   });

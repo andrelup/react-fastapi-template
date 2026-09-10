@@ -14,9 +14,9 @@ describe('NotFoundState', () => {
   });
 
   it('renders custom title and description when provided', () => {
-    render(<NotFoundState title="Libro no encontrado" description="Puede que ya no exista." />);
+    render(<NotFoundState title="Elemento no encontrado" description="Puede que ya no exista." />);
 
-    expect(screen.getByRole('heading', { name: 'Libro no encontrado' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Elemento no encontrado' })).toBeInTheDocument();
     expect(screen.getByText('Puede que ya no exista.')).toBeInTheDocument();
   });
 
