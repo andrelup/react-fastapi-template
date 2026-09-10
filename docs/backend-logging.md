@@ -100,8 +100,8 @@ from the dependency — never by re-parsing the token in the middleware.
 
 - **Never use `print()`.** Get a logger with `structlog.get_logger(__name__)` at module level.
 - **The event name is a short, stable, snake_case string** — `http_request`, `domain_error`. Put the
-  variable parts in keyword fields, not in the message. `logger.info("book_created", book_id=id)`,
-  never `logger.info(f"Created book {id}")`. String interpolation destroys the reason JSON output
+  variable parts in keyword fields, not in the message. `logger.info("item_created", item_id=id)`,
+  never `logger.info(f"Created item {id}")`. String interpolation destroys the reason JSON output
   exists.
 - **Levels:** `info` for the normal path; `warning` for expected failures the client caused (the 4xx
   domain errors); `error` with `exc_info=True` for anything unexpected (5xx). The exception handlers
@@ -148,7 +148,7 @@ cd backend && python -m pytest tests/unit/test_logging_middleware.py \
 # Live: the id in the log must match the response header, and a 401 must
 # produce both a domain_error line and an http_request line sharing it
 curl -i http://localhost:8000/health
-curl -i http://localhost:8000/books/999
+curl -i http://localhost:8000/auth/me
 ```
 
 ## Checklist for a change that touches logging

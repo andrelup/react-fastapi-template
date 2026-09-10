@@ -86,7 +86,7 @@ There is no `[tool.ruff.format]` section, so the formatter runs with its default
 
 ### Consequences for the code you write
 
-- Type annotations use modern syntax: `Book | None`, `list[Book]`, `dict[str, int]`.
+- Type annotations use modern syntax: `User | None`, `list[User]`, `dict[str, int]`.
 - No unused import survives, not even a convenience re-export — put it in `__init__.py`
   deliberately or delete it.
 - Never `assert` outside tests; raise a domain exception instead.
