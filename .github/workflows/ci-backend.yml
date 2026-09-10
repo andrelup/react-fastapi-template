@@ -74,13 +74,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: bookshelf
-          POSTGRES_PASSWORD: bookshelf
-          POSTGRES_DB: bookshelf
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: react-fastapi-template
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U bookshelf -d bookshelf"
+          --health-cmd "pg_isready -U admin -d react-fastapi-template"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -94,9 +94,9 @@ jobs:
     env:
       DB_HOST: localhost
       DB_PORT: '5432'
-      DB_USERNAME: bookshelf
-      DB_PASSWORD: bookshelf
-      DB_NAME: bookshelf
+      DB_USERNAME: admin
+      DB_PASSWORD: admin
+      DB_NAME: react-fastapi-template
       JWT_SECRET_KEY: ci-only-not-a-real-secret
 
     steps:
@@ -118,9 +118,8 @@ jobs:
       - name: Run database migrations
         run: alembic upgrade head
 
-      # Los tests de `tests/integration/` levantan su propio contenedor
-      # `postgres:16-alpine` en el puerto 55433 con el CLI de Docker
-      # (ver tests/integration/conftest.py). En `ubuntu-latest` Docker está
-      # disponible, así que funcionan tal cual y no se tocan.
+      # Los tests de `tests/integration/` usan las fixtures de
+      # `tests/conftest.py`, que hablan con el servicio `postgres` declarado
+      # arriba. No levantan ningún contenedor propio.
       - name: Run tests with coverage
         run: pytest --cov=src --cov-report=term-missing
