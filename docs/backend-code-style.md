@@ -158,7 +158,7 @@ These are not machine-enforced but are followed throughout the codebase:
 - Docstrings on domain services, ports and any non-obvious function. Written in English, like all
   code.
 - Private helpers prefixed with `_`, both module-level functions (`_to_domain`) and instance
-  attributes (`self._book_repository`).
+  attributes (`self._item_repository`).
 - **Never `print()`.** It is explicitly forbidden by the project rules.
 - Every new environment variable goes into `config/settings.py` **and** `.env.example`. Never read
   `os.environ` elsewhere, never commit a real value.
