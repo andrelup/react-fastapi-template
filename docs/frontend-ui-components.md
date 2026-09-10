@@ -288,7 +288,7 @@ own source says so. Use one of the four wrappers.
 
 | Component | Use when | Action |
 |---|---|---|
-| `EmptyState` | A collection genuinely has zero items (empty cart, empty wishlist). Title and description are required — you supply the copy. | `default` button when `actionLabel` + `onAction` given |
+| `EmptyState` | A list genuinely has zero rows (a collection with nothing in it, an owner with no items published). Title and description are required — you supply the copy. | `default` button when `actionLabel` + `onAction` given |
 | `NoResultsState` | A search or filter returned nothing. Not a 404. | `outline` "Limpiar búsqueda" when `onClearSearch` given |
 | `NotFoundState` | A route or resource does not exist. Also reused by `RoleRoute` for a forbidden role. | `outline` "Volver al inicio" when `onGoHome` given |
 | `ServerErrorState` | The request failed with a server-side (5xx) error. | `destructive` "Reintentar" when `onRetry` given |
@@ -297,8 +297,8 @@ Each has sensible default Spanish copy except `EmptyState`. Never build a bespok
 
 ```tsx
 <EmptyState
-  title="Tu carrito está vacío"
-  description="Todavía no has añadido nada a tu carrito."
+  title="Esta colección está vacía"
+  description="Todavía no has añadido ningún elemento a esta colección."
   actionLabel="Explorar catálogo"
   onAction={goToCatalog}
 />
@@ -314,19 +314,19 @@ You normally do **not** touch these; you render inside them.
 | Component | Responsibility |
 |---|---|
 | `Layout` | Root route element. Composes Header, Sidebar (desktop, authenticated), `PageContainer` with the Suspense boundary, Footer and `MobileTabBar`. Decides the authenticated vs. anonymous shell from the token. |
-| `Header` | Fixed top bar: wordmark, desktop search, role-specific action (seller "+ Vender libro", customer cart). |
+| `Header` | Fixed top bar: wordmark and, once there is a session, the desktop search field. No role-specific action yet. |
 | `Sidebar` | Desktop navigation, 248px, grouped links, profile block, logout pinned at the bottom. Hidden below `md`. |
 | `PageContainer` | The `<main>` wrapper: max width, padding, and the bottom padding that clears the mobile tab bar. |
 | `Footer` | Slim legal bar. Hidden on mobile when authenticated. |
-| `MobileTabBar` | Mobile-only bottom navigation, role-aware (seller: Inicio + FAB + Cuenta; customer: Inicio, Carrito, Cuenta). Hidden from `md` up. |
+| `MobileTabBar` | Mobile-only bottom navigation: Inicio plus a Cuenta tab that opens the account drawer. Hidden from `md` up, and rendered only with a session. |
 | `MobileAccountDrawer` | Mobile-only slide-over account menu opened from the tab bar. |
-| `MobileActionBar` | Mobile-only sticky action bar that stacks above the tab bar. Scaffolding for detail/cart screens; no consumers yet. |
+| `MobileActionBar` | Mobile-only sticky action bar that stacks above the tab bar. Scaffolding for detail/confirmation screens; no consumers yet. |
 
 ### Responsive rules
 
 Mobile-first Tailwind; **`md:` (768px) means desktop**.
 
-- Desktop-only: `Sidebar`, the header search, the header role actions, the footer text tail.
+- Desktop-only: `Sidebar`, the header search, the footer text tail.
 - Mobile-only: `MobileTabBar`, `MobileAccountDrawer`, `MobileActionBar`.
 - `PageContainer` already reserves 84px of bottom padding on mobile for the tab bar. If your screen
   also uses `MobileActionBar`, reserve roughly 154px instead.

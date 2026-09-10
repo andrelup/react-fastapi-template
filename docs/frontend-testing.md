@@ -85,7 +85,7 @@ it('renders the action button and fires onAction when clicked', async () => {
   const user = userEvent.setup();
   const onAction = vi.fn();
 
-  render(<EmptyState title="No books" description="Add your first book." actionLabel="Add" onAction={onAction} />);
+  render(<EmptyState title="No items" description="Add your first item." actionLabel="Add" onAction={onAction} />);
 
   await user.click(screen.getByRole('button', { name: 'Add' }));
 
@@ -158,9 +158,9 @@ There is no shared render helper. Each file declares its own small `renderXxx()`
 const renderComponent = () =>
   render(
     <AuthProvider>
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <MemoryRouter initialEntries={['/items']}>
         <Routes>
-          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/items" element={<ItemsPage />} />
           <Route path="/login" element={<p>Login screen</p>} />
         </Routes>
       </MemoryRouter>
@@ -275,11 +275,11 @@ describe('useMyHook', () => {
 
   it('exposes the data once the request resolves', async () => {
     const { apiClient } = await import('@/lib/api-client');
-    vi.mocked(apiClient.get).mockResolvedValueOnce({ id: 1, title: 'Some book' });
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ id: 1, name: 'Some item' });
 
     const { result } = renderHook(() => useMyHook());
 
-    await waitFor(() => expect(result.current.data).toEqual({ id: 1, title: 'Some book' }));
+    await waitFor(() => expect(result.current.data).toEqual({ id: 1, name: 'Some item' }));
   });
 });
 ```
@@ -288,11 +288,11 @@ describe('useMyHook', () => {
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { formatPrice } from './format-price';
+import { getInitials } from './get-initials';
 
-describe('formatPrice', () => {
-  it('formats a price with two decimals and the euro symbol', () => {
-    expect(formatPrice(12.5)).toBe('12,50 €');
+describe('getInitials', () => {
+  it('returns the initials of the first and last word for a two-word name', () => {
+    expect(getInitials('Ada Lovelace')).toBe('AL');
   });
 });
 ```
@@ -321,7 +321,9 @@ Two things to know before touching it:
 
 - **Playwright starts the SPA itself** through `webServer`, reusing an existing server on port 3000
   if there is one. It does **not** start the API: e2e needs `make dev`, `make dev-back` and
-  `make seed` first, for the fixed accounts `seller@bookshelf.dev` / `customer@bookshelf.dev`.
+  `make seed` first, for the two fixed accounts the seed creates — one `seller`, one `customer`.
+  Their literal credentials live in `backend/seed.py`, the single source of truth, and the login
+  spec repeats them at the top of `e2e/tests/auth.spec.ts`.
 - **`vite.config.ts` excludes `e2e/**` from Vitest.** Without that, Vitest's default glob would pick
   up the Playwright specs and break `make test-front`. Do not remove it.
 

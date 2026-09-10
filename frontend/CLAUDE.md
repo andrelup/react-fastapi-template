@@ -1,6 +1,7 @@
 # react-template Frontend — Bulletproof React Architecture
 
-SPA for a bookstore. This CLAUDE.md complements the monorepo root CLAUDE.md.
+SPA for the react-fastapi-template example domain: a catalogue of `Item`s grouped into
+`Collection`s. This CLAUDE.md complements the monorepo root CLAUDE.md.
 
 ## Documentation
 
@@ -34,12 +35,11 @@ frontend/
 │   │       ├── HomePage.tsx
 │   │       ├── LoginPage.tsx
 │   │       ├── RegisterPage.tsx
-│   │       ├── DashboardPage.tsx          # Seller-only, behind RoleRoute
 │   │       ├── UiComponentsPage.tsx       # Live catalogue at /components-ui
 │   │       └── NotFoundPage.tsx
 │   │
 │   ├── features/                  # Self-contained feature modules
-│   │   ├── auth/                  # The only fully built feature
+│   │   ├── auth/                  # The only feature that exists today
 │   │   │   ├── api/auth-api.ts            # /auth/login, /auth/register, /auth/me
 │   │   │   ├── components/
 │   │   │   │   ├── AuthProvider.tsx       # Session state, restored from localStorage
@@ -51,9 +51,8 @@ frontend/
 │   │   │   ├── hooks/                     # useAuth, useLogin
 │   │   │   ├── types/index.ts
 │   │   │   └── index.ts                   # Public contract of the feature
-│   │   ├── seller/                # Only SellerDashboard.tsx so far
-│   │   ├── books/                 # EMPTY: index.ts is `export {};`
-│   │   └── wishlist/              # EMPTY: index.ts is `export {};`
+│   │   └── …                      # items/ and collections/ do not exist yet —
+│   │                              # issues #39-#43 add the example catalogue
 │   │
 │   ├── components/
 │   │   ├── ui/                    # Generic, no business logic. shadcn/ui, on the project tokens
@@ -68,7 +67,7 @@ frontend/
 │   ├── lib/api-client.ts          # The ONLY place allowed to call fetch
 │   ├── lib/utils.ts               # `cn` — the only sanctioned way to build a class string
 │   ├── types/api.ts               # ApiResponse<T>, PaginatedResponse<T>
-│   ├── utils/                     # format-price, get-initials
+│   ├── utils/                     # get-initials
 │   └── test/setup.ts              # Vitest setup (jest-dom + cleanup)
 │
 ├── e2e/                           # Playwright, Page Object Model
@@ -89,14 +88,16 @@ frontend/
 ```
 
 Unit tests are colocated next to what they cover (`Button.test.tsx`) and are omitted from the tree.
-Anything not listed above does not exist yet — in particular `books/` and `wishlist/` hold only a
-`.gitkeep` and an `index.ts` exporting nothing.
+Anything not listed above does not exist yet. In particular `features/` holds `auth/` and nothing
+else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
+editorial grouping that orders it — is what issues #39 to #43 build, as `features/items/` and
+`features/collections/`.
 
 ## Bulletproof React Architecture rules
 
 1. **Every feature is an autonomous module.** It has its own folder with api/, components/, hooks/, types/ and an `index.ts` that acts as its public API.
 
-2. **A feature does NOT import directly from another feature.** If `wishlist` needs the `Book` type, that type must live in the global `types/`, or the `books` feature must export it from its `index.ts` and `wishlist` imports it from `@/features/books`.
+2. **A feature does NOT import directly from another feature.** If `collections` needs the `Item` type, that type must live in the global `types/`, or the `items` feature must export it from its `index.ts` and `collections` imports it from `@/features/items`.
 
 3. **Each feature's `index.ts` is its public contract.** Only what is exported there is accessible from outside:
 
@@ -120,17 +121,17 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
 - Functional components with hooks. No class components.
 - PascalCase for components: `LoginForm.tsx`, `SystemStateCard.tsx`
 - camelCase for hooks: `useAuth.ts`, `useLocalStorage.ts`
-- kebab-case for utility and API files: `auth-api.ts`, `format-price.ts`
+- kebab-case for utility and API files: `auth-api.ts`, `get-initials.ts`
 - TypeScript strict mode is mandatory. Do not use `any` — use `unknown` and narrowing.
 - Named exports always. No default exports (except pages, for lazy loading).
 - Props defined with `interface`, not `type`:
   ```typescript
-  interface BookCardProps {
-    book: Book;
-    onAddToWishlist: (bookId: number) => void;
+  interface ItemCardProps {
+    item: Item;
+    onAddToCollection: (itemId: number) => void;
   }
 
-  export const BookCard = ({ book, onAddToWishlist }: BookCardProps) => {
+  export const ItemCard = ({ item, onAddToCollection }: ItemCardProps) => {
     // ...
   };
   ```
@@ -174,7 +175,7 @@ Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` wit
   ```
 - Every backend call goes through this client.
 - The JWT token is injected automatically from the AuthContext.
-- Responses typed with generics: `ApiResponse<Book>`, `ApiResponse<Book[]>`.
+- Responses typed with generics: `ApiResponse<Item>`, `ApiResponse<Item[]>`.
 
 ## Testing
 
@@ -196,8 +197,9 @@ Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` wit
   const HomePage = lazy(() => import('@/app/pages/HomePage'));
   ```
 - Protected routes with the `ProtectedRoute` component from `features/auth`
-- Role-restricted routes with `RoleRoute` (e.g. `/dashboard` for `seller`). There is a single
-  `Layout`; roles gate a route, they do not get a layout of their own
+- Role-restricted routes with `RoleRoute`, which demands a session **and** a role
+  (`allow={['seller']}`). No route uses it yet: `router.tsx` guards only `/`, with `ProtectedRoute`.
+  There is a single `Layout`; roles gate a route, they do not get a layout of their own
 
 ## Path aliases
 
