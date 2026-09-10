@@ -1,7 +1,7 @@
 # Frontend Testing
 
 How tests are written in `frontend/`: Vitest + React Testing Library, colocated with the code they
-cover. This document describes the conventions **the existing 21 test files actually follow**, so a
+cover. This document describes the conventions **the existing 30 test files actually follow**, so a
 new test looks like the ones already there.
 
 Companion documents: [architecture](./frontend-architecture.md),
@@ -56,7 +56,7 @@ npx --prefix frontend vitest run --coverage
    functions.
 2. **Test behaviour, not implementation.** Never assert on class names, internal state or the
    number of renders. Assert what a user can perceive.
-3. **Query priority: `getByRole` first.** The codebase uses it 104 times across 19 files.
+3. **Query priority: `getByRole` first.** The codebase uses it 110 times across 21 files.
    `getByLabelText` for form fields, `getByText` for content with no accessible role.
    **`getByTestId` is never used — do not introduce it.** If an element is unreachable by role,
    that is an accessibility bug in the component; fix the component.
