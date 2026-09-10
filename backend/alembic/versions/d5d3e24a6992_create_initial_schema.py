@@ -4,10 +4,9 @@ Revision ID: d5d3e24a6992
 Revises:
 Create Date: 2026-09-10 13:32:54.872797
 
-Single initial revision. It replaces the four revisions of the bookstore
-template (users -> books -> favourite lists -> version columns), which were
-dropped along with that example domain: their tables no longer had ORM models,
-so autogenerate wanted to drop them again on the next run.
+Single initial revision. It replaces the four revisions of the previous example
+domain, which were dropped along with it: their tables no longer had ORM models
+behind them, so autogenerate wanted to drop them again on the next run.
 
 Creates the template's own `users` table plus the neutral example catalogue:
 `items` (owned by a user), `collections`, `tags`, and the `item_tags` /
