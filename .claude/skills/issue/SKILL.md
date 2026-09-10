@@ -13,7 +13,7 @@ Create one or more issues in the project's GitHub repo using `gh`.
 
 Never invent the issue's content. Ground it in the repo before writing:
 
-- Read the relevant code, and reference concrete symbols and paths (`error_handler.py`, `BookORM`, `backend/src/adapters/...`). The existing issues do this and it's what makes them actionable.
+- Read the relevant code, and reference concrete symbols and paths (`error_handler.py`, `ItemORM`, `backend/src/adapters/...`). The existing issues do this and it's what makes them actionable.
 - If the issue comes from a code review, a failing test or a PR comment, capture the origin — it goes in the `## Referencia` section.
 - If the request is vague ("crea un issue para mejorar el login"), ask the user what the concrete problem and the acceptance criterion are before creating anything.
 

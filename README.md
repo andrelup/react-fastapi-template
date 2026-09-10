@@ -246,11 +246,10 @@ su propia issue:
 Piezas del dominio de ejemplo que la plantilla deja a medias a propósito. No son
 deuda técnica: son el trabajo que se espera que hagas tú al partir de aquí.
 
-- **Compra, carrito e histórico de pedidos.** Nunca han existido: no hay modelo
-  de dominio, ni router, ni migración. El README los anunciaba en presente y
-  eso se ha corregido. Construirlos es, de hecho, un buen primer ejercicio
-  sobre la plantilla: una entidad nueva recorre las tres capas y `docs/backend-hexagonal-architecture.md`
-  lleva el paso a paso.
+- **Una entidad tuya, de punta a punta.** Es el primer ejercicio natural sobre
+  la plantilla: añadir la entidad que tu proyecto necesite y hacerla recorrer las
+  tres capas, del modelo de dominio al router, con su migración y sus tests.
+  `docs/backend-hexagonal-architecture.md` lleva el paso a paso.
 
 - **La vertical del catálogo de ejemplo.** De `items`, `collections` y `tags` están
   puestos y cubiertos por tests solo los modelos ORM y su migración. Encima no hay
@@ -282,9 +281,9 @@ producción**. En concreto:
   `.env.example` traen valores pensados para levantar el proyecto en local. Si
   aun así lo despliegas, sustituye toda la configuración sensible por valores
   propios y gestionados fuera del repositorio.
-- **Datos ficticios.** El catálogo, los usuarios y los pedidos que genera el
-  script de seed son datos sintéticos creados con Faker. No corresponden a
-  personas, libros ni transacciones reales.
+- **Datos ficticios.** El catálogo y los usuarios que genera el script de seed
+  son datos sintéticos creados con Faker. No corresponden a personas ni a
+  artículos reales.
 - **Sin estabilidad de API ni de esquema.** Los endpoints, los modelos de datos
   y las migraciones pueden cambiar de forma incompatible en cualquier momento,
   sin aviso ni ruta de migración.
