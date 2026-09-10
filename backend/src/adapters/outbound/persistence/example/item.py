@@ -41,6 +41,12 @@ class ItemORM(Base):
 
     # `lazy="selectin"` because a lazy load inside async code raises at runtime,
     # and an explicit `order_by` so the collections come back deterministically.
+    #
+    # Careful, these are mutual: SQLAlchemy stops the eager load after one hop,
+    # so the `TagORM.items` / `CollectionORM.items` reached from here come back
+    # *unloaded*, and touching them falls back to a lazy load -> `MissingGreenlet`
+    # under asyncio. A mapper may read scalar columns off the far side
+    # (`tag.name`, `collection.name`) but never its reverse collection.
     tags: Mapped[list["TagORM"]] = relationship(
         secondary=item_tags_table,
         back_populates="items",
