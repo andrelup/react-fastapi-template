@@ -10,6 +10,7 @@ Está deliberadamente a medio construir: el feature de autenticación está comp
 - **TypeScript** (strict mode)
 - **Vite** (build + dev server)
 - **TailwindCSS** (estilos)
+- **shadcn/ui** como base de componentes — el código se copia al repositorio, no es una dependencia
 - **React Router v6** (routing)
 - **Vitest + React Testing Library** (unit testing)
 - **Playwright** (E2E)
@@ -35,9 +36,9 @@ frontend/
 │   │       ├── types/     # Tipos TypeScript del feature
 │   │       └── index.ts   # Public API (re-exports)
 │   │
-│   ├── components/    # COMPARTIDOS — UI genérica (ui/) y layout (layout/)
+│   ├── components/    # COMPARTIDOS — UI genérica (ui/, shadcn/ui) y layout (layout/)
 │   ├── hooks/         # Hooks genéricos: useApi, useDebounce, useLocalStorage
-│   ├── lib/           # api-client.ts (instancia base de fetch con baseURL e interceptors)
+│   ├── lib/           # api-client.ts (fetch con baseURL e interceptors) y utils.ts (`cn`)
 │   ├── types/         # Tipos globales: ApiResponse<T>, PaginatedResponse<T>
 │   └── utils/         # Helpers puros: format-price, get-initials
 │
@@ -86,8 +87,48 @@ frontend/
 ## Estilos
 
 - **TailwindCSS** para todo. Sin CSS modules, styled-components ni CSS en línea.
-- Clases de Tailwind directamente en el JSX; variantes con lógica condicional.
+- Clases de Tailwind directamente en el JSX; las variantes de un componente se declaran con `cva` y
+  las clases se componen con el helper `cn` de `lib/utils.ts`.
+- Los iconos vienen de **`lucide-react`**. No se escriben SVG a mano.
 - No se crean archivos `.css` salvo `index.css` con las directivas de Tailwind.
+
+### El punto único de configuración
+
+**Para reteñir la plantilla entera se edita un solo bloque: el `:root` de `src/app/index.css`.** Ahí
+viven todas las variables CSS del proyecto — los cinco tonos de verde, los neutros (`ink`, `body`,
+`muted`, `border`, `bg`, `surface`), los tres de destructivo, las dos familias tipográficas (Lora
+para titulares, Public Sans para el resto), los radios y las sombras.
+
+Eso funciona porque se cumplen dos reglas, y las dos importan:
+
+1. **`tailwind.config.ts` no contiene ni un valor.** Cada entrada es un `var(--…)` que apunta a
+   `index.css`. Si escribes un hexadecimal, un tamaño o una familia tipográfica ahí, acabas de crear
+   un segundo sitio que hay que mantener sincronizado a mano.
+2. **Ningún componente escribe un color.** Ni hexadecimales, ni `rgb()`, ni clases de la paleta por
+   defecto de Tailwind (`slate-*`, `zinc-*`, `gray-*`, `blue-*`…), ni valores arbitrarios entre
+   corchetes. Solo las clases de token: `bg-primary`, `text-ink`, `text-muted`, `border-border`,
+   `bg-surface`, `text-danger`…
+
+Los componentes que vienen de shadcn/ui esperan sus propios nombres de variable (`--background`,
+`--foreground`, `--destructive`, `--ring`…). Están declarados **en ese mismo bloque como alias** de
+los tokens del proyecto: no llevan ningún valor propio, así que no hay una segunda paleta que
+mantener. Para cambiar un color se edita el token, nunca el alias.
+
+Comprobarlo es mecánico: cambia los cinco `--color-primary*` por otro color, `npm run build`, y
+busca los hexadecimales viejos en `dist/`. Cero resultados significa que la propiedad sigue en pie.
+
+## El catálogo `/components-ui`
+
+La ruta **`/components-ui`** (`src/app/pages/UiComponentsPage.tsx`, enlazada desde el grupo
+«Desarrollo» de la barra lateral) muestra todos los componentes del sistema de diseño con sus
+estados reales: deshabilitado, cargando, con error, vacío. Es el mejor sitio para ver de una vez qué
+sabe dibujar la plantilla, y es donde se comprueba a ojo un cambio de paleta.
+
+Es además **vinculante**: ninguna pantalla usa un componente que no esté en esa página. Si falta
+uno, el procedimiento es sacarlo de la documentación de shadcn/ui, adaptarlo a los tokens y al
+estilo del proyecto, añadirlo a `/components-ui` con sus estados, escribir su test y solo entonces
+usarlo. Los detalles están en
+[`docs/frontend-ui-components.md`](../docs/frontend-ui-components.md).
 
 ## Routing
 
@@ -154,6 +195,9 @@ en `playwright.config.ts`, así que no hace falta tenerlo corriendo aparte.
 - No poner lógica de negocio en `components/` raíz.
 - No usar `any` — usar `unknown` con type guards.
 - No crear archivos CSS individuales — usar Tailwind.
+- No escribir un color en un componente ni un valor en `tailwind.config.ts` — la paleta vive en el `:root` de `app/index.css` y en ningún otro sitio.
+- No usar en una pantalla un componente que no esté en `/components-ui`.
+- No ejecutar `shadcn init` — reescribe `index.css` y `tailwind.config.ts` con sus propios tokens.
 - No usar `useEffect` para fetch de datos — usar el hook `useApi`.
 - No meter estado global (Context) para datos que solo usa un feature.
 - No hacer fetch directo con `window.fetch` — siempre a través de `lib/api-client.ts`.

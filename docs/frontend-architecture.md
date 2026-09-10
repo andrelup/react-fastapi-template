@@ -28,7 +28,7 @@ frontend/src/
 │   └── wishlist/            Stub
 │
 ├── components/
-│   ├── ui/                  Generic primitives (Button, Input, Card, Modal, state screens…)
+│   ├── ui/                  Generic primitives (Button, Input, Card, Dialog, state screens…)
 │   └── layout/              Header, Footer, Sidebar, Layout, mobile navigation
 │
 ├── hooks/                   Generic hooks: useApi, useDebounce, useLocalStorage

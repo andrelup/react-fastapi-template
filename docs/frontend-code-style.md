@@ -62,7 +62,10 @@ What this means in practice:
   fix the dependency array or restructure the effect.
 - **`react-refresh/only-export-components`** warns when a module exports both a component and
   something else. This is why constants and helpers live in their own module rather than next to a
-  component.
+  component. The one scoped exception is `src/components/ui/**/*.tsx`, where the rule is off: the
+  shadcn/ui components co-export their `cva()` variant factory (`buttonVariants`, `badgeVariants`)
+  next to the component, which `allowConstantExport` does not cover. That block is the only place
+  where a rule is relaxed, and it is scoped to that folder.
 - **`eslint-config-prettier` is applied last**, so ESLint owns correctness and Prettier owns
   formatting. Never add a stylistic ESLint rule — it will be turned off anyway.
 - Type-aware linting is **not** enabled (no `parserOptions.project`), so rules that need type
