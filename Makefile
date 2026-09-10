@@ -99,10 +99,13 @@ test-front:
 	npm --prefix frontend run test
 
 ## test-e2e: tests end-to-end (Playwright). Requiere la base de datos y la API
-## (make dev, make dev-back) sembrada con make seed, para las credenciales
-## fijas de seller@bookshelf.dev / customer@bookshelf.dev. El frontend NO hace
-## falta levantarlo: Playwright arranca su propio npm run dev via webServer, y
-## reutiliza el que ya este corriendo en el 3000 si lo hay.
+## (make dev, make dev-back) sembrada con make seed, por las cuentas fijas que
+## usan los specs. El frontend NO hace falta levantarlo: Playwright arranca su
+## propio npm run dev via webServer, y reutiliza el que ya este corriendo en el
+## 3000 si lo hay.
+##
+## OJO: las cuentas del seed estan a medio migrar al catalogo neutro (#11, #12),
+## asi que los specs de login fallan hasta que eso entre.
 test-e2e:
 	npm --prefix frontend run test:e2e
 

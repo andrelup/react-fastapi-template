@@ -78,14 +78,12 @@ Variantes: `make setup ARGS="--skip-db"`, `ARGS="--skip-front"`, `ARGS="--no-see
 
 #### Credenciales de desarrollo
 
-El seed crea dos cuentas de email fijo, pensadas para entrar a mano y para los tests e2e:
+> **En obras.** El seed está a medio migrar al catálogo neutro: los roles pasan a
+> `ADMIN` / `EDITOR` / `VIEWER` (#11) y `seed.py` se reescribe con una cuenta fija por rol (#12).
+> Hasta que eso entre, **no hay cuentas con las que entrar** y `make seed` siembra el dominio
+> viejo. Las credenciales concretas se documentan aquí en cuanto el #12 las fije.
 
-| Email                    | Rol        | Contraseña      |
-| ------------------------ | ---------- | --------------- |
-| `seller@bookshelf.dev`   | `seller`   | `BookShelf123!` |
-| `customer@bookshelf.dev` | `customer` | `BookShelf123!` |
-
-El resto de usuarios sembrados los genera Faker con semilla fija. Estas dos son literales
+El resto de usuarios sembrados los genera Faker con semilla fija; las cuentas por rol son literales
 precisamente para que no cambien al actualizar la librería.
 
 > Son **datos de desarrollo**, nunca credenciales válidas fuera de una base de datos local. No las

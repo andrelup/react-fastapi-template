@@ -321,7 +321,8 @@ Two things to know before touching it:
 
 - **Playwright starts the SPA itself** through `webServer`, reusing an existing server on port 3000
   if there is one. It does **not** start the API: e2e needs `make dev`, `make dev-back` and
-  `make seed` first, for the fixed accounts `seller@bookshelf.dev` / `customer@bookshelf.dev`.
+  `make seed` first, for the fixed accounts it logs in with. Those accounts are mid-migration to
+  the neutral catalogue — one per role, pending #11 and #12 — so the login specs fail until then.
 - **`vite.config.ts` excludes `e2e/**` from Vitest.** Without that, Vitest's default glob would pick
   up the Playwright specs and break `make test-front`. Do not remove it.
 
