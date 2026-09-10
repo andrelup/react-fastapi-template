@@ -24,17 +24,16 @@ You MUST enforce this modular architecture in every file you create or modify:
 frontend/src/
 ├── app/                 # Entrypoint, providers, router — WIRING ONLY
 ├── features/            # Domain modules — each feature is autonomous
-│   ├── auth/
+│   ├── auth/            # The only feature built today — the reference implementation
 │   │   ├── api/         # Backend calls for this feature
 │   │   ├── components/  # Components exclusive to this feature
 │   │   ├── hooks/       # Hooks exclusive to this feature
 │   │   ├── types/       # TypeScript types for this feature
 │   │   └── index.ts     # PUBLIC API — only what's exported here is accessible
-│   ├── books/
-│   ├── wishlist/
-│   └── seller/
+│   ├── items/           # NOT BUILT YET — the catalogue resource (issues #39-#43)
+│   └── collections/     # NOT BUILT YET — editorial groupings of items (issues #39-#43)
 ├── components/          # SHARED UI — generic, no business logic
-│   ├── ui/              # Primitives: Button, Input, Modal, Card, Spinner
+│   ├── ui/              # Primitives: Button, Input, Card, Dialog, Spinner
 │   └── layout/          # Layout: Header, Footer, PageContainer
 ├── hooks/               # SHARED hooks — generic, reusable anywhere
 ├── lib/                 # External library configs (api-client)
@@ -52,10 +51,10 @@ frontend/src/
 
 ```typescript
 // CORRECT — importing through public API
-import { BookCard, useBooks } from '@/features/books';
+import { ItemCard, useItems } from '@/features/items';
 
 // WRONG — reaching into feature internals
-import { BookCard } from '@/features/books/components/BookCard';
+import { ItemCard } from '@/features/items/components/ItemCard';
 ```
 
 ### Feature Public API
@@ -63,11 +62,11 @@ import { BookCard } from '@/features/books/components/BookCard';
 Every feature has an `index.ts` that explicitly exports its public interface:
 
 ```typescript
-// features/books/index.ts
-export { BookCard } from './components/BookCard';
-export { BookList } from './components/BookList';
-export { useBooks } from './hooks/useBooks';
-export type { Book, BookFilters } from './types';
+// features/items/index.ts
+export { ItemCard } from './components/ItemCard';
+export { ItemList } from './components/ItemList';
+export { useItems } from './hooks/useItems';
+export type { Item, ItemFilters } from './types';
 ```
 
 Anything not exported here is PRIVATE to the feature.
@@ -97,19 +96,19 @@ Anything not exported here is PRIVATE to the feature.
 
 ## Coding Conventions
 
-- PascalCase for components: `BookCard.tsx`, `LoginForm.tsx`
-- camelCase for hooks: `useAuth.ts`, `useBooks.ts`
-- kebab-case for utilities and API files: `books-api.ts`, `format-price.ts`
+- PascalCase for components: `ItemCard.tsx`, `LoginForm.tsx`
+- camelCase for hooks: `useAuth.ts`, `useItems.ts`
+- kebab-case for utilities and API files: `items-api.ts`, `get-initials.ts`
 - Named exports always — no default exports (except lazy-loaded pages)
 - Props defined with `interface`, not `type`:
   ```typescript
-  interface BookCardProps {
-    book: Book;
-    onAddToWishlist: (bookId: number) => void;
+  interface ItemCardProps {
+    item: Item;
+    onAddToCollection: (itemId: number) => void;
   }
   ```
 - One component per file
-- Colocate tests: `BookCard.test.tsx` next to `BookCard.tsx`
+- Colocate tests: `ItemCard.test.tsx` next to `ItemCard.tsx`
 - Path alias `@/` for all imports from `src/`
 
 ## State Management Rules
@@ -136,8 +135,8 @@ Anything not exported here is PRIVATE to the feature.
 - All backend calls go through `lib/api-client.ts`
 - Never use `window.fetch` or `axios` directly in components
 - Token injected automatically from auth context
-- Typed responses: `apiClient.get<ApiResponse<Book[]>>('/books')`
-- Feature API files (`features/books/api/books-api.ts`) wrap api-client calls with domain-specific functions
+- Typed responses: `apiClient.get<ApiResponse<Item[]>>('/items')`
+- Feature API files (`features/items/api/items-api.ts`) wrap api-client calls with domain-specific functions
 
 ## Approach
 
@@ -168,7 +167,7 @@ Anything not exported here is PRIVATE to the feature.
 ## Testing Guidelines
 
 - Unit tests: Vitest + React Testing Library
-- Test files colocated with source: `BookCard.test.tsx`
+- Test files colocated with source: `ItemCard.test.tsx`
 - Test behavior: "when user clicks Add, the item appears in the list"
 - Use `getByRole`, `getByText`, `getByLabelText` — avoid `getByTestId`
 - Mock API calls at the api-client level, not at fetch level
