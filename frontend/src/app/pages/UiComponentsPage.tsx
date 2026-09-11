@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/Card';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   Dialog,
   DialogClose,
@@ -24,10 +25,15 @@ import {
 } from '@/components/ui/Dialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
+import { ListingCard } from '@/components/ui/ListingCard';
 import { NoResultsState } from '@/components/ui/NoResultsState';
 import { NotFoundState } from '@/components/ui/NotFoundState';
+import { Pagination } from '@/components/ui/Pagination';
+import { SearchInput } from '@/components/ui/SearchInput';
+import { Select } from '@/components/ui/Select';
 import { ServerErrorState } from '@/components/ui/ServerErrorState';
 import { Spinner } from '@/components/ui/Spinner';
+import { Textarea } from '@/components/ui/Textarea';
 
 interface SectionProps {
   title: string;
@@ -43,6 +49,12 @@ const Section = ({ title, description, children }: SectionProps) => (
   </section>
 );
 
+const categoryOptions = [
+  { value: 'ropa', label: 'Ropa' },
+  { value: 'hogar', label: 'Hogar' },
+  { value: 'electronica', label: 'Electrónica' },
+];
+
 /**
  * Internal styleguide at `/components-ui`, and the binding catalogue of the
  * project: no screen may use a component that is not shown here. Every
@@ -51,6 +63,9 @@ const Section = ({ title, description, children }: SectionProps) => (
  */
 const UiComponentsPage = () => {
   const [lastAction, setLastAction] = useState<string | null>(null);
+  const [paginationPage, setPaginationPage] = useState(1);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isConfirmLoadingOpen, setIsConfirmLoadingOpen] = useState(false);
 
   return (
     <>
@@ -107,6 +122,49 @@ const UiComponentsPage = () => {
       </Section>
 
       <Section
+        title="Selector"
+        description="Mismo contrato que Campos: etiqueta obligatoria, id derivado de la etiqueta y error conectado con aria-describedby sobre el control con el foco."
+      >
+        <div className="flex max-w-sm flex-col gap-4">
+          <Select label="Categoría" options={categoryOptions} />
+          <Select
+            label="Categoría con error"
+            options={categoryOptions}
+            error="Selecciona una categoría."
+          />
+          <Select
+            label="Categoría deshabilitada"
+            options={categoryOptions}
+            defaultValue="ropa"
+            disabled
+          />
+          <Select label="Categoría (cargando)" options={categoryOptions} isLoading />
+          <Select label="Categoría (sin opciones)" options={[]} />
+        </div>
+      </Section>
+
+      <Section
+        title="Área de texto"
+        description="Mismo contrato que Campos, sin el interruptor de contraseña: no aplica a un textarea."
+      >
+        <div className="flex max-w-sm flex-col gap-4">
+          <Textarea label="Descripción" placeholder="Describe el artículo" />
+          <Textarea label="Descripción con error" error="La descripción es obligatoria." />
+          <Textarea label="Descripción deshabilitada" defaultValue="No editable" disabled />
+        </div>
+      </Section>
+
+      <Section
+        title="Buscador"
+        description="Un Input maridado con useDebounce: cada pulsación actualiza el campo, pero onSearch solo se dispara cuando el usuario deja de escribir."
+      >
+        <div className="flex max-w-sm flex-col gap-4">
+          <SearchInput label="Buscar en el catálogo" onSearch={() => {}} />
+          <SearchInput label="Buscar en el catálogo (deshabilitado)" onSearch={() => {}} disabled />
+        </div>
+      </Section>
+
+      <Section
         title="Tarjeta"
         description="Superficie única del sistema: cabecera, contenido y pie. Compón con className para el layout, nunca para repintar la superficie."
       >
@@ -127,6 +185,29 @@ const UiComponentsPage = () => {
             </Button>
           </CardFooter>
         </Card>
+      </Section>
+
+      <Section
+        title="Tarjeta de listado"
+        description="Composición propia sobre Tarjeta para el catálogo: portada opcional, título que es el objetivo de clic cuando hay onSelect, y acciones fuera de él para no anidar botones."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ListingCard
+            title="Silla de roble"
+            description="Silla artesanal de madera maciza."
+            coverUrl="https://images.example.com/silla.jpg"
+            coverAlt="Silla de roble"
+            badge={<Badge>Nuevo</Badge>}
+            meta={<span>24,90 €</span>}
+            actions={<Button size="sm">Añadir a colección</Button>}
+            onSelect={() => setLastAction('ver-silla')}
+          />
+          <ListingCard
+            title="Colección Otoño"
+            description="Sin portada todavía: el hueco muestra el icono de reemplazo."
+            meta={<span>12 elementos</span>}
+          />
+        </div>
       </Section>
 
       <Section
@@ -165,6 +246,22 @@ const UiComponentsPage = () => {
       </Section>
 
       <Section
+        title="Paginación"
+        description="Consume directamente los campos de PaginatedResponse<T>: page, total y pageSize. disabled desactiva todos los controles mientras la lista subyacente carga."
+      >
+        <div className="flex flex-col gap-4">
+          <Pagination
+            page={paginationPage}
+            total={95}
+            pageSize={10}
+            onPageChange={setPaginationPage}
+          />
+          <Pagination page={3} total={95} pageSize={10} onPageChange={() => {}} disabled />
+          <Pagination page={1} total={0} pageSize={10} onPageChange={() => {}} />
+        </div>
+      </Section>
+
+      <Section
         title="Diálogo"
         description="Sobre Radix: atrapa el foco, cierra con Escape y al pulsar fuera, y anuncia aria-modal. Sustituye al antiguo Modal."
       >
@@ -189,6 +286,38 @@ const UiComponentsPage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </Section>
+
+      <Section
+        title="Diálogo de confirmación"
+        description="El Diálogo existente compuesto con el botón destructivo (rojo fantasma, nunca relleno) para el flujo de borrado de ADMIN."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="destructive" onClick={() => setIsConfirmOpen(true)}>
+            Eliminar artículo
+          </Button>
+          <Button variant="destructive" onClick={() => setIsConfirmLoadingOpen(true)}>
+            Eliminar (cargando)
+          </Button>
+        </div>
+        <ConfirmDialog
+          open={isConfirmOpen}
+          onOpenChange={setIsConfirmOpen}
+          title="Eliminar artículo"
+          description="Esta acción no se puede deshacer."
+          onConfirm={() => {
+            setLastAction('eliminar-articulo');
+            setIsConfirmOpen(false);
+          }}
+        />
+        <ConfirmDialog
+          open={isConfirmLoadingOpen}
+          onOpenChange={setIsConfirmLoadingOpen}
+          title="Eliminar artículo"
+          description="Esta acción no se puede deshacer."
+          onConfirm={() => {}}
+          isLoading
+        />
       </Section>
 
       <Section
