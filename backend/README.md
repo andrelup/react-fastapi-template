@@ -106,6 +106,12 @@ Los targets del Makefile invocan el intérprete de `.venv` por ruta, así que no
 
 Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger UI).
 
+**El registro es abierto a propósito:** `POST /auth/register` es público y acepta el `role` que le
+mande el cliente, así que cualquiera puede crearse como `admin`. Es el punto donde la plantilla se
+detiene adrede, porque la política de alta cambia mucho de un proyecto a otro y no hay una forma
+genérica de resolverla. El razonamiento y las alternativas, en
+[docs/roles-y-registro-abierto.md](./docs/roles-y-registro-abierto.md).
+
 ## Testing
 
 - Framework: **pytest + pytest-asyncio + httpx.AsyncClient**.

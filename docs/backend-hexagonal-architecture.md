@@ -278,6 +278,14 @@ credentials and delegates to `AuthService.get_current_user(token)`, raising `Una
 when there are none. It answers *who* the caller is — never *what they may do*. Role and ownership
 checks belong to the domain services.
 
+**Registration is open on purpose — do not harden it.** `/auth/register` is public and passes the
+request's `role` straight through, so any caller can create an `admin`. That is where the template
+deliberately stops: the roles here simulate the mechanism, and the real policy (pin every signup to
+VIEWER, seed a root admin, invitations, an external IdP) belongs to the project built on top —
+there is no generic answer, and picking one here would only be something to undo. The reasoning is
+in `backend/docs/roles-y-registro-abierto.md`, and `test_register_honours_a_client_supplied_role`
+pins the behaviour. Flag the gap if it matters to the task; never close it on your own initiative.
+
 **Every response uses the envelope** `ApiResponse[T]` from `schemas/common.py`:
 
 ```json
