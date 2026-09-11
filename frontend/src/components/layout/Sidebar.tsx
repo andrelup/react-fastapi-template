@@ -66,7 +66,9 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
           <NavLink to="/" end className={navLinkClassName}>
             Inicio
           </NavLink>
-          <InactiveNavItem label="Explorar catálogo" />
+          <NavLink to="/items" className={navLinkClassName}>
+            Explorar catálogo
+          </NavLink>
         </NavGroup>
 
         <NavGroup label="Colecciones">
