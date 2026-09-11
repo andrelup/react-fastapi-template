@@ -6,6 +6,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 // receiving `user`/`onLogout` as props.
 import { useAuth } from '@/features/auth';
 import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 
@@ -86,13 +87,9 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
       </nav>
 
       <div className="mt-auto border-t border-border p-4">
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full rounded border border-danger-border bg-transparent py-2.5 font-semibold text-danger hover:bg-danger-bg"
-        >
+        <Button variant="destructive" className="w-full" onClick={handleLogout}>
           Cerrar sesión
-        </button>
+        </Button>
       </div>
     </aside>
   );
