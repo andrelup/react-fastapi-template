@@ -2,7 +2,7 @@
 
 Aplicación de página única (SPA) de la plantilla react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**.
 
-Está deliberadamente a medio construir: el feature de autenticación está completo de punta a punta y hoy es el único que existe. El dominio de ejemplo —`Item`, el recurso publicable del catálogo, y `Collection`, la agrupación editorial que lo ordena— lo levantan las issues #39 a #43 en `features/items/` y `features/collections/`. Es una plantilla, no un producto.
+Está deliberadamente a medio construir: el feature de autenticación está completo de punta a punta y hoy es el único que existe. El dominio de ejemplo —`Item`, el recurso publicable del catálogo, y `Collection`, la agrupación editorial que lo ordena— lo levantan las issues #39 a #43 en `features/example/items/` y `features/example/collections/`. Es una plantilla, no un producto.
 
 ## Stack
 

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
 import HomePage from './HomePage';
 
@@ -20,7 +21,9 @@ vi.mock('@/lib/api-client', () => ({
 const renderHomePage = () =>
   render(
     <AuthProvider>
-      <HomePage />
+      <MemoryRouter>
+        <HomePage />
+      </MemoryRouter>
     </AuthProvider>,
   );
 
@@ -54,5 +57,14 @@ describe('HomePage', () => {
     renderHomePage();
 
     expect(screen.getByRole('heading', { name: 'Hola' })).toBeInTheDocument();
+  });
+
+  it('links to the catalogue', () => {
+    renderHomePage();
+
+    expect(screen.getByRole('link', { name: 'Explorar catálogo' })).toHaveAttribute(
+      'href',
+      '/items',
+    );
   });
 });

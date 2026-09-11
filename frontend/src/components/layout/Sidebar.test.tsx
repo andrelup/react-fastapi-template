@@ -81,7 +81,7 @@ describe('Sidebar', () => {
     await screen.findByText('Ada Lovelace');
 
     expect(screen.getByRole('link', { name: 'Inicio' })).toBeInTheDocument();
-    expect(screen.getByText('Explorar catálogo')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Explorar catálogo' })).toBeInTheDocument();
     expect(screen.getByText('Mis colecciones')).toBeInTheDocument();
     expect(screen.getByText('Colecciones destacadas')).toBeInTheDocument();
   });

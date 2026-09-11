@@ -37,8 +37,8 @@ frontend/src/
 
 Anything not in this tree does not exist yet. In particular `features/` holds `auth/` and nothing
 else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
-editorial grouping that orders it — is what issues #39 to #43 add, as `features/items/` and
-`features/collections/`. The Playwright suite is not part of `src/`; it lives in `frontend/e2e/`
+editorial grouping that orders it — is what issues #39 to #43 add, as `features/example/items/` and
+`features/example/collections/`. The Playwright suite is not part of `src/`; it lives in `frontend/e2e/`
 (see [testing](./frontend-testing.md)).
 
 ---
@@ -59,7 +59,7 @@ app/  ──▶  features/  ──▶  components/ui, hooks/, lib/, types/, util
    that is its public contract. Anything not exported from `index.ts` is private to the feature.
 3. **A feature never reaches into another feature's internals.** Importing `@/features/auth` is
    allowed; importing `@/features/auth/components/LoginForm` is not. A component inside
-   `features/items` consuming `useAuth` from `@/features/auth` would be the compliant pattern.
+   `features/example/items` consuming `useAuth` from `@/features/auth` would be the compliant pattern.
 4. **`components/ui/` holds pure UI.** No business logic, no feature imports, no data fetching.
 5. **`components/layout/` is the one documented exception.** `Layout`, `Header`, `Sidebar`,
    `MobileTabBar` and `MobileAccountDrawer` import `useAuth` from `@/features/auth`, because

@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/features/auth';
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ItemsPage = lazy(() => import('./pages/ItemsPage'));
 const UiComponentsPage = lazy(() => import('./pages/UiComponentsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -28,6 +29,14 @@ export const router = createBrowserRouter([
       {
         path: '/register',
         element: <RegisterPage />,
+      },
+      {
+        path: '/items',
+        element: (
+          <ProtectedRoute>
+            <ItemsPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: '/components-ui',
