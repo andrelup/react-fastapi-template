@@ -14,7 +14,8 @@ class UserRepository(ABC):
     @abstractmethod
     async def find_by_email(self, email: str) -> User | None: ...
 
-class SqlAlchemyUserRepository(UserRepository):   # hereda
+
+class SqlAlchemyUserRepository(UserRepository):  # hereda
     async def find_by_email(self, email: str) -> User | None: ...
 ```
 
@@ -24,7 +25,8 @@ La que usa esta plantilla, con `Protocol`:
 class UserRepository(Protocol):
     async def find_by_email(self, email: str) -> User | None: ...
 
-class SqlAlchemyUserRepository:                   # NO hereda
+
+class SqlAlchemyUserRepository:  # NO hereda
     async def find_by_email(self, email: str) -> User | None: ...
 ```
 
