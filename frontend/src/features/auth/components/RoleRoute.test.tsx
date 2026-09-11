@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './AuthProvider';
 import { RoleRoute } from './RoleRoute';
 
-const rawSellerUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'seller' };
-const rawCustomerUser = { id: 2, email: 'bob@example.com', name: 'Bob Smith', role: 'customer' };
+const rawEditorUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'editor' };
+const rawViewerUser = { id: 2, email: 'bob@example.com', name: 'Bob Smith', role: 'viewer' };
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {
@@ -19,7 +19,7 @@ vi.mock('@/lib/api-client', () => ({
   setAuthToken: vi.fn(),
 }));
 
-const loginAs = async (raw: typeof rawSellerUser | typeof rawCustomerUser) => {
+const loginAs = async (raw: typeof rawEditorUser | typeof rawViewerUser) => {
   const { apiClient } = await import('@/lib/api-client');
   vi.mocked(apiClient.get).mockResolvedValueOnce(raw);
   window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
@@ -33,7 +33,7 @@ const renderDashboardRoute = () =>
           <Route
             path="/dashboard"
             element={
-              <RoleRoute allow={['seller']}>
+              <RoleRoute allow={['editor']}>
                 <h1>Dashboard content</h1>
               </RoleRoute>
             }
@@ -52,7 +52,7 @@ describe('RoleRoute', () => {
   });
 
   it('renders the route for an allowed role', async () => {
-    await loginAs(rawSellerUser);
+    await loginAs(rawEditorUser);
 
     renderDashboardRoute();
 
@@ -60,7 +60,7 @@ describe('RoleRoute', () => {
   });
 
   it('shows the 404 screen for a role that is not allowed', async () => {
-    await loginAs(rawCustomerUser);
+    await loginAs(rawViewerUser);
 
     renderDashboardRoute();
 
@@ -70,7 +70,7 @@ describe('RoleRoute', () => {
 
   it('sends the rejected user back home from the 404 screen', async () => {
     const user = userEvent.setup();
-    await loginAs(rawCustomerUser);
+    await loginAs(rawViewerUser);
 
     renderDashboardRoute();
     await screen.findByText('Página no encontrada');
