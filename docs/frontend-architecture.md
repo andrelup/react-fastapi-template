@@ -97,7 +97,7 @@ Rules:
   revealed. While the user object is still being rehydrated it renders a spinner instead of
   deciding. No route uses it today: it is exported from `features/auth` and covered by its own
   test, waiting for the first role-gated screen.
-- **There is exactly one layout** for every route. Introducing a seller-specific layout would be a
+- **There is exactly one layout** for every route. Introducing a role-specific layout would be a
   new architectural decision, not the current state.
 
 ### Adding a route
@@ -192,7 +192,14 @@ const { data, isLoading, error, execute } = useApi(loginUser);
 ## 5. State
 
 - **One React Context only: `AuthContext`**, declared in `features/auth/context/auth-context.ts`
-  and provided by `AuthProvider`. It exposes `{ user, token, isLoading, login, logout }`.
+  and provided by `AuthProvider`. It exposes `{ user, token, isLoading, login, logout, hasRole }`.
+- **`hasRole(minimum)` is the only way to ask about a role.** It is a rank-based hierarchy check —
+  `ADMIN`(2) > `EDITOR`(1) > `VIEWER`(0) — true when the current user sits at or above `minimum`,
+  so an ADMIN satisfies `hasRole('viewer')`. A null user returns `false` rather than throwing,
+  because the provider renders before rehydration finishes. It mirrors the backend's
+  `has_role(user, minimum)` in `src/domain/models/user.py`, and the two must not drift.
+  `RoleRoute` is the deliberate exception: its `allow` prop is a route **allow-list** (set
+  membership), which is a different question from "this role or above".
 - The context object itself is **private** — it is not re-exported from `features/auth/index.ts`.
   Consumers use the `useAuth()` hook, which throws when used outside the provider.
 - **The token is persisted** in `localStorage` through `useLocalStorage('auth-token')`. The **user
@@ -233,7 +240,7 @@ barrel goes last, once you know what actually needs to be public.
 **1. `types/index.ts`** — the domain types, in `camelCase`.
 
 ```ts
-export type UserRole = 'customer' | 'seller';
+export type UserRole = 'admin' | 'editor' | 'viewer';
 
 export interface User {
   id: number;
@@ -254,8 +261,10 @@ export interface AuthContextValue {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<AuthToken>;
   logout: () => void;
+  /** Rank-based hierarchy check, mirrors the backend's `has_role`. */
+  hasRole: (minimum: UserRole) => boolean;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

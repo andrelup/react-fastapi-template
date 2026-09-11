@@ -62,7 +62,7 @@ than silently pass.
 | **API** | `tests/api/` | Routers end to end: routing, validation, auth, error translation, envelope | **Real**, through a rolled-back session; `get_current_user` overridden when a test needs an identity |
 
 The rule of thumb: **test each layer against the boundary it owns.** A domain rule is a unit test;
-"does this SQL actually do what I think" is an integration test; "does a customer get a 403 here"
+"does this SQL actually do what I think" is an integration test; "does a viewer get a 403 here"
 is an API test.
 
 The API tier drives the real app over `ASGITransport`, with `get_db_session` pointed at the test
@@ -110,8 +110,8 @@ moves to `tests/factories.py` — a module that, likewise, does not exist yet.
 | `db_session` | An `AsyncSession` bound to it with `join_transaction_mode="create_savepoint"`, so a repository's `commit()` only releases a SAVEPOINT and the outer transaction is still rolled back. |
 | `async_client` | `httpx.AsyncClient` against the real app, with `get_db_session` overridden to the isolated session. |
 
-Those three are the whole file. There are no shared `User` fixtures: a test that needs a `seller`
-or a `customer` builds the `User` it wants in its own Arrange step, which keeps the roles and ids
+Those three are the whole file. There are no shared `User` fixtures: a test that needs an `editor`
+or a `viewer` builds the `User` it wants in its own Arrange step, which keeps the roles and ids
 visible right where the assertion depends on them.
 
 ```python
@@ -226,7 +226,7 @@ def _make_something() -> Something:
 
 async def test_create_when_valid_returns_saved_entity(sut: SomethingService) -> None:
     # Arrange
-    owner = _user(UserRole.CUSTOMER)
+    owner = _user(UserRole.EDITOR)
     entity = _make_something()
 
     # Act
@@ -239,7 +239,7 @@ async def test_create_when_valid_returns_saved_entity(sut: SomethingService) -> 
 
 async def test_create_when_role_is_not_allowed_raises_forbidden(sut: SomethingService) -> None:
     # Arrange
-    intruder = _user(UserRole.SELLER, user_id=2)
+    intruder = _user(UserRole.VIEWER, user_id=2)
     entity = _make_something()
 
     # Act / Assert
