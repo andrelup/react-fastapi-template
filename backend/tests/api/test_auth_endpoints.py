@@ -28,6 +28,24 @@ async def test_register_creates_a_user(async_client: AsyncClient) -> None:
     assert "id" in body["data"]
 
 
+async def test_register_honours_a_client_supplied_role(async_client: AsyncClient) -> None:
+    """The template lets the caller pick the role; tightening that is the adopter's call."""
+    # Arrange
+    payload = {
+        "email": "client-role@example.com",
+        "name": "Self-Appointed Admin",
+        "password": "s3cret123",
+        "role": "admin",
+    }
+
+    # Act
+    response = await async_client.post("/auth/register", json=payload)
+
+    # Assert
+    assert response.status_code == 201
+    assert response.json()["data"]["role"] == "admin"
+
+
 async def test_register_with_duplicate_email_returns_409(async_client: AsyncClient) -> None:
     # Arrange
     payload = {
