@@ -33,7 +33,7 @@ build even though it does not break the commit.
 
 ```js
 export default tseslint.config(
-  { ignores: ['dist'] },
+  { ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'blob-report'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -70,7 +70,9 @@ What this means in practice:
   formatting. Never add a stylistic ESLint rule — it will be turned off anyway.
 - Type-aware linting is **not** enabled (no `parserOptions.project`), so rules that need type
   information are unavailable. Type safety comes from `tsc`, not from ESLint.
-- Tests are linted exactly like production code. The only ignore is `dist`.
+- Tests are linted exactly like production code. The only ignores are generated output —
+  `dist`, `coverage`, `playwright-report`, `test-results` and `blob-report` — which ESLint 9
+  would otherwise walk, reporting the `eslint-disable` banners inside the reports.
 
 ---
 
