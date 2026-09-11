@@ -1,6 +1,6 @@
 # fastapi-template Backend — Hexagonal Architecture
 
-REST API template. It ships the authentication slice end to end, plus a neutral example catalogue (`items`, `collections`, `tags`) that exists so the template has something to demonstrate and can be deleted from a generated project. This CLAUDE.md complements the monorepo root CLAUDE.md.
+REST API template. It ships the authentication slice end to end, plus a neutral example catalogue (`items`, `collections`, `tags`) that exists so the template has something to demonstrate and can be deleted from a generated project. `Item` is built end to end (domain, port, service, repository, schemas, router); `Collection` is still ORM-only (issue #37). This CLAUDE.md complements the monorepo root CLAUDE.md.
 
 ## Documentation
 
@@ -21,30 +21,35 @@ The documentation map lives in the monorepo root CLAUDE.md. Open only the docume
 ## Hexagonal Architecture (Ports & Adapters)
 
 This is the tree **as it stands today**, not an aspirational one. It is thin on purpose: the
-template ships authentication end to end, and the example catalogue exists so far only as ORM
-models.
+template ships authentication end to end, and of the example catalogue only `Item` is a full
+vertical slice — `Collection` and `Tag` are still ORM models alone.
 
 ```
 backend/
 ├── src/
 │   ├── domain/                    # CORE — pure business logic, no external dependencies
 │   │   ├── models/                # Domain entities (dataclasses)
-│   │   │   └── user.py
+│   │   │   ├── user.py
+│   │   │   └── example/item.py    # Item — the example catalogue's hub resource
 │   │   ├── ports/                 # Interfaces (Protocol classes) exposed by the domain
 │   │   │   ├── repositories.py    # Persistence ports (UserRepository)
-│   │   │   └── services.py        # External service ports (PasswordHasher, TokenService)
+│   │   │   ├── services.py        # External service ports (PasswordHasher, TokenService)
+│   │   │   └── example/repositories.py       # ItemRepository
 │   │   ├── services/              # Use cases / business logic
-│   │   │   └── auth_service.py
+│   │   │   ├── auth_service.py
+│   │   │   └── example/item_service.py       # Item use cases + the authorization matrix
 │   │   └── exceptions.py          # Domain exceptions (UnauthorizedError, ForbiddenError, ...)
 │   │
 │   ├── adapters/                  # ADAPTERS — concrete implementations of the ports
 │   │   ├── inbound/               # Inbound adapters (how the world calls the domain)
 │   │   │   ├── api/               # FastAPI routes
 │   │   │   │   ├── auth_router.py
-│   │   │   │   └── health_router.py
+│   │   │   │   ├── health_router.py
+│   │   │   │   └── example/item_router.py    # /items — listing, search and CRUD
 │   │   │   ├── schemas/           # Pydantic schemas (API request/response)
 │   │   │   │   ├── auth_schemas.py
-│   │   │   │   └── common.py      # Generic ApiResponse + error_responses()
+│   │   │   │   ├── common.py      # Generic ApiResponse + error_responses()
+│   │   │   │   └── example/item_schemas.py   # One schema per operation
 │   │   │   └── middleware/
 │   │   │       ├── auth.py                # NOT middleware: the get_current_user dependency
 │   │   │       ├── logging.py             # RequestLoggingMiddleware (request_id, duration_ms)
@@ -53,8 +58,9 @@ backend/
 │   │   └── outbound/              # Outbound adapters (how the domain reaches the outside)
 │   │       ├── persistence/       # Repository implementations
 │   │       │   ├── sqlalchemy_models.py       # Base + UserORM — the template's own tables
-│   │       │   ├── example/                   # Example catalogue ORM models, deletable as a unit
+│   │       │   ├── example/                   # Example catalogue, deletable as a unit
 │   │       │   │   ├── item.py                # ItemORM — name, slug, category, owner_id, version
+│   │       │   │   ├── item_repository.py     # Implements ItemRepository
 │   │       │   │   ├── collection.py          # CollectionORM + item_collections association table
 │   │       │   │   └── tag.py                 # TagORM + item_tags association table
 │   │       │   ├── user_repository.py
@@ -85,12 +91,13 @@ backend/
 └── seed.py
 ```
 
-The example catalogue is confined to `persistence/example/`, and nothing outside that package
-imports it — the dependency runs example → template, never the other way. Removing the sample
-domain from a generated project is therefore a `rm -rf` of the directory plus the single marked
-import in `alembic/env.py`. Its domain models, ports, services, schemas and routers are not
-written yet (issues #36 and #37), so any `Item`-flavoured snippet below shows the **shape** a slice
-takes, not a file that exists.
+Everything belonging to the example catalogue lives in an `example/` folder **inside its own
+layer**, never in one folder cutting across layers: the layer structure is the architecture, and
+`example/` is only a removability marker inside it. The dependency runs example → template, never
+the other way, which is why `ItemORM` points at `users` with a bare foreign key and no
+`relationship()`. Removing the sample domain is a `rm -rf` of those folders plus the marked import
+in `alembic/env.py`, the `include_router` in `main.py` and the two providers in `container.py` —
+the full list is at the end of `docs/adding-a-feature.md`.
 
 Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are per-repository); the backend hooks filter with `files: ^backend/`.
 
@@ -117,7 +124,7 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
 
 4. **Dependency injection in `config/container.py`.** It wires the ports to their concrete implementations. Routers receive the domain services already injected via FastAPI Depends.
 
-5. **Domain exceptions are translated in the error_handler middleware.** `UnauthorizedError` and `InvalidCredentialsError` → HTTP 401, `ForbiddenError` → HTTP 403, `DuplicateEmailError` → HTTP 409. A new exception must add its entry to `_STATUS_CODES`, or it falls through to the default 500.
+5. **Domain exceptions are translated in the error_handler middleware.** `UnauthorizedError` and `InvalidCredentialsError` → HTTP 401, `ForbiddenError` → HTTP 403, `ItemNotFoundError` → HTTP 404, `DuplicateEmailError` and `DuplicateSlugError` → HTTP 409. A new exception must add its entry to `_STATUS_CODES`, or it falls through to the default 500.
 
 ## Code conventions
 
@@ -138,7 +145,7 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
 - Framework: pytest + pytest-asyncio + httpx.AsyncClient
 - AAA pattern: Arrange → Act → Assert (with comments)
 - Fixtures centralized in `conftest.py`: DB session inside a rolled-back transaction, async client, and an `authenticated_as` helper that overrides `get_current_user`
-- Unit tests: mock the ports, test domain services in isolation
+- Unit tests: hand-written in-memory fakes for the ports (never mocks), domain services in isolation
 - Integration tests: use a real test DB, verify the repositories
 - API tests: httpx.AsyncClient against the FastAPI app
 - Minimum coverage: 80% — enforced, not advisory. The gate lives in
