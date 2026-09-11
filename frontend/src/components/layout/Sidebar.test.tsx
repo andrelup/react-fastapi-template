@@ -6,7 +6,7 @@ import { AuthProvider } from '@/features/auth';
 import { Layout } from './Layout';
 import { Sidebar } from './Sidebar';
 
-const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'customer' };
+const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'viewer' };
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {
