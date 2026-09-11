@@ -90,14 +90,14 @@ frontend/
 Unit tests are colocated next to what they cover (`Button.test.tsx`) and are omitted from the tree.
 Anything not listed above does not exist yet. In particular `features/` holds `auth/` and nothing
 else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
-editorial grouping that orders it — is what issues #39 to #43 build, as `features/items/` and
-`features/collections/`.
+editorial grouping that orders it — is what issues #39 to #43 build, as `features/example/items/` and
+`features/example/collections/`.
 
 ## Bulletproof React Architecture rules
 
 1. **Every feature is an autonomous module.** It has its own folder with api/, components/, hooks/, types/ and an `index.ts` that acts as its public API.
 
-2. **A feature does NOT import directly from another feature.** If `collections` needs the `Item` type, that type must live in the global `types/`, or the `items` feature must export it from its `index.ts` and `collections` imports it from `@/features/items`.
+2. **A feature does NOT import directly from another feature.** If `collections` needs the `Item` type, that type must live in the global `types/`, or the `items` feature must export it from its `index.ts` and `collections` imports it from `@/features/example/items`.
 
 3. **Each feature's `index.ts` is its public contract.** Only what is exported there is accessible from outside:
 
