@@ -14,7 +14,8 @@ sin adornos.
 
 - **Registro e inicio de sesión** — alta de cuenta y autenticación con JWT, con la sesión persistida
   en el cliente y restaurada al recargar.
-- **Roles diferenciados** — `seller` y `customer`, con rutas de la SPA protegidas por rol.
+- **Roles diferenciados** — `admin`, `editor` y `viewer`, jerárquicos, con rutas de la SPA
+  protegidas por rol.
 - **Logging estructurado** — cada petición emite un evento con `request_id`, `status_code` y
   `duration_ms`, correlacionable desde la cabecera `X-Request-ID` de la respuesta.
 

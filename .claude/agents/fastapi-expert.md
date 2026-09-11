@@ -83,7 +83,7 @@ class ItemRepository(Protocol):
 - Dependency injection: wiring ports to adapters via FastAPI Depends
 - Request/response validation with Pydantic v2 schemas
 - Async request handling with async/await throughout
-- Security: JWT auth, role-based access (customer/seller), password hashing with bcrypt
+- Security: JWT auth, role-based access (admin/editor/viewer), password hashing with bcrypt
 - OpenAPI documentation via FastAPI's automatic Swagger
 - CORS configuration for frontend communication
 - Test-driven development with pytest
