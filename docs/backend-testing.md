@@ -4,13 +4,13 @@ How tests are written in `backend/`: pytest + pytest-asyncio + httpx, organised 
 mirror the hexagonal layers. This document describes the conventions the existing suite actually
 follows, so a new test looks like the ones already there.
 
-The suite is deliberately small right now. The previous example domain was deleted, and the
-neutral catalogue that replaces it (`items`, `collections`, `tags`) exists so far only as ORM
-models, so what remains covers authentication, the shared adapters, the middleware and the ORM
-metadata. Some scaffolding went with the old domain: there is no `tests/factories.py` and no
-`tests/fakes/` package today. **The conventions below outlive the files** — they come back with the
-first entity that needs them (issues #36 and #37). Wherever that is the case, this document says so
-rather than pointing you at a module that is not there.
+The suite covers authentication, the shared adapters, the middleware, the ORM metadata and the
+`Item` slice — the catalogue's other entities (`collections`, `tags`) are still ORM models alone
+(issue #37). Some scaffolding went with the old example domain and has not come back: there is no
+`tests/factories.py` and no `tests/fakes/` package, because both are promoted from a test file only
+when a second consumer appears, and `FakeItemRepository` still has exactly one. **The conventions
+below outlive the files** — wherever a module is not there yet, this document says so rather than
+pointing you at it.
 
 Companion documents: [hexagonal architecture](./backend-hexagonal-architecture.md),
 [database access](./backend-database-sqlalchemy.md), [code style](./backend-code-style.md).
@@ -77,10 +77,18 @@ but it is not what the current tests do, and it is not the default.
 There is **no `unittest.mock` anywhere in the suite** — no `Mock`, no `patch`. Ports are satisfied
 by small hand-written in-memory classes backed by a `dict` and an auto-incrementing id.
 
-The reason is important: a fake enforces the port's real contract. A `FakeItemRepository.save()`
-would replicate optimistic locking exactly as PostgreSQL does — comparing versions and raising the
-same `sqlalchemy.orm.exc.StaleDataError` — so a locking test that passes against the fake asserts
-something real. A mock that just records calls would be green while asserting nothing.
+The reason is important: a fake enforces the port's real contract. `FakeItemRepository.save()` in
+`tests/unit/test_item_service.py` replicates optimistic locking exactly as PostgreSQL does —
+comparing versions and raising the same `sqlalchemy.orm.exc.StaleDataError` — so a locking test that
+passes against the fake asserts something real. A mock that just records calls would be green while
+asserting nothing.
+
+A fake enforcing the contract also means copying the real adapter's *aliasing*, not just its return
+types. `SqlAlchemyItemRepository` builds a fresh domain object on every read, so the fake returns
+copies too. Hand back the stored instance instead and a caller that mutates what it read is writing
+straight into the store — the version check then compares an object with itself and the lock test
+passes while asserting nothing. That one is written up in
+[adding-a-feature.md](./adding-a-feature.md) §11.
 
 **When you add a port, add its fake**, and make it honour the same invariants the real adapter
 does.
@@ -88,8 +96,9 @@ does.
 Where the fake lives follows from who uses it:
 
 - **Used by one module** → keep it local to that test file. That is the whole story today:
-  `FakeUserRepository`, `FakePasswordHasher` and `FakeTokenService` are defined at the top of
-  `tests/unit/test_auth_service.py` and nowhere else.
+  `FakeUserRepository`, `FakePasswordHasher` and `FakeTokenService` at the top of
+  `tests/unit/test_auth_service.py`, and `FakeItemRepository` at the top of
+  `tests/unit/test_item_service.py`.
 - **Shared by two or more** → promote it to a `tests/fakes/` package, one module per fake, and
   import it from both. That package does not exist right now; the first port with two consumers
   creates it. Do not create it empty in advance.
