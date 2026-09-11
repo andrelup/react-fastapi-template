@@ -56,7 +56,7 @@ can never write a step before the thing it depends on exists.
 | 15 | Frontend | `src/features/example/items/api/items-api.ts` |
 | 16 | Frontend | `src/features/example/items/hooks/useItems.ts` |
 | 17 | Frontend | `src/features/example/items/components/*.tsx` + `index.ts` |
-| 18 | Frontend | `src/app/pages/ItemCatalogPage.tsx`, `app/router.tsx`, nav |
+| 18 | Frontend | `src/app/pages/ItemsPage.tsx`, `app/router.tsx`, nav |
 | 19 | Frontend | Component and hook tests |
 
 The three representations of `Item` — dataclass, ORM model, Pydantic schema — are **three different
@@ -1104,17 +1104,37 @@ fires on mount and whenever `JSON.stringify(args)` changes.
 
 ```ts
 import { useApiOnMount } from '@/hooks/useApiOnMount';
+import type { PaginatedResponse } from '@/types/api';
 
-import { searchItems } from '../api/items-api';
-import type { ItemFilters } from '../types';
+import { getItems, searchItems } from '../api/items-api';
+import type { Item } from '../types';
 
-export const useItems = ({ query, category, page }: ItemFilters) =>
-  useApiOnMount(searchItems, [query, category, page]);
+// A fixed-arity function, on purpose — see the note below.
+const fetchItems = (
+  page: number,
+  pageSize: number,
+  category: string | undefined,
+  search: string,
+): Promise<PaginatedResponse<Item>> => {
+  const trimmed = search.trim();
+  return trimmed ? searchItems(trimmed, page, pageSize) : getItems({ page, pageSize, category });
+};
+
+export const useItems = ({ page, pageSize = 20, category, search = '' }: UseItemsOptions) =>
+  useApiOnMount(fetchItems, [page, pageSize, category, search]);
 ```
 
 **Never fetch in a bare `useEffect`.** Use `useApi` when the call is triggered by an action, and
 `useApiOnMount` when the screen loads data on arrival. Anything else and every screen invents its own
 loading, error and race-condition handling.
+
+**When one screen reads from two endpoints, put the choice in a fixed-arity function, not in a
+closure.** `useApiOnMount<TArgs, TResult>(requestFn, args)` infers `TArgs` from the request
+function's parameter list and matches it against the `args` array positionally. A closure that
+captures some of the state and takes fewer parameters breaks that inference — and worse, the
+captured values are invisible to the `JSON.stringify(args)` comparison that decides when to refetch,
+so the screen silently stops reloading when they change. Every value the request depends on has to
+travel through `args`.
 
 ## 17. Components and the public contract
 
@@ -1132,9 +1152,9 @@ tokens, add it to the catalogue, test it — **before** any screen uses it.
 Then `src/features/example/items/index.ts`, the entire public surface:
 
 ```ts
-export { ItemList } from './components/ItemList';
+export { ItemsCatalog } from './components/ItemsCatalog';
 export { useItems } from './hooks/useItems';
-export { searchItems } from './api/items-api';
+export { getItems, searchItems } from './api/items-api';
 export type { Item, ItemFilters } from './types';
 ```
 
@@ -1147,16 +1167,25 @@ The page lives in `src/app/pages/`, not in the feature — pages are composition
 capability.
 
 ```tsx
-// Default export required for React.lazy()
-export default function ItemCatalogPage() { ... }
+import { ItemsCatalog } from '@/features/example/items';
+
+/** Catalogue screen at `/items`, visible to all three roles. */
+const ItemsPage = () => <ItemsCatalog />;
+
+// Default export required for React.lazy().
+export default ItemsPage;
 ```
+
+The page is deliberately thin: it names the route and mounts the feature's screen component. The
+layout, the filters and the data live in `features/example/items/components/`, where they are
+testable without a router.
 
 Then `src/app/router.tsx`:
 
 ```tsx
-const ItemCatalogPage = lazy(() => import('./pages/ItemCatalogPage'));
+const ItemsPage = lazy(() => import('./pages/ItemsPage'));
 // ...
-{ path: 'catalogo', element: <ProtectedRoute><ItemCatalogPage /></ProtectedRoute> }
+{ path: '/items', element: <ProtectedRoute><ItemsPage /></ProtectedRoute> }
 ```
 
 `ProtectedRoute` requires a session; `RoleRoute` narrows to a role. The catalogue is readable by
@@ -1269,4 +1298,25 @@ following it is a bug in the guide, not in the implementation.
 Record those corrections here as the sample catalogue is rebuilt — the backend slices (issues #36 and
 #37) and the screens (issues #39 to #43).
 
-_No corrections recorded yet._
+### From #39 — the items feature and the catalogue screen
+
+**The hook step was wrong, and the guide now says why.** Step 16 originally passed the API function
+straight to `useApiOnMount`. That only works while a screen reads from exactly one endpoint. The
+catalogue reads from two — `/items` for the plain listing and `/items/search` for a query — and the
+obvious fix, a closure that captures the state and takes fewer parameters, breaks `TArgs` inference
+*and* hides the captured values from the refetch comparison. Step 16 now shows the fixed-arity
+wrapper and explains the failure mode.
+
+**A filter whose options have no backend source is not covered anywhere.** The category `Select`
+needs a list of categories; there is no endpoint that returns one. The screen ships a static list
+with an inline comment marking it as a placeholder. That is a reasonable answer, but it was an
+invention, not a documented one — neither this guide nor
+[frontend-architecture.md](./frontend-architecture.md) says what to do. Worth deciding properly when
+a second screen needs it.
+
+**Giving a component a router dependency breaks its siblings' tests.** Adding a `<Link>` to
+`HomePage` broke `HomePage.test.tsx`, which rendered it without a `MemoryRouter`. That is the cost of
+the deliberate "no shared render helper" rule in
+[frontend-testing.md](./frontend-testing.md): when a component gains a provider requirement, every
+test file that renders it has to be updated by hand. Expected, but worth knowing before you start
+rather than after the suite goes red.
