@@ -31,7 +31,7 @@ Decision rules:
 ## Step 3 — Write the tests
 
 - AAA pattern with explicit `# Arrange`, `# Act`, `# Assert` comments.
-- Reuse fixtures from `tests/conftest.py` (test DB, async client, authenticated customer/seller users). If a clearly reusable fixture is missing, add it to `conftest.py` rather than duplicating it in the test file.
+- Reuse the fixtures that exist: `tests/conftest.py` has `db_connection`, `db_session` and `async_client`; `tests/api/conftest.py` has `authenticated_as`, which takes the `User` the test hands it. There are deliberately **no shared `User` fixtures** — build the role you need in the test's own Arrange step, so the role and the id stay visible next to the assertion that depends on them. If a genuinely reusable fixture is missing, add it to `conftest.py` rather than duplicating it in the test file.
 - `pytest-asyncio` for everything async.
 - Descriptive names: `test_<function>_<scenario>_<result>` (e.g. `test_find_by_id_when_item_missing_returns_none`).
 - Code and identifiers in English. Type hints mandatory (mypy strict applies to tests too).

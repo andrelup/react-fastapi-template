@@ -110,7 +110,9 @@ Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger U
 
 - Framework: **pytest + pytest-asyncio + httpx.AsyncClient**.
 - Patrón **AAA** (Arrange → Act → Assert).
-- Fixtures centralizadas en `conftest.py`: test DB, async client, usuario autenticado (customer y seller).
+- Fixtures centralizadas en `conftest.py`: test DB y async client. No hay fixtures de usuario
+  compartidas a propósito: cada test construye el `User` con el rol que necesita en su propio
+  Arrange.
 - **Unitarios:** mockean los ports y prueban los servicios de dominio en aislamiento.
 - **Integración:** usan una DB real de test para verificar los repositorios.
 - **API:** `httpx.AsyncClient` contra la app FastAPI.

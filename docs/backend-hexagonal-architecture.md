@@ -179,7 +179,7 @@ Conversion between domain and ORM is done by explicit hand-written helpers in ea
 ### Rule 4 — Business logic lives in domain services, never in routers
 
 A router validates input, calls a service, and wraps the result. That is all. Authorization rules
-(seller vs customer, ownership) are **domain rules** and live in the services:
+(editor vs viewer, ownership) are **domain rules** and live in the services:
 
 ```python
 class ItemService:
