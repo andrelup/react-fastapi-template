@@ -6,7 +6,13 @@ from src.domain.models.user import UserRole
 
 
 class RegisterRequest(BaseModel):
-    """Payload to create a new user account."""
+    """Payload to create a new user account.
+
+    `role` travels in the public payload on purpose: this is a template, and who
+    may create which role is a decision for the project built on top of it (pin
+    every signup to VIEWER, or gate `/auth/register` behind an authenticated
+    ADMIN). As it ships, anyone reaching the endpoint can pick their own role.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
