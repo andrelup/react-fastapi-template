@@ -6,6 +6,17 @@ existing source rather than from intentions.
 
 Read the document for the layer you are about to touch **before** writing code.
 
+## Both stacks
+
+| Document | Read it when |
+|---|---|
+| [Adding a Feature End to End](./adding-a-feature.md) | Adding a whole domain slice, backend and frontend. The executable walkthrough: domain model → port → service with the authorization → repository → migration → router → per-operation schemas → the three test tiers → frontend feature → route and screen. Also the `example/` folder convention and how to delete the sample domain. |
+
+The short architecture decisions behind it live in `backend/docs/`:
+[why hexagonal](../backend/docs/por-que-hexagonal.md),
+[why `Protocol` and not ABC](../backend/docs/por-que-protocol-y-no-abc.md),
+[why the `ApiResponse` envelope](../backend/docs/por-que-el-envelope-apiresponse.md).
+
 ## Frontend — `frontend/`
 
 | Document | Read it when |
