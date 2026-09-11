@@ -445,7 +445,11 @@ class SqlAlchemyItemRepository:
             _apply_fields(existing_item_orm, item)
             item_orm = existing_item_orm
 
-        await self._reconcile_tags(item_orm, item.tag_names)
+        # `no_autoflush`: see the note below.
+        with self._session.no_autoflush:
+            tags_changed = await self._reconcile_tags(item_orm, item.tag_names)
+        if item.id is not None and tags_changed:
+            attributes.flag_modified(item_orm, "name")
         await self._session.commit()
         await self._session.refresh(item_orm)
         return _to_domain(item_orm)
@@ -472,22 +476,23 @@ class SqlAlchemyItemRepository:
             statement = statement.where(ItemORM.category == category)
         return statement
 
-    async def _reconcile_tags(self, item_orm: ItemORM, tag_names: list[str]) -> None:
-        """Make `item_orm.tags` match `tag_names`, preserving the links that stay."""
+    async def _reconcile_tags(self, item_orm: ItemORM, tag_names: list[str]) -> bool:
+        """Make `item_orm.tags` match `tag_names`, preserving the links that stay.
+
+        Returns whether any link actually moved — that is what tells `save`
+        the parent row needs forcing so its version advances.
+        """
         desired = set(tag_names)
         current = {tag.name for tag in item_orm.tags}
         if desired == current:
-            return
+            return False
 
         for tag in list(item_orm.tags):
             if tag.name not in desired:
                 item_orm.tags.remove(tag)
         for name in desired - current:
             item_orm.tags.append(await self._get_or_create_tag(name))
-
-        # The parent's version does not move on its own when only the links
-        # changed — force it so the optimistic lock still advances.
-        attributes.flag_modified(item_orm, "name")
+        return True
 
     async def _get_or_create_tag(self, name: str) -> TagORM:
         """Return the tag with that name, creating it if it does not exist yet."""
@@ -524,6 +529,19 @@ overwrites that with the caller's version, so the generated
 collections, no column on `items` changed, so SQLAlchemy emits no UPDATE on the parent row and the
 version does not advance. Two clients could then both retag from the same version and neither would
 notice. Marking any column dirty forces the UPDATE, and with it the version bump.
+
+Both of its guards are load-bearing, and each one is a version that comes back wrong by exactly one:
+
+- **`if item.id is not None`** — an INSERT already writes version 1. Flagging the row there appends
+  a gratuitous UPDATE to the same flush, and a brand-new item with tags comes back at version 2.
+- **`if tags_changed`** — the early return in `_reconcile_tags` is why this has to travel back as a
+  return value. Forcing an UPDATE when nothing moved would bump the version on a no-op save.
+
+And **`with self._session.no_autoflush`** is what keeps the whole save in a single flush. Resolving
+a tag runs a SELECT; the autoflush it triggers writes the scalar changes as their own UPDATE — one
+version bump — before `flag_modified` forces a second. A plain rename with tags attached then
+advances the version by two, so the client's next write is stale against a version it never saw and
+the 409 looks like a phantom concurrent editor.
 
 The rest of the query and mapping conventions — `scalar_one_or_none`, unit-of-work updates,
 never a bulk `update()`, no raw SQL — are in
@@ -595,7 +613,9 @@ class ItemCreate(BaseModel):
 class ItemUpdate(ItemCreate):
     """Payload for updating an item. `version` is mandatory — it is the optimistic lock."""
 
-    version: int = Field(ge=1, description="Version the client last read. A stale value returns 409.")
+    version: int = Field(
+        ge=1, description="Version the client last read. A stale value returns 409."
+    )
 
 
 class ItemResponse(BaseModel):
@@ -641,7 +661,7 @@ it to `pageSize`; that is the frontend's job, not the API's.
 `src/adapters/inbound/api/example/item_router.py`. Validate, call the service, wrap. Nothing else.
 
 ```python
-"""Catalogue item endpoints: search, read, create, update and delete."""
+"""Catalogue item endpoints: listing, search, read, create, update and delete."""
 
 from typing import Annotated
 
@@ -679,6 +699,42 @@ def _to_response(item: Item) -> ItemResponse:
     )
 
 
+async def _page(
+    item_service: ItemService,
+    query: str | None,
+    category: str | None,
+    page: int,
+    page_size: int,
+) -> ApiResponse[ItemPageResponse]:
+    """Run the search use case and wrap its page in the response envelope."""
+    items, total = await item_service.search(query, category, (page - 1) * page_size, page_size)
+    page_response = ItemPageResponse(
+        items=[_to_response(item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+    return ApiResponse(success=True, data=page_response, error=None)
+
+
+@router.get(
+    "",
+    response_model=ApiResponse[ItemPageResponse],
+    summary="List the catalogue",
+    response_description="A page of items, optionally narrowed by category.",
+    responses=error_responses(401),
+)
+async def list_items(
+    item_service: Annotated[ItemService, Depends(get_item_service)],
+    _current_user: Annotated[User, Depends(get_current_user)],
+    category: Annotated[str | None, Query(max_length=50)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> ApiResponse[ItemPageResponse]:
+    """Return a page of catalogue items. Readable by every authenticated role."""
+    return await _page(item_service, None, category, page, page_size)
+
+
 # Declared BEFORE `/{item_id}` on purpose — see the note below.
 @router.get(
     "/search",
@@ -695,15 +751,8 @@ async def search_items(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> ApiResponse[ItemPageResponse]:
-    """Return a page of catalogue items. Readable by every authenticated role."""
-    items, total = await item_service.search(q, category, (page - 1) * page_size, page_size)
-    page_response = ItemPageResponse(
-        items=[_to_response(item) for item in items],
-        total=total,
-        page=page,
-        page_size=page_size,
-    )
-    return ApiResponse(success=True, data=page_response, error=None)
+    """Return a page of items whose name or description matches `q`."""
+    return await _page(item_service, q, category, page, page_size)
 
 
 @router.get(
@@ -802,6 +851,15 @@ parameter the client never sent. Nothing warns you; the tests just go red in a c
 
 **Specific routes before parametrised ones**, always.
 
+### Two read endpoints, one use case
+
+`GET /items` and `GET /items/search` both call `ItemService.search` and differ only in whether a
+query is passed, which is why they share `_page`. They stay two endpoints rather than one because
+they are two different things to the client: a catalogue screen lists on arrival and searches only
+when someone types, and the SPA's `items-api.ts` has a function for each. Collapsing them into
+`GET /items?q=` would work, but every caller would then have to know that an empty `q` means
+"everything" — a rule that lives nowhere in the contract.
+
 A search endpoint belongs to its resource's router, not to a separate search router. Note also that
 the dependency style here is `Annotated[..., Depends(...)]`; `auth_router.py` still uses the older
 bare-default form. New routers use `Annotated`.
@@ -859,18 +917,31 @@ The fake has to replicate the optimistic lock, or the unit tier silently stops c
 interesting failure mode:
 
 ```python
+from dataclasses import replace
+
+
+def _copy(item: Item) -> Item:
+    """Return an independent copy, mutable list field included."""
+    return replace(item, tag_names=list(item.tag_names))
+
+
 class FakeItemRepository:
-    """In-memory `ItemRepository`, including the version check PostgreSQL does for real."""
+    """In-memory `ItemRepository`, including the version check PostgreSQL does for real.
+
+    Every method hands out copies — see the note below.
+    """
 
     def __init__(self, items: list[Item] | None = None) -> None:
-        self._items = {item.id: item for item in items or [] if item.id is not None}
+        self._items = {item.id: _copy(item) for item in items or [] if item.id is not None}
         self._next_id = max(self._items, default=0) + 1
 
     async def find_by_id(self, item_id: int) -> Item | None:
-        return self._items.get(item_id)
+        stored = self._items.get(item_id)
+        return _copy(stored) if stored is not None else None
 
     async def find_by_slug(self, slug: str) -> Item | None:
-        return next((item for item in self._items.values() if item.slug == slug), None)
+        stored = next((item for item in self._items.values() if item.slug == slug), None)
+        return _copy(stored) if stored is not None else None
 
     async def search(
         self, query: str | None, category: str | None, offset: int, limit: int
@@ -881,22 +952,33 @@ class FakeItemRepository:
             if (query is None or query.lower() in item.name.lower())
             and (category is None or item.category == category)
         ]
-        return matches[offset : offset + limit], len(matches)
+        return [_copy(item) for item in matches[offset : offset + limit]], len(matches)
 
     async def save(self, item: Item) -> Item:
         if item.id is None:
-            item.id = self._next_id
+            stored = replace(_copy(item), id=self._next_id)
             self._next_id += 1
         else:
-            stored = self._items[item.id]
-            if stored.version != item.version:
+            current = self._items[item.id]
+            if current.version != item.version:
                 raise StaleDataError("UPDATE statement on table 'items' expected to update 1 row")
-            item.version += 1
-        self._items[item.id] = item
-        return item
+            stored = replace(_copy(item), version=item.version + 1)
+        self._items[stored.id] = stored
+        return _copy(stored)
 
     async def delete(self, item_id: int) -> None:
         self._items.pop(item_id, None)
+```
+
+**The copies are the whole point.** `ItemService.update` reads the item, mutates the object it got
+back and hands it to `save`. A fake that returns its stored instance therefore hands the caller its
+own state: the mutation lands straight in the store, `save` compares that object's version against
+itself, and the check can never fail. The stale-version test then reports "DID NOT RAISE" and the
+unit tier silently stops covering the one failure mode it exists for. The real repository does not
+have this problem because `_to_domain` builds a fresh `Item` on every read — a fake that honours the
+same contract has to do the same.
+
+```python
 ```
 
 Then one test per cell of the authorization matrix, named
@@ -978,6 +1060,24 @@ async def test_create_item_as_viewer_returns_403(
     assert response.status_code == 403
     assert response.json()["success"] is False
 ```
+
+**The user has to be real as soon as the request actually writes.** The snippet above invents a
+`User(id=1, ...)`, and for that test it is fine: a VIEWER's POST is refused by the service before
+anything reaches the database. Every test that expects a 201 or a 200 is different — `items.owner_id`
+is a foreign key against `users`, so an invented id breaks the constraint and the `IntegrityError`
+handler answers 409 where the test wanted 201. Those tests take `db_session` alongside
+`async_client`, insert the user through `SqlAlchemyUserRepository` and authenticate as the user that
+comes back:
+
+```python
+async def _a_user(db_session: AsyncSession, role: UserRole, email: str) -> User:
+    return await SqlAlchemyUserRepository(db_session).save(
+        User(email=email, name=role.value.title(), role=role, hashed_password="hashed:pw")
+    )
+```
+
+It is the same session the app is using — `async_client` overrides `get_db_session` with it — so the
+row is visible to the request and rolled back with everything else at teardown.
 
 Cover every cell: VIEWER writes → 403, EDITOR creates → 201, EDITOR edits someone else's → 403,
 EDITOR deletes → 403, ADMIN edits and deletes anything → 200, stale `version` → 409, missing token
@@ -1275,7 +1375,8 @@ reference example code from template code, you are adding a seventh step.
       from it.
 - [ ] Every new domain exception has its entry in `_STATUS_CODES`.
 - [ ] Authorization lives in the service. The router validates, calls, wraps.
-- [ ] `set_committed_value` is in the update path, and `flag_modified` where only links change.
+- [ ] `set_committed_value` is in the update path; `flag_modified` fires only on an update
+      whose links actually moved, inside `no_autoflush`.
 - [ ] Specific routes are declared before parametrised ones.
 - [ ] One schema per operation; `version` is required on update; `owner_id` is not accepted on
       create.
@@ -1297,6 +1398,44 @@ following it is a bug in the guide, not in the implementation.
 
 Record those corrections here as the sample catalogue is rebuilt — the backend slices (issues #36 and
 #37) and the screens (issues #39 to #43).
+
+### From #36 — the Item backend slice
+
+**The guide was missing an endpoint the SPA already calls.** Step 9 showed `/items/search` and the
+four CRUD routes, but not the plain `GET /items` listing that `items-api.ts` uses whenever the search
+box is empty. Following the guide literally produced a backend the catalogue screen could only talk
+to while someone was typing. Step 9 now shows both, sharing a `_page` helper, and says why they are
+two endpoints rather than one.
+
+**`flag_modified` as written bumped the version twice, and once on insert.** Step 6 called it
+unconditionally at the end of `_reconcile_tags`. Two separate failures came out of that, both of them
+an off-by-one on `version`, which is the one field where an off-by-one turns into a 409 for the next
+caller:
+
+- On an INSERT the row is already being written, so the extra flag appends a second UPDATE to the
+  same flush and a new item with tags is born at version 2.
+- On an UPDATE, `_get_or_create_tag` runs a SELECT, whose autoflush writes the scalar changes as
+  their own UPDATE *before* the flag forces another — a plain rename with tags advanced the version
+  by two.
+
+Step 6 now returns a `tags_changed` flag from `_reconcile_tags`, guards the call with
+`item.id is not None and tags_changed`, and wraps the reconciliation in `no_autoflush` so the whole
+save is a single flush. Two integration tests pin each half down.
+
+**The unit fake could not fail.** Step 11's `FakeItemRepository` returned its stored instances, so
+`ItemService.update` mutated the store directly and `save` compared an object's version with itself.
+The stale-version test passed by reporting "DID NOT RAISE" — exactly the silence
+[backend-testing.md](./backend-testing.md) §3 warns about, arriving through the fake the guide itself
+supplied. The fake now hands out copies, like the real `_to_domain` does.
+
+**API tests that write need a real user row.** The step 13 snippet authenticates as an invented
+`User(id=1, ...)`, which is right for the 401/403 cases it illustrates but fails the `items.owner_id`
+foreign key on anything that reaches the database: the 201 test came back 409 from the
+`IntegrityError` handler. Step 13 now says when the user has to be inserted for real and how.
+
+**And one line simply did not lint.** The `version` field in step 8 was 102 characters, two over
+`line-length = 100`. Snippets in this guide are copied verbatim; they have to pass `ruff check` as
+written.
 
 ### From #39 — the items feature and the catalogue screen
 
