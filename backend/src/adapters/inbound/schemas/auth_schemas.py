@@ -14,7 +14,7 @@ class RegisterRequest(BaseModel):
                 "email": "jane.doe@example.com",
                 "name": "Jane Doe",
                 "password": "correct-horse-battery-staple",
-                "role": "customer",
+                "role": "viewer",
             }
         }
     )
@@ -22,9 +22,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr = Field(examples=["jane.doe@example.com"])
     name: str = Field(min_length=1, max_length=255)
     password: str = Field(min_length=8, max_length=128)
-    role: UserRole = Field(
-        default=UserRole.CUSTOMER, description="Role granted to the new account."
-    )
+    role: UserRole = Field(default=UserRole.VIEWER, description="Role granted to the new account.")
 
 
 class LoginRequest(BaseModel):
