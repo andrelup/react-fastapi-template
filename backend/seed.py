@@ -35,8 +35,12 @@ logger = structlog.get_logger(__name__)
 # below recognize an already-seeded database.
 FAKER_SEED = 20260712
 
-SELLER_COUNT = 4
-CUSTOMER_COUNT = 6
+# Stopgap for #11: only the `UserRole` members are remapped here, to keep
+# `mypy --strict` green now that SELLER/CUSTOMER are gone. The fixed
+# accounts, the email domain and the log keys below still speak the old
+# vocabulary on purpose — #12 rewrites this whole file.
+EDITOR_COUNT = 4
+VIEWER_COUNT = 6
 
 # Namespaced so a seeded account can never collide with one a developer created
 # by hand through the API.
@@ -69,15 +73,15 @@ class _UserSpec:
 # a Faker version bump and so they double as the credentials a human types in
 # by hand. Created before the Faker-generated pool below.
 FIXED_USER_SPECS: list[_UserSpec] = [
-    _UserSpec(email="seller@bookshelf.dev", name="Demo Seller", role=UserRole.SELLER),
-    _UserSpec(email="customer@bookshelf.dev", name="Demo Customer", role=UserRole.CUSTOMER),
+    _UserSpec(email="seller@bookshelf.dev", name="Demo Seller", role=UserRole.EDITOR),
+    _UserSpec(email="customer@bookshelf.dev", name="Demo Customer", role=UserRole.VIEWER),
 ]
 
 
 def _build_user_specs(fake: Faker) -> list[_UserSpec]:
-    """Draw the 10 seed users, sellers first, with unique emails."""
+    """Draw the 10 seed users, editors first, with unique emails."""
     specs: list[_UserSpec] = []
-    for role, count in ((UserRole.SELLER, SELLER_COUNT), (UserRole.CUSTOMER, CUSTOMER_COUNT)):
+    for role, count in ((UserRole.EDITOR, EDITOR_COUNT), (UserRole.VIEWER, VIEWER_COUNT)):
         for _ in range(count):
             name: str = fake.name()
             # `unique` guarantees no repeat within this run; bare `email()`
@@ -141,14 +145,14 @@ async def _seed(session: AsyncSession) -> None:
     logger.info(
         "seed_completed",
         users=len(users),
-        sellers=len([user for user in users if user.role is UserRole.SELLER]),
-        customers=len([user for user in users if user.role is UserRole.CUSTOMER]),
+        sellers=len([user for user in users if user.role is UserRole.EDITOR]),
+        customers=len([user for user in users if user.role is UserRole.VIEWER]),
     )
     logger.info(
         "seed_credentials",
         password=SEED_PASSWORD,
-        sellers=[user.email for user in users if user.role is UserRole.SELLER],
-        customers=[user.email for user in users if user.role is UserRole.CUSTOMER],
+        sellers=[user.email for user in users if user.role is UserRole.EDITOR],
+        customers=[user.email for user in users if user.role is UserRole.VIEWER],
     )
 
 
