@@ -4,11 +4,18 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { setAuthToken } from '@/lib/api-client';
 import { getCurrentUser, loginUser } from '../api/auth-api';
 import { AuthContext } from '../context/auth-context';
-import type { AuthToken, LoginCredentials, User } from '../types';
+import type { AuthToken, LoginCredentials, User, UserRole } from '../types';
 
 interface AuthProviderProps {
   children: ReactNode;
 }
+
+/** Mirrors the backend's role hierarchy: ADMIN(2) > EDITOR(1) > VIEWER(0). */
+const ROLE_RANK: Record<UserRole, number> = {
+  admin: 2,
+  editor: 1,
+  viewer: 0,
+};
 
 /**
  * Provides the authentication state (current user + token) to the whole
@@ -45,6 +52,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     setUser(null);
   }, [removeToken]);
 
+  const hasRole = useCallback(
+    (minimum: UserRole): boolean => {
+      if (!user) {
+        return false;
+      }
+      return ROLE_RANK[user.role] >= ROLE_RANK[minimum];
+    },
+    [user],
+  );
+
   // Rehydrate the user on mount (e.g. after a page refresh): the token
   // survives in localStorage but `user` is plain component state and is
   // lost, so `ProtectedRoute` (gated on `token`) would keep the session
@@ -67,7 +84,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [token, user, fetchCurrentUser, logout]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

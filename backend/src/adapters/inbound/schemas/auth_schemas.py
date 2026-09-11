@@ -6,7 +6,13 @@ from src.domain.models.user import UserRole
 
 
 class RegisterRequest(BaseModel):
-    """Payload to create a new user account."""
+    """Payload to create a new user account.
+
+    `role` travels in the public payload on purpose: this is a template, and who
+    may create which role is a decision for the project built on top of it (pin
+    every signup to VIEWER, or gate `/auth/register` behind an authenticated
+    ADMIN). As it ships, anyone reaching the endpoint can pick their own role.
+    """
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -14,7 +20,7 @@ class RegisterRequest(BaseModel):
                 "email": "jane.doe@example.com",
                 "name": "Jane Doe",
                 "password": "correct-horse-battery-staple",
-                "role": "customer",
+                "role": "viewer",
             }
         }
     )
@@ -22,9 +28,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr = Field(examples=["jane.doe@example.com"])
     name: str = Field(min_length=1, max_length=255)
     password: str = Field(min_length=8, max_length=128)
-    role: UserRole = Field(
-        default=UserRole.CUSTOMER, description="Role granted to the new account."
-    )
+    role: UserRole = Field(default=UserRole.VIEWER, description="Role granted to the new account.")
 
 
 class LoginRequest(BaseModel):

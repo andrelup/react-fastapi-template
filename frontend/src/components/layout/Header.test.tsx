@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
 import { Header } from './Header';
 
-const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'customer' };
+const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'viewer' };
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: {

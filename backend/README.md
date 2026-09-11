@@ -106,11 +106,19 @@ Los targets del Makefile invocan el intérprete de `.venv` por ruta, así que no
 
 Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger UI).
 
+**El registro es abierto a propósito:** `POST /auth/register` es público y acepta el `role` que le
+mande el cliente, así que cualquiera puede crearse como `admin`. Es el punto donde la plantilla se
+detiene adrede, porque la política de alta cambia mucho de un proyecto a otro y no hay una forma
+genérica de resolverla. El razonamiento y las alternativas, en
+[docs/roles-y-registro-abierto.md](./docs/roles-y-registro-abierto.md).
+
 ## Testing
 
 - Framework: **pytest + pytest-asyncio + httpx.AsyncClient**.
 - Patrón **AAA** (Arrange → Act → Assert).
-- Fixtures centralizadas en `conftest.py`: test DB, async client, usuario autenticado (customer y seller).
+- Fixtures centralizadas en `conftest.py`: test DB y async client. No hay fixtures de usuario
+  compartidas a propósito: cada test construye el `User` con el rol que necesita en su propio
+  Arrange.
 - **Unitarios:** mockean los ports y prueban los servicios de dominio en aislamiento.
 - **Integración:** usan una DB real de test para verificar los repositorios.
 - **API:** `httpx.AsyncClient` contra la app FastAPI.

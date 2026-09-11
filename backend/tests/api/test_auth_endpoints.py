@@ -13,7 +13,7 @@ async def test_register_creates_a_user(async_client: AsyncClient) -> None:
         "email": "register-success@example.com",
         "name": "New User",
         "password": "s3cret123",
-        "role": "customer",
+        "role": "viewer",
     }
 
     # Act
@@ -24,8 +24,26 @@ async def test_register_creates_a_user(async_client: AsyncClient) -> None:
     body = response.json()
     assert body["success"] is True
     assert body["data"]["email"] == "register-success@example.com"
-    assert body["data"]["role"] == "customer"
+    assert body["data"]["role"] == "viewer"
     assert "id" in body["data"]
+
+
+async def test_register_honours_a_client_supplied_role(async_client: AsyncClient) -> None:
+    """The template lets the caller pick the role; tightening that is the adopter's call."""
+    # Arrange
+    payload = {
+        "email": "client-role@example.com",
+        "name": "Self-Appointed Admin",
+        "password": "s3cret123",
+        "role": "admin",
+    }
+
+    # Act
+    response = await async_client.post("/auth/register", json=payload)
+
+    # Assert
+    assert response.status_code == 201
+    assert response.json()["data"]["role"] == "admin"
 
 
 async def test_register_with_duplicate_email_returns_409(async_client: AsyncClient) -> None:
@@ -34,7 +52,7 @@ async def test_register_with_duplicate_email_returns_409(async_client: AsyncClie
         "email": "duplicate@example.com",
         "name": "First User",
         "password": "s3cret123",
-        "role": "customer",
+        "role": "viewer",
     }
     await async_client.post("/auth/register", json=payload)
 
@@ -67,7 +85,7 @@ async def test_register_with_short_password_returns_error_naming_the_field(
         "email": "short-password@example.com",
         "name": "Short Password",
         "password": "s3cret",
-        "role": "customer",
+        "role": "viewer",
     }
 
     # Act
@@ -90,7 +108,7 @@ async def test_register_with_multiple_invalid_fields_names_all_of_them(
         "email": "multi-field@example.com",
         "name": "",
         "password": "short",
-        "role": "customer",
+        "role": "viewer",
     }
 
     # Act
@@ -115,7 +133,7 @@ async def test_register_with_short_password_never_leaks_it_in_the_response(
         "email": "leaky-password@example.com",
         "name": "Leaky Password",
         "password": plaintext_password[:6],
-        "role": "customer",
+        "role": "viewer",
     }
 
     # Act
@@ -135,7 +153,7 @@ async def test_login_with_valid_credentials_returns_a_token(async_client: AsyncC
             "email": "login-success@example.com",
             "name": "Login User",
             "password": "s3cret123",
-            "role": "seller",
+            "role": "editor",
         },
     )
 
@@ -162,7 +180,7 @@ async def test_login_with_wrong_password_returns_401(async_client: AsyncClient) 
             "email": "login-wrong-pw@example.com",
             "name": "Login User",
             "password": "s3cret123",
-            "role": "customer",
+            "role": "viewer",
         },
     )
 
@@ -221,7 +239,7 @@ async def test_get_me_with_valid_token_returns_the_user(async_client: AsyncClien
             "email": "me-success@example.com",
             "name": "Me User",
             "password": "s3cret123",
-            "role": "customer",
+            "role": "viewer",
         },
     )
     login_response = await async_client.post(
