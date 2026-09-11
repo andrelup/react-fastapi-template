@@ -28,7 +28,7 @@ frontend/src/
 │   ├── ui/                  Generic primitives (Button, Input, Card, Dialog, state screens…)
 │   └── layout/              Header, Footer, Sidebar, Layout, mobile navigation
 │
-├── hooks/                   Generic hooks: useApi, useDebounce, useLocalStorage
+├── hooks/                   Generic hooks: useApi, useApiOnMount, useDebounce, useLocalStorage
 ├── lib/                     api-client.ts — the single fetch() call site
 ├── types/                   api.ts — ApiResponse<T>, PaginatedResponse<T>, ApiError
 ├── utils/                   Pure helpers: get-initials
@@ -187,6 +187,23 @@ Never call an API function from a bare `useEffect`. Use `useApi`, which owns the
 const { data, isLoading, error, execute } = useApi(loginUser);
 ```
 
+### Fetching on mount
+
+`useApi` never fetches by itself — `execute` has to be called. A screen that needs its data as soon
+as it mounts (the common case for a list or a detail page) uses `useApiOnMount` instead of writing
+that call inside a bare `useEffect`, so the five list/detail screens landing in issues #39-#43 do not
+each reinvent it differently:
+
+```ts
+const { data, isLoading, error, refetch } = useApiOnMount(getItems, [filters]);
+```
+
+It wraps `useApi`, fires `execute` once on mount and again whenever `args` actually changes, and
+returns the same `data / isLoading / error` triple plus `refetch`. `args` is compared by its
+serialised contents, not by reference, so passing a fresh array literal on every render — the normal
+shape of that call — does not retrigger the fetch; only a genuine change in one of its values does.
+Pass `{ enabled: false }` to skip the automatic fetch, e.g. while a required id is not known yet.
+
 ---
 
 ## 5. State
@@ -305,7 +322,7 @@ guards to `router.tsx`.
 
 - [ ] No feature imports another feature's internal path.
 - [ ] Nothing outside `lib/api-client.ts` calls `fetch`.
-- [ ] No data fetching inside a bare `useEffect`; `useApi` is used instead.
+- [ ] No data fetching inside a bare `useEffect`; `useApi` is used instead, and `useApiOnMount` for the fetch-on-mount case.
 - [ ] No `any`; `unknown` plus narrowing where the type is genuinely open.
 - [ ] Props typed with an `interface`; named exports everywhere except lazy pages.
 - [ ] Only Tailwind classes and existing `components/ui` primitives for styling.
