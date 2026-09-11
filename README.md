@@ -15,7 +15,11 @@ sin adornos.
 - **Registro e inicio de sesión** — alta de cuenta y autenticación con JWT, con la sesión persistida
   en el cliente y restaurada al recargar.
 - **Roles diferenciados** — `admin`, `editor` y `viewer`, jerárquicos, con rutas de la SPA
-  protegidas por rol.
+  protegidas por rol. Son una **simulación del mecanismo**, no un modelo de permisos: el registro es
+  abierto y acepta el rol que le mandes, porque cerrar esa puerta se puede hacer de cinco maneras
+  razonables y cuál es la buena depende del proyecto. Decidirlo es lo primero que le toca a quien
+  use la plantilla; el porqué y las alternativas están en
+  [roles-y-registro-abierto.md](./backend/docs/roles-y-registro-abierto.md).
 - **Logging estructurado** — cada petición emite un evento con `request_id`, `status_code` y
   `duration_ms`, correlacionable desde la cabecera `X-Request-ID` de la respuesta.
 
