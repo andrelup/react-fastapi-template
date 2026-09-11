@@ -22,6 +22,7 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 
 | Before you… | Read |
 |---|---|
+| Add a whole domain slice end to end (backend **and** frontend) | `docs/adding-a-feature.md` |
 | Add or change a frontend feature, route, or backend call | `docs/frontend-architecture.md` |
 | Build or restyle any UI/screen | `docs/frontend-ui-components.md` |
 | Debug a frontend lint/format/type error | `docs/frontend-code-style.md` |
