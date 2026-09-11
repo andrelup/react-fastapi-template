@@ -33,7 +33,7 @@ Decision rules:
 - AAA pattern with explicit `# Arrange`, `# Act`, `# Assert` comments.
 - Reuse fixtures from `tests/conftest.py` (test DB, async client, authenticated customer/seller users). If a clearly reusable fixture is missing, add it to `conftest.py` rather than duplicating it in the test file.
 - `pytest-asyncio` for everything async.
-- Descriptive names: `test_<function>_<scenario>_<result>` (e.g. `test_find_by_id_when_book_missing_returns_none`).
+- Descriptive names: `test_<function>_<scenario>_<result>` (e.g. `test_find_by_id_when_item_missing_returns_none`).
 - Code and identifiers in English. Type hints mandatory (mypy strict applies to tests too).
 - Cover the happy path, the domain error cases and the validation edges — not just the happy path.
 

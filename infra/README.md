@@ -40,7 +40,12 @@ Los servicios `backend` y `frontend` pertenecen al perfil `prod`, así que un `u
 levanta únicamente `postgres`. No hace falta nombrarlo al final del comando.
 
 El backend en local se conecta por `localhost:${DB_PORT}`, el puerto que el contenedor expone al
-host. Si prefieres lanzarlo a mano en vez de con `make dev-back`, desde la **raíz** del repo (así
+host. Dentro del contenedor PostgreSQL escucha siempre en el 5432; `DB_PORT` solo decide en qué
+puerto del host se publica. El `.env.example` trae el 5432 porque es el estándar, pero es
+justamente el puerto que suele estar ocupado: si ya tienes otra base levantada ahí, pon otro en tu
+`.env` y los dos proyectos conviven. El entorno de desarrollo de este repo usa el **5434**.
+
+Si prefieres lanzar el backend a mano en vez de con `make dev-back`, desde la **raíz** del repo (así
 lee el mismo `.env`; `--app-dir backend` hace importable el paquete `src`):
 
 ```bash
@@ -147,7 +152,7 @@ docker exec react-template id                                                  #
 docker inspect -f '{{len .Mounts}}' react-template fastapi-template            # 0 en ambos
 
 # Conexion a la base (usuario/base segun el .env de la raiz)
-docker exec -it react-fastapi-template-postgres psql -U bookshelf -d bookshelf -c '\dt'
+docker exec -it react-fastapi-template-postgres psql -U "$DB_USERNAME" -d "$DB_NAME" -c '\dt'
 ```
 
 > El rol, la contraseña y la base (`POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB`) solo se
@@ -155,3 +160,9 @@ docker exec -it react-fastapi-template-postgres psql -U bookshelf -d bookshelf -
 > `DB_PASSWORD` / `DB_NAME` del `.env`. Si cambias esas credenciales con el volumen ya creado, no
 > tendrán efecto y verás errores tipo `role "..." does not exist`. En ese caso recrea el volumen
 > con `down -v` y vuelve a levantar.
+
+> **Si ya tenías el proyecto levantado de antes**, el primer arranque tras actualizar necesita
+> `docker compose --env-file ../.env down -v` antes del `make setup`. Son dos motivos a la vez: el
+> rol y la base viejos siguen dentro del volumen (y el healthcheck nunca se pondrá `healthy`), y la
+> base está sellada con una revisión de Alembic que ya no existe, así que `alembic upgrade head`
+> fallaría con `Can't locate revision identified by '...'`. Un clon nuevo no se ve afectado.

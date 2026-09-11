@@ -47,11 +47,11 @@ Format: `<type>(<scope>): <subject>`
 - In English, lowercase initial, no trailing period.
 - Present imperative: `add`, `fix`, `rename` — never `added`, `adds`, `adding`.
 - At most ~72 characters.
-- Describe **what changes and why**, not the files touched. `fix(backend): chain books migration after users` ✔ / `fix: update alembic file` ✘.
+- Describe **what changes and why**, not the files touched. `refactor(backend): collapse the alembic history into one initial revision` ✔ / `refactor: update alembic file` ✘.
 
 **Body** (optional, after a blank line): only if the *why* does not fit in the subject — a design decision, a trade-off, context a reviewer would need. Do not restate the diff in prose.
 
-**Issue references**: if the work corresponds to an issue, append it to the subject, the way the repo does it: `feat(backend): add books CRUD API router with pagination and RBAC (#7)`.
+**Issue references**: if the work corresponds to an issue, append it to the subject, the way the repo does it: `feat(backend): add the item CRUD API router with pagination and RBAC (#36)`.
 
 Close the message with the trailer:
 
@@ -62,9 +62,9 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 Valid examples from the repo:
 
 ```
-feat(backend): add optimistic locking to Book and FavouriteList (#42)
-test(backend): cover customer favourite lists
-docs(backend): add hexagonal architecture guide
+feat(backend): add the neutral catalogue ORM models
+test(backend): cover the neutral catalogue ORM conventions
+refactor(backend): collapse the alembic history into one initial revision
 fix(frontend): fix login redirect
 ```
 
@@ -84,10 +84,10 @@ Use a heredoc for the message, so that the body and the trailer keep their line 
 ```bash
 git add <specific paths>
 git commit -m "$(cat <<'EOF'
-feat(backend): add book search endpoint
+feat(backend): add the item search endpoint
 
 Search runs on the persistence adapter to avoid loading the full
-catalog into memory.
+catalogue into memory.
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 EOF

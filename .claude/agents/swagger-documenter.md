@@ -43,18 +43,18 @@ FastAPI already generates a lot of the OpenAPI schema from the code. Rewriting t
 
 ### On the endpoint decorator (`api/*.py`)
 
-- **`summary=`** — a short imperative phrase (`"Create a book listing"`). This is the line Swagger renders next to the collapsed path. Every endpoint gets one.
+- **`summary=`** — a short imperative phrase (`"Publish a catalogue item"`). This is the line Swagger renders next to the collapsed path. Every endpoint gets one.
 - **`description=`** — only when it adds something the docstring does not already say: who is allowed to call it, side effects, pagination semantics. If the docstring is enough, leave it alone and add nothing.
 - **`response_description=`** — what the success response actually means. FastAPI's default is the useless `"Successful Response"`.
 - **`responses={...}`** — your most important contribution. The real error codes, in the real envelope shape.
 
 ### On the schemas (`schemas/*.py`)
 
-- `Field(description=...)` where the field name is not self-explanatory (`skip`, `limit`, `seller_id`, `role`).
-- `examples=[...]` where a sample value disambiguates the format (`isbn`, `email`, `price`).
-- `model_config = ConfigDict(json_schema_extra={"example": {...}})` on request schemas (`BookCreate`, `RegisterRequest`, …) so Swagger's "Try it out" comes pre-filled with a valid body.
+- `Field(description=...)` where the field name is not self-explanatory (`skip`, `limit`, `owner_id`, `role`).
+- `examples=[...]` where a sample value disambiguates the format (`slug`, `email`, `category`).
+- `model_config = ConfigDict(json_schema_extra={"example": {...}})` on request schemas (`RegisterRequest`, `LoginRequest`, an eventual `ItemCreate`, …) so Swagger's "Try it out" comes pre-filled with a valid body.
 - The example body MUST pass the schema's own validation. Build it, then re-read the constraints and check every field against them.
-- `BookResponse`, `UserResponse` and `FavouriteListResponse` already declare `ConfigDict(from_attributes=True)`. **Add** the key to the existing `ConfigDict`; never replace it.
+- A response schema mapped from a domain object — `UserResponse` today — already declares `ConfigDict(from_attributes=True)`. **Add** your key to the existing `ConfigDict`; never replace it.
 
 ## Documenting errors: derive, never invent
 
@@ -70,7 +70,7 @@ Non-negotiable accuracy rules:
 
 - Document **only** the codes the endpoint can genuinely return. Derive them by tracing which `DomainError` subclasses the called service raises, then crossing that with `_STATUS_CODES` in `error_handler.py`.
 - **401** on every endpoint that depends on `get_current_user` (it raises `UnauthorizedError`).
-- **403** only where the service raises `ForbiddenError` — e.g. the ownership checks on `POST`/`PUT`/`DELETE /books`, never on the plain `GET`s.
+- **403** only where the service raises `ForbiddenError` — e.g. the ownership checks on a resource's `POST`/`PUT`/`DELETE`, never on the plain `GET`s.
 - **404** only where a `*NotFoundError` exists; **409** only where a `Duplicate*Error` exists or where the `IntegrityError` / `StaleDataError` handlers can fire.
 - Never list a code "just in case". A documented 403 on an endpoint that cannot return one is worse than no documentation at all — it sends the frontend down a branch that never executes.
 - Never invent codes the app does not produce (410, 429, 503…).
@@ -116,4 +116,4 @@ When you finish, report:
 - Endpoints documented, and which error codes each one got — plus the exception that justifies each code
 - Anything you deliberately left undocumented, and why
 - Bugs found and reported (never fixed)
-- A suggested conventional commit, e.g. `docs(backend): document error responses on the books API`
+- A suggested conventional commit, e.g. `docs(backend): document error responses on the auth API`
