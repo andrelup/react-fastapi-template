@@ -1,6 +1,7 @@
 # react-template Frontend — Bulletproof React Architecture
 
-SPA for a bookstore. This CLAUDE.md complements the monorepo root CLAUDE.md.
+SPA for the react-fastapi-template example domain: a catalogue of `Item`s grouped into
+`Collection`s. This CLAUDE.md complements the monorepo root CLAUDE.md.
 
 ## Documentation
 
@@ -11,7 +12,10 @@ The documentation map lives in the monorepo root CLAUDE.md. Open only the docume
 - React 18
 - TypeScript (strict mode)
 - Vite (build + dev server)
-- TailwindCSS (styling)
+- TailwindCSS (styling) + `tailwindcss-animate`
+- shadcn/ui as the component base — copied into `components/ui/`, not a dependency — over Radix
+  primitives, with `class-variance-authority` for variants, `clsx` + `tailwind-merge` behind the
+  `cn` helper, and `lucide-react` for icons
 - React Router v6 (routing)
 - Vitest + React Testing Library (testing)
 - Playwright (E2E)
@@ -31,12 +35,11 @@ frontend/
 │   │       ├── HomePage.tsx
 │   │       ├── LoginPage.tsx
 │   │       ├── RegisterPage.tsx
-│   │       ├── DashboardPage.tsx          # Seller-only, behind RoleRoute
 │   │       ├── UiComponentsPage.tsx       # Live catalogue at /components-ui
 │   │       └── NotFoundPage.tsx
 │   │
 │   ├── features/                  # Self-contained feature modules
-│   │   ├── auth/                  # The only fully built feature
+│   │   ├── auth/                  # The only feature that exists today
 │   │   │   ├── api/auth-api.ts            # /auth/login, /auth/register, /auth/me
 │   │   │   ├── components/
 │   │   │   │   ├── AuthProvider.tsx       # Session state, restored from localStorage
@@ -48,14 +51,13 @@ frontend/
 │   │   │   ├── hooks/                     # useAuth, useLogin
 │   │   │   ├── types/index.ts
 │   │   │   └── index.ts                   # Public contract of the feature
-│   │   ├── seller/                # Only SellerDashboard.tsx so far
-│   │   ├── books/                 # EMPTY: index.ts is `export {};`
-│   │   └── wishlist/              # EMPTY: index.ts is `export {};`
+│   │   └── …                      # items/ and collections/ do not exist yet —
+│   │                              # issues #39-#43 add the example catalogue
 │   │
 │   ├── components/
-│   │   ├── ui/                    # Generic, no business logic
-│   │   │   ├── Button.tsx  Input.tsx  Card.tsx  Modal.tsx  Spinner.tsx
-│   │   │   ├── Avatar.tsx  Badge.tsx
+│   │   ├── ui/                    # Generic, no business logic. shadcn/ui, on the project tokens
+│   │   │   ├── Button.tsx  Input.tsx  InputControl.tsx  Label.tsx
+│   │   │   ├── Card.tsx  Dialog.tsx  Avatar.tsx  Badge.tsx  Spinner.tsx
 │   │   │   └── EmptyState.tsx  NoResultsState.tsx  NotFoundState.tsx
 │   │   │       ServerErrorState.tsx  SystemStateCard.tsx
 │   │   └── layout/                # Layout, Header, Footer, Sidebar, PageContainer,
@@ -63,8 +65,9 @@ frontend/
 │   │
 │   ├── hooks/                     # Generic: useApi, useDebounce, useLocalStorage
 │   ├── lib/api-client.ts          # The ONLY place allowed to call fetch
+│   ├── lib/utils.ts               # `cn` — the only sanctioned way to build a class string
 │   ├── types/api.ts               # ApiResponse<T>, PaginatedResponse<T>
-│   ├── utils/                     # format-price, get-initials
+│   ├── utils/                     # get-initials
 │   └── test/setup.ts              # Vitest setup (jest-dom + cleanup)
 │
 ├── e2e/                           # Playwright, Page Object Model
@@ -75,7 +78,8 @@ frontend/
 ├── package.json
 ├── vite.config.ts                 # Vite + Vitest + coverage thresholds
 ├── tsconfig.json
-├── tailwind.config.ts
+├── tailwind.config.ts             # Only var(--…) mappings — no values live here
+├── components.json                # shadcn/ui CLI config (written by hand, never `init`)
 ├── eslint.config.js
 ├── prettier.config.js
 ├── playwright.config.ts
@@ -84,14 +88,16 @@ frontend/
 ```
 
 Unit tests are colocated next to what they cover (`Button.test.tsx`) and are omitted from the tree.
-Anything not listed above does not exist yet — in particular `books/` and `wishlist/` hold only a
-`.gitkeep` and an `index.ts` exporting nothing.
+Anything not listed above does not exist yet. In particular `features/` holds `auth/` and nothing
+else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
+editorial grouping that orders it — is what issues #39 to #43 build, as `features/items/` and
+`features/collections/`.
 
 ## Bulletproof React Architecture rules
 
 1. **Every feature is an autonomous module.** It has its own folder with api/, components/, hooks/, types/ and an `index.ts` that acts as its public API.
 
-2. **A feature does NOT import directly from another feature.** If `wishlist` needs the `Book` type, that type must live in the global `types/`, or the `books` feature must export it from its `index.ts` and `wishlist` imports it from `@/features/books`.
+2. **A feature does NOT import directly from another feature.** If `collections` needs the `Item` type, that type must live in the global `types/`, or the `items` feature must export it from its `index.ts` and `collections` imports it from `@/features/items`.
 
 3. **Each feature's `index.ts` is its public contract.** Only what is exported there is accessible from outside:
 
@@ -104,7 +110,7 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
    export type { User, LoginCredentials } from './types';
    ```
 
-4. **Components in the root `components/` are generic UI** with no business logic: Button, Input, Modal, Card, Spinner. They import from no feature.
+4. **Components in the root `components/` are generic UI** with no business logic: Button, Input, Dialog, Card, Spinner. They import from no feature.
 
 5. **Hooks in the root `hooks/` are generic** and reusable in any feature: useApi, useDebounce, useLocalStorage. They contain no business logic.
 
@@ -115,17 +121,17 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
 - Functional components with hooks. No class components.
 - PascalCase for components: `LoginForm.tsx`, `SystemStateCard.tsx`
 - camelCase for hooks: `useAuth.ts`, `useLocalStorage.ts`
-- kebab-case for utility and API files: `auth-api.ts`, `format-price.ts`
+- kebab-case for utility and API files: `auth-api.ts`, `get-initials.ts`
 - TypeScript strict mode is mandatory. Do not use `any` — use `unknown` and narrowing.
 - Named exports always. No default exports (except pages, for lazy loading).
 - Props defined with `interface`, not `type`:
   ```typescript
-  interface BookCardProps {
-    book: Book;
-    onAddToWishlist: (bookId: number) => void;
+  interface ItemCardProps {
+    item: Item;
+    onAddToCollection: (itemId: number) => void;
   }
 
-  export const BookCard = ({ book, onAddToWishlist }: BookCardProps) => {
+  export const ItemCard = ({ item, onAddToCollection }: ItemCardProps) => {
     // ...
   };
   ```
@@ -139,13 +145,27 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
 
 ## Styling
 
+Full rules in [docs/frontend-ui-components.md](../docs/frontend-ui-components.md). The short version:
+
 - TailwindCSS for all styling. No CSS modules, no styled-components, no inline CSS.
-- Tailwind classes directly in the JSX.
-- For component variants, use conditional logic with template literals:
-  ```typescript
-  const buttonClass = `px-4 py-2 rounded ${variant === 'primary' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`;
-  ```
+- **The palette is changed in exactly one place:** the `:root` block of `src/app/index.css`.
+  `tailwind.config.ts` holds no values, only `var(--…)` mappings — never write a literal there.
+- **No colour value in a component.** No hex, no `rgb()`, no default Tailwind palette class
+  (`slate-*`, `zinc-*`, `neutral-*`, `gray-*`, `blue-*`…), no arbitrary colour between brackets.
+  Only the token classes: `bg-primary`, `text-ink`, `text-body`, `text-muted`, `border-border`,
+  `bg-bg`, `bg-surface`, `text-danger`. There are no blue tokens.
+- **Compose classes with `cn`** (`@/lib/utils`), so a caller's `className` wins over the
+  component's defaults. **Declare variants with `cva`**, exported next to the component.
+- **Icons come from `lucide-react`.** No hand-written inline SVG, no second icon library.
 - Do not create `.css` files other than `index.css` with the Tailwind directives.
+
+## The `/components-ui` catalogue is binding
+
+**No screen uses a component that is not shown in `/components-ui`**
+(`src/app/pages/UiComponentsPage.tsx`). If a feature needs one that is not there: take it from the
+shadcn/ui docs, adapt it to the tokens and to the conventions above, add it to `/components-ui` with
+its real states (disabled, loading, with an error, empty), write its test, and only then use it.
+Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` with its own tokens.
 
 ## API Client
 
@@ -155,7 +175,7 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
   ```
 - Every backend call goes through this client.
 - The JWT token is injected automatically from the AuthContext.
-- Responses typed with generics: `ApiResponse<Book>`, `ApiResponse<Book[]>`.
+- Responses typed with generics: `ApiResponse<Item>`, `ApiResponse<Item[]>`.
 
 ## Testing
 
@@ -177,8 +197,9 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
   const HomePage = lazy(() => import('@/app/pages/HomePage'));
   ```
 - Protected routes with the `ProtectedRoute` component from `features/auth`
-- Role-restricted routes with `RoleRoute` (e.g. `/dashboard` for `seller`). There is a single
-  `Layout`; roles gate a route, they do not get a layout of their own
+- Role-restricted routes with `RoleRoute`, which demands a session **and** a role
+  (`allow={['seller']}`). No route uses it yet: `router.tsx` guards only `/`, with `ProtectedRoute`.
+  There is a single `Layout`; roles gate a route, they do not get a layout of their own
 
 ## Path aliases
 
@@ -196,6 +217,8 @@ Anything not listed above does not exist yet — in particular `books/` and `wis
 - Do not put business logic in the root `components/` — those are pure UI
 - Do not use `any` — use `unknown` with type guards
 - Do not create individual CSS files — use Tailwind
+- Do not write a colour in a component, and do not add a value to `tailwind.config.ts` — the palette lives in the `:root` of `app/index.css` and nowhere else
+- Do not use in a screen a component that is not in `/components-ui`
 - Do not use `useEffect` to fetch data — use the `useApi` hook, which already handles loading/error
 - Do not put global state (Context) in place for data that only one feature uses
 - Do not fetch directly with `window.fetch` — always go through `lib/api-client.ts`

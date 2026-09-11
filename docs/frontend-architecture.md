@@ -22,25 +22,24 @@ frontend/src/
 │   └── pages/               One file per route, default-exported for React.lazy
 │
 ├── features/                Domain modules — each one autonomous
-│   ├── auth/                Fully implemented; the reference feature
-│   ├── seller/              Partially implemented (SellerDashboard only)
-│   ├── books/               Stub
-│   └── wishlist/            Stub
+│   └── auth/                Fully implemented; the only feature, and the reference one
 │
 ├── components/
-│   ├── ui/                  Generic primitives (Button, Input, Card, Modal, state screens…)
+│   ├── ui/                  Generic primitives (Button, Input, Card, Dialog, state screens…)
 │   └── layout/              Header, Footer, Sidebar, Layout, mobile navigation
 │
 ├── hooks/                   Generic hooks: useApi, useDebounce, useLocalStorage
 ├── lib/                     api-client.ts — the single fetch() call site
 ├── types/                   api.ts — ApiResponse<T>, PaginatedResponse<T>, ApiError
-├── utils/                   Pure helpers: format-price, get-initials
+├── utils/                   Pure helpers: get-initials
 └── test/setup.ts            Vitest setup (jest-dom matchers + RTL cleanup)
 ```
 
-Anything not in this tree does not exist yet. In particular there is **no** `e2e/` directory and
-**no** Playwright installation; `books/` and `wishlist/` contain only `.gitkeep` files plus an
-`index.ts` holding `export {};`.
+Anything not in this tree does not exist yet. In particular `features/` holds `auth/` and nothing
+else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
+editorial grouping that orders it — is what issues #39 to #43 add, as `features/items/` and
+`features/collections/`. The Playwright suite is not part of `src/`; it lives in `frontend/e2e/`
+(see [testing](./frontend-testing.md)).
 
 ---
 
@@ -59,8 +58,8 @@ app/  ──▶  features/  ──▶  components/ui, hooks/, lib/, types/, util
 2. **A feature is autonomous.** It owns `api/`, `components/`, `hooks/`, `types/` and an `index.ts`
    that is its public contract. Anything not exported from `index.ts` is private to the feature.
 3. **A feature never reaches into another feature's internals.** Importing `@/features/auth` is
-   allowed; importing `@/features/auth/components/LoginForm` is not. `SellerDashboard` consuming
-   `useAuth` from `@/features/auth` is the compliant pattern.
+   allowed; importing `@/features/auth/components/LoginForm` is not. A component inside
+   `features/items` consuming `useAuth` from `@/features/auth` would be the compliant pattern.
 4. **`components/ui/` holds pure UI.** No business logic, no feature imports, no data fetching.
 5. **`components/layout/` is the one documented exception.** `Layout`, `Header`, `Sidebar`,
    `MobileTabBar` and `MobileAccountDrawer` import `useAuth` from `@/features/auth`, because
@@ -78,10 +77,9 @@ All routes live in a single `createBrowserRouter` call in `app/router.tsx`, nest
 
 | Path | Page | Guard |
 |---|---|---|
-| `/` | `HomePage` (role-aware welcome) | `ProtectedRoute` |
+| `/` | `HomePage` (welcome screen) | `ProtectedRoute` |
 | `/login` | `LoginPage` | public |
 | `/register` | `RegisterPage` | public |
-| `/dashboard` | `DashboardPage` | `RoleRoute allow={['seller']}` |
 | `/components-ui` | `UiComponentsPage` (internal styleguide) | public |
 | `*` | `NotFoundPage` | public |
 
@@ -97,7 +95,8 @@ Rules:
 - **`RoleRoute`** wraps `ProtectedRoute` and then gates on `user.role`. A disallowed role renders
   the **same 404 screen** as an unknown URL — deliberately, so the existence of the section is not
   revealed. While the user object is still being rehydrated it renders a spinner instead of
-  deciding.
+  deciding. No route uses it today: it is exported from `features/auth` and covered by its own
+  test, waiting for the first role-gated screen.
 - **There is exactly one layout** for every route. Introducing a seller-specific layout would be a
   new architectural decision, not the current state.
 
@@ -212,10 +211,10 @@ const { data, isLoading, error, execute } = useApi(loginUser);
 |---|---|---|
 | Component files | `PascalCase.tsx` | `LoginForm.tsx` |
 | Hook files | `camelCase.ts`, prefixed `use` | `useLocalStorage.ts` |
-| API / util / context files | `kebab-case.ts` | `auth-api.ts`, `format-price.ts` |
+| API / util / context files | `kebab-case.ts` | `auth-api.ts`, `get-initials.ts` |
 | Exports | Named, always | `export const Button = …` |
 | Default exports | Only `app/pages/*`, for `React.lazy` | `export default HomePage;` |
-| Props | `interface XxxProps`, never `type` | `interface BookCardProps { … }` |
+| Props | `interface XxxProps`, never `type` | `interface ItemCardProps { … }` |
 | Components | Function components with hooks | no class components |
 | Tests | Colocated `Xxx.test.tsx` beside the file | `Header.test.tsx` |
 | Styling | Tailwind classes in JSX only | no `.css` files besides `app/index.css` |

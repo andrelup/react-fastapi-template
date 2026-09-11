@@ -26,6 +26,15 @@ export default tseslint.config(
     },
   },
   {
+    // src/components/ui/: shadcn/ui components co-export their `cva()` variant
+    // factory (`buttonVariants`, `badgeVariants`) next to the component itself,
+    // which `allowConstantExport` does not cover. Scoped to this folder only.
+    files: ['src/components/ui/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     // e2e/: Playwright specs and page objects run under Node, not the
     // browser, and are plain TypeScript modules — no React, no hooks.
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

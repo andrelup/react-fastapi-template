@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface SystemStateCardProps {
   icon: ReactNode;
@@ -20,10 +21,13 @@ export const SystemStateCard = ({
   title,
   description,
   action,
-  className = '',
+  className,
 }: SystemStateCardProps) => (
   <div
-    className={`flex flex-col items-center rounded-md border border-border bg-bg px-4 py-8 text-center md:px-6 md:py-12 ${className}`}
+    className={cn(
+      'flex flex-col items-center rounded-md border border-border bg-bg px-4 py-8 text-center md:px-6 md:py-12',
+      className,
+    )}
   >
     {icon}
     <h2 className="mt-4 font-serif text-xl font-bold text-ink">{title}</h2>
