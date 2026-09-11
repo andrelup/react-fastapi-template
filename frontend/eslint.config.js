@@ -6,7 +6,10 @@ import tseslint from 'typescript-eslint';
 import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // Build and report output. ESLint 9 walks every `.js` under `.`, so without
+  // this it lints the generated reports and flags their bundled `eslint-disable`
+  // banners as unused directives. Mirrors what .gitignore already excludes.
+  { ignores: ['dist', 'coverage', 'playwright-report', 'test-results', 'blob-report'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['src/**/*.{ts,tsx}'],
