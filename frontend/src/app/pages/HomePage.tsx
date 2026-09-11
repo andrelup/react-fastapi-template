@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/features/auth';
+import { Button } from '@/components/ui/Button';
 
 /** Neutral welcome home page, shown right after login. */
 const HomePage = () => {
@@ -12,6 +14,9 @@ const HomePage = () => {
       <p className="mt-2 max-w-[460px] text-[15px] text-body md:text-base">
         Este es el punto de partida de tu cuenta.
       </p>
+      <Button asChild className="mt-6">
+        <Link to="/items">Explorar catálogo</Link>
+      </Button>
     </>
   );
 };
