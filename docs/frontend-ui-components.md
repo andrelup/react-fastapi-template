@@ -128,7 +128,8 @@ here.
 ## 2. UI primitives — `components/ui/`
 
 Every entry below is a shadcn/ui component with its classes rewritten onto the tokens, except
-`Spinner`, `SystemStateCard` and the four state screens, which are the project's own.
+`Spinner`, `SystemStateCard`, `SearchInput`, `ListingCard`, `ConfirmDialog` and the four state
+screens, which are the project's own.
 
 ### `Button`
 
@@ -197,6 +198,68 @@ project's field styling; `Label` is the Radix label with the project typography.
 build a field that `Input` does not cover (a checkbox, a select), and then add that field to
 `/components-ui`.
 
+### `Select`
+
+```ts
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+interface SelectProps {
+  label: string;
+  error?: string;
+  id?: string;
+  placeholder?: string;
+  options: SelectOption[];
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  disabled?: boolean;
+  isLoading?: boolean;
+  name?: string;
+  className?: string;
+}
+```
+
+Adapted from shadcn/ui `select` (Radix `Select`), wrapped to carry **the same contract as
+`Input`**: the `label` is mandatory and always rendered, the `id` is derived from it when not
+supplied, and `error` drives `aria-invalid` / `aria-describedby` on the trigger — the field's
+focusable control — plus the same error message element. `options` is a flat `{ value, label }[]`;
+an empty array renders "No hay opciones disponibles." instead of the list when opened. `isLoading`
+disables the trigger and swaps the chevron for a `Spinner`.
+
+### `Textarea`
+
+```ts
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label: string;
+  error?: string;
+}
+```
+
+Adapted from shadcn/ui `textarea`. Mirrors `Input`'s contract exactly (mandatory `label`, derived
+`id`, `error` wired the same way) minus the password reveal toggle, which does not apply.
+
+### `SearchInput`
+
+```ts
+interface SearchInputProps {
+  label: string;
+  placeholder?: string;
+  onSearch: (value: string) => void;
+  delayMs?: number;
+  defaultValue?: string;
+  disabled?: boolean;
+  className?: string;
+}
+```
+
+The project's own: an `Input`-style field (built on `InputControl` + `Label`, `type="search"`)
+married to the existing `useDebounce` hook. Every keystroke updates the field immediately;
+`onSearch` only fires once typing has paused for `delayMs` (default `300`), and once on mount with
+the initial value. It does not fetch — pass the callback that does.
+
 ### `Card`
 
 ```ts
@@ -210,6 +273,29 @@ build a field that `Input` does not cover (a checkbox, a select), and then add t
 
 One surface style, no variants — compose with `className` for layout, never to restyle the surface.
 The parts are optional: a card that is only `CardContent` is fine.
+
+### `ListingCard`
+
+```ts
+interface ListingCardProps {
+  title: string;
+  description?: string;
+  coverUrl?: string;
+  coverAlt?: string;
+  badge?: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+  onSelect?: () => void;
+  className?: string;
+}
+```
+
+The project's own — shadcn/ui has no catalogue card. A single `Card` (the same surface, no second
+one) composed for a listing: an optional cover with an `ImageOff` placeholder when there is none, an
+optional `badge` above the title, the title itself (the click target when `onSelect` is given, kept
+outside `actions` so a card never nests a button inside a button), optional `meta` and an `actions`
+row. Pure UI: no domain type, no data fetching. Shared by the items and collections listing screens
+(issues #39-#43).
 
 ### `Dialog`
 
@@ -236,6 +322,28 @@ is uncontrolled by default; pass `open` / `onOpenChange` to `Dialog` when a scre
 Always give it a `DialogTitle` — it is what names the dialog for a screen reader — and a
 `DialogDescription` when there is body copy. `DialogContent` renders its own close button, labelled
 "Cerrar".
+
+### `ConfirmDialog`
+
+```ts
+interface ConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  isLoading?: boolean;
+}
+```
+
+The project's own composition of the existing `Dialog` with the `destructive` `Button` variant —
+never `@radix-ui/react-alert-dialog`, which this project does not add. Fully controlled and rendered
+without a `DialogTrigger`: a row's delete icon button sets `open`, matching the ADMIN delete flow.
+The confirm button is the ghost/outline red (`border-danger-border`, `text-danger`,
+`hover:bg-danger-bg`), never a solid fill, and forwards `isLoading` to `Button` so it disables
+itself and shows "Cargando…".
 
 ### `Avatar`
 
@@ -276,6 +384,26 @@ interface SpinnerProps {
 
 `role="status"`, accessible name "Cargando". shadcn/ui has no spinner, so this one stays the
 project's own. Used as the Suspense fallback in `Layout` and as an inline loading placeholder.
+
+### `Pagination`
+
+```ts
+interface PaginationProps {
+  page: number;
+  total: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  disabled?: boolean;
+  className?: string;
+}
+```
+
+Adapted from shadcn/ui `pagination`, driven directly by the fields of `PaginatedResponse<T>`
+(`page`, `total`, `pageSize`) so a list screen can spread its response straight in:
+`<Pagination {...response} onPageChange={setPage} />`. Renders a `nav` landmark with a page button
+per page (collapsing the middle into an ellipsis past seven pages), `aria-current="page"` on the
+active one, and Previous/Next `Button`s that disable themselves at the edges. `disabled` disables
+every control at once — pass it while the underlying list is loading.
 
 ### `SystemStateCard`
 
