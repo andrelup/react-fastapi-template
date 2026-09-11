@@ -1,6 +1,6 @@
 # fastapi-template Backend — API REST
 
-API REST de la tienda de libros fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o cualquier servicio externo son detalles intercambiables.
+API REST del template fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o cualquier servicio externo son detalles intercambiables.
 
 ## Stack
 
@@ -24,7 +24,7 @@ backend/
 │   ├── domain/                # NÚCLEO — lógica de negocio pura, sin dependencias externas
 │   │   ├── models/            # Entidades de dominio (dataclasses / Pydantic)
 │   │   ├── ports/             # Interfaces (Protocol) de repositorios y servicios
-│   │   ├── services/          # Casos de uso (auth, book, favourite list)
+│   │   ├── services/          # Casos de uso (hoy solo auth)
 │   │   └── exceptions.py      # Excepciones de dominio
 │   │
 │   ├── adapters/
@@ -34,6 +34,7 @@ backend/
 │   │   │   └── middleware/    # Dependencia de auth, middleware de logging, error handler
 │   │   └── outbound/          # Salida: cómo el dominio accede al exterior
 │   │       ├── persistence/   # Repositorios SQLAlchemy + database.py
+│   │       │   └── example/   # Modelos ORM del catálogo de ejemplo (item, collection, tag)
 │   │       ├── security/      # PasswordHasher (bcrypt), TokenService (JWT)
 │   │
 │   ├── config/                # Settings (Pydantic) y container de DI
@@ -55,7 +56,7 @@ backend/
 2. **Los ports son `Protocol` classes** (`typing.Protocol`), no clases abstractas.
 3. **Los modelos de dominio son independientes de SQLAlchemy.** Los modelos ORM viven en `adapters/outbound/persistence/sqlalchemy_models.py` y se mapean desde/hacia el dominio.
 4. **Inyección de dependencias en `config/container.py`.** Conecta cada port con su implementación concreta; los routers reciben los servicios ya inyectados vía `Depends`.
-5. **Las excepciones de dominio se traducen en el `error_handler` middleware:** `BookNotFoundError` → 404, `UnauthorizedError` → 401, `ValidationError` → 422.
+5. **Las excepciones de dominio se traducen en el `error_handler` middleware:** `UnauthorizedError` → 401, `ForbiddenError` → 403, `DuplicateEmailError` → 409. Toda excepción nueva tiene que añadir su entrada al mapa; si no, cae en el 500 por defecto.
 
 ## Formato de respuesta de la API
 
@@ -63,10 +64,10 @@ Todas las respuestas siguen la misma envoltura:
 
 ```json
 { "success": true,  "data": { "...": "..." }, "error": null }
-{ "success": false, "data": null,             "error": "Book not found" }
+{ "success": false, "data": null,             "error": "Item 42 not found" }
 ```
 
-Los schemas Pydantic se separan por operación: `BookCreate`, `BookUpdate`, `BookResponse`, `BookListResponse`.
+Los schemas Pydantic se separan por operación: `ItemCreate`, `ItemUpdate`, `ItemResponse`, `ItemListResponse`.
 
 ## Convenciones de código
 

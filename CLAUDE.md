@@ -1,6 +1,6 @@
 # react-fastapi-template — full-stack project template
 
-Monorepo with a Python backend and a React frontend, using a bookstore as its example domain. Training project on Claude Code and agentic development.
+Monorepo with a Python backend and a React frontend, using a generic catalogue (items, collections, tags) as its example domain. Training project on Claude Code and agentic development.
 
 ## Repository structure
 
@@ -44,7 +44,7 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 ## Git
 
 - Conventional commits are mandatory: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`
-- The commit scope indicates the module: `feat(backend): add book search endpoint`, `fix(frontend): fix login redirect`
+- The commit scope indicates the module: `feat(backend): add the item search endpoint`, `fix(frontend): fix login redirect`
 - One branch per issue, created with `gh issue develop <n> --checkout` so it stays linked to the issue. The name it generates (`<n>-<slugified-title>`) is the convention — do not rename it
 - PRs against `main`, always with passing tests. There is no `develop` branch
 

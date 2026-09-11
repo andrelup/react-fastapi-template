@@ -48,28 +48,38 @@ backend/src/
 │
 ├── config/
 │   ├── settings.py                  Pydantic BaseSettings — env vars, database_url property
+│   ├── logging.py                   configure_logging(): structlog + stdlib bridge
 │   └── container.py                 THE ONLY module that imports both domain and adapters
 │
 ├── domain/                          ── THE CORE — no external dependency whatsoever
-│   ├── exceptions.py                DomainError + 10 subclasses
-│   ├── models/                      Plain dataclasses: user.py, book.py, favourite.py
+│   ├── exceptions.py                DomainError + UnauthorizedError, ForbiddenError,
+│   │                                DuplicateEmailError, InvalidCredentialsError
+│   ├── models/                      Plain dataclasses: user.py
 │   ├── ports/
-│   │   ├── repositories.py          Protocol: UserRepository, BookRepository, FavouriteListRepository
+│   │   ├── repositories.py          Protocol: UserRepository
 │   │   └── services.py              Protocol: PasswordHasher, TokenService
-│   └── services/                    Use cases: auth_service, book_service, favourite_list_service
+│   └── services/                    Use cases: auth_service
 │
 └── adapters/
     ├── inbound/                     How the world calls the domain
-    │   ├── api/                     auth_router, book_router, favourite_list_router, health_router
+    │   ├── api/                     auth_router, health_router
     │   ├── schemas/                 Pydantic request/response models + ApiResponse envelope
     │   └── middleware/
     │       ├── auth.py              get_current_user dependency (HTTP Bearer → AuthService)
+    │       ├── logging.py           RequestLoggingMiddleware (request_id, duration_ms)
     │       └── error_handler.py     DomainError → HTTP status mapping
     │
     └── outbound/                    How the domain reaches the world
-        ├── persistence/             SQLAlchemy models, session factory, repository implementations
+        ├── persistence/             Base + UserORM, session factory, user_repository
+        │   └── example/             The neutral sample catalogue: item, collection, tag
         └── security/                BcryptPasswordHasher, JwtTokenService
 ```
+
+That is the whole tree as it stands today, and it is deliberately thin: the template ships the
+authentication slice end to end and nothing else. `persistence/example/` holds only ORM models —
+the sample catalogue's domain models, ports, services, repositories and routers are not written
+yet (issues #36 and #37). Snippets naming `Item` below therefore illustrate the **shape** a slice
+takes; they are not a claim that the file exists.
 
 `adapters/outbound/` holds only `persistence/` and `security/`. Nothing else is reserved or stubbed
 there: add a package when you add the adapter that fills it, never before.
@@ -99,20 +109,32 @@ The command must print nothing.
 Ports declare what the domain needs, in the domain's own vocabulary. Adapters satisfy them
 **structurally** — no adapter inherits from a port.
 
+The only port implemented today is `UserRepository`, and it is exactly this small:
+
 ```python
 from typing import Protocol
 
-from src.domain.models.book import Book
+from src.domain.models.user import User
 
 
-class BookRepository(Protocol):
-    async def find_by_id(self, book_id: int) -> Book | None: ...
-    async def find_all(self, skip: int, limit: int) -> list[Book]: ...
+class UserRepository(Protocol):
+    async def find_by_id(self, user_id: int) -> User | None: ...
+    async def find_by_email(self, email: str) -> User | None: ...
+    async def save(self, user: User) -> User: ...
+```
+
+A catalogue port grows a few more methods, but the shape is the same — one method per thing a use
+case actually does:
+
+```python
+class ItemRepository(Protocol):
+    async def find_by_id(self, item_id: int) -> Item | None: ...
+    async def find_all(self, skip: int, limit: int) -> list[Item]: ...
     async def count(self) -> int: ...
-    async def search(self, query: str, skip: int, limit: int) -> list[Book]: ...
+    async def search(self, query: str, skip: int, limit: int) -> list[Item]: ...
     async def count_search(self, query: str) -> int: ...
-    async def save(self, book: Book) -> Book: ...
-    async def delete(self, book_id: int) -> None: ...
+    async def save(self, item: Item) -> Item: ...
+    async def delete(self, item_id: int) -> None: ...
 ```
 
 A port declares **only the methods the use cases actually need**. Do not add a method "for later".
@@ -123,31 +145,33 @@ Never let one class serve two layers:
 
 | Layer | Representation | Example file |
 |---|---|---|
-| Domain | plain `@dataclass` | `domain/models/book.py` |
-| Persistence | SQLAlchemy 2.0 `Mapped[...]` model | `adapters/outbound/persistence/sqlalchemy_models.py` |
-| API | Pydantic schema | `adapters/inbound/schemas/book_schemas.py` |
+| Domain | plain `@dataclass` | `domain/models/user.py` |
+| Persistence | SQLAlchemy 2.0 `Mapped[...]` model | `adapters/outbound/persistence/sqlalchemy_models.py`, `adapters/outbound/persistence/example/item.py` |
+| API | Pydantic schema | `adapters/inbound/schemas/auth_schemas.py` |
+
+Mirroring `ItemORM`, the domain side of the sample catalogue would look like this — a dataclass
+that knows nothing about SQLAlchemy:
 
 ```python
 @dataclass
-class Book:
-    title: str
-    author: str
-    isbn: str
-    price: float
-    stock: int
-    seller_id: int
-    description: str
-    category: str
+class Item:
+    name: str
+    slug: str
+    owner_id: int
+    description: str | None = None
+    category: str | None = None
+    tag_names: list[str] = field(default_factory=list)
     id: int | None = None
     version: int = 1
 ```
 
-`User` is `@dataclass(frozen=True, slots=True)` because nothing mutates it; `Book` and
-`FavouriteList` are mutable because their services modify fields before saving. Follow that
-criterion for new models: **immutable unless a use case genuinely mutates it**.
+`User` is `@dataclass(frozen=True, slots=True)` because nothing mutates it. A model whose service
+modifies fields before saving — anything carrying a `version`, such as `Item` — has to be mutable.
+Follow that criterion for new models: **immutable unless a use case genuinely mutates it**.
 
-The three representations differ on purpose — `BookCreate` has no `seller_id` (it is derived from
-the JWT), `BookResponse` exposes `version` for optimistic-lock round-tripping.
+The three representations differ on purpose — an `ItemCreate` schema has no `owner_id` (it is
+derived from the JWT), while an `ItemResponse` exposes `version` for optimistic-lock
+round-tripping.
 
 Conversion between domain and ORM is done by explicit hand-written helpers in each repository
 (`_to_domain`, `_apply_fields`). See [backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md).
@@ -158,19 +182,19 @@ A router validates input, calls a service, and wraps the result. That is all. Au
 (seller vs customer, ownership) are **domain rules** and live in the services:
 
 ```python
-class BookService:
-    def __init__(self, book_repository: BookRepository) -> None:
-        self._book_repository = book_repository
+class ItemService:
+    def __init__(self, item_repository: ItemRepository) -> None:
+        self._item_repository = item_repository
 
-    async def update(self, book_id: int, changes: Book, current_user: User) -> Book:
-        existing = await self._get_or_raise(book_id)
+    async def update(self, item_id: int, changes: Item, current_user: User) -> Item:
+        existing = await self._get_or_raise(item_id)
         self._ensure_owner(existing, current_user)   # raises ForbiddenError
-        self._validate(changes)                      # raises BookValidationError
+        self._validate(changes)                      # raises ItemValidationError
         ...
 ```
 
-`AuthService` is declared as a `@dataclass` holding its three ports; `BookService` and
-`FavouriteListService` use an explicit `__init__`. Both are constructor injection — pick either
+`AuthService` is declared as a `@dataclass` holding its three ports; a service taking a single port
+reads better with an explicit `__init__`, as above. Both are constructor injection — pick either
 style, but inject **ports**, never concrete adapters.
 
 ### Rule 5 — Domain code raises domain exceptions, never `HTTPException`
@@ -181,18 +205,17 @@ status code exists. The translation happens in one place,
 
 ```python
 _STATUS_CODES: dict[type[DomainError], int] = {
-    BookNotFoundError: 404,
     UnauthorizedError: 401,
     InvalidCredentialsError: 401,
     ForbiddenError: 403,
     DuplicateEmailError: 409,
-    BookValidationError: 422,
-    FavouriteListNotFoundError: 404,
-    DuplicateFavouriteListNameError: 409,
-    DuplicateFavouriteBookError: 409,
-    FavouriteListValidationError: 422,
 }
 ```
+
+An unmapped `DomainError` subclass falls through to `_DEFAULT_STATUS_CODE = 500` and is logged with
+a stack trace, because reaching it means someone added an exception and forgot this dict. A
+catalogue slice adds its own entries the same way — `ItemNotFoundError: 404`,
+`ItemValidationError: 422`.
 
 The same module also handles infrastructure failures that must not leak as a 500:
 `IntegrityError` → 409 (unique-constraint race), `StaleDataError` → 409 (optimistic-lock
@@ -206,10 +229,13 @@ collapsed into a generic 401 so the endpoint cannot be used to probe which email
 It is the composition root. Nothing else may import a concrete adapter into a router or a service.
 
 ```python
-def get_book_service(session: AsyncSession = Depends(get_db_session)) -> BookService:
-    """Build a `BookService` wired to the SQLAlchemy `BookRepository` implementation."""
-    return BookService(SqlAlchemyBookRepository(session))
+def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> UserRepository:
+    """Provide the SQLAlchemy-backed `UserRepository` implementation."""
+    return SqlAlchemyUserRepository(session)
 ```
+
+The return annotation is the **port**, not the adapter: that is what stops a router from ever
+naming a concrete class. A catalogue slice adds a `get_item_service` here in the same shape.
 
 Stateless adapters are cached singletons; per-request adapters are rebuilt from the session
 dependency:
@@ -228,22 +254,23 @@ def get_token_service() -> TokenService:
 
 ## 4. The inbound side in practice
 
-Four routers, each with its own prefix and tag: `/auth`, `/books`, `/favourite-lists`, and the
-health router (no prefix). Book search is `GET /books/search`, inside `book_router.py` — there is
-no separate search router.
+Two routers today: `auth_router` under the `/auth` prefix with the `auth` tag, and the health
+router with no prefix. A catalogue router would add a third under `/items`, and its search endpoint
+would be `GET /items/search` inside that same `item_router.py` — a search endpoint belongs to its
+resource's router, never to a separate search router.
 
 Endpoints receive everything through `Annotated[..., Depends(...)]`:
 
 ```python
-@router.put("/{book_id}", responses=error_responses(401, 403, 404, 409, 422))
-async def update_book(
-    book_id: int,
-    payload: BookUpdate,
-    book_service: Annotated[BookService, Depends(get_book_service)],
+@router.put("/{item_id}", responses=error_responses(401, 403, 404, 409, 422))
+async def update_item(
+    item_id: int,
+    payload: ItemUpdate,
+    item_service: Annotated[ItemService, Depends(get_item_service)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[BookResponse]:
-    book = await book_service.update(book_id, _to_domain(payload), current_user)
-    return ApiResponse(success=True, data=_to_response(book), error=None)
+) -> ApiResponse[ItemResponse]:
+    item = await item_service.update(item_id, _to_domain(payload), current_user)
+    return ApiResponse(success=True, data=_to_response(item), error=None)
 ```
 
 **Authentication** is `get_current_user` in `middleware/auth.py`: it resolves the HTTP Bearer
@@ -255,7 +282,7 @@ checks belong to the domain services.
 
 ```json
 { "success": true,  "data": { }, "error": null }
-{ "success": false, "data": null, "error": "Book not found" }
+{ "success": false, "data": null, "error": "Item 42 not found" }
 ```
 
 Document the failure modes with the `error_responses(*status_codes)` helper so Swagger shows the
@@ -281,7 +308,7 @@ CORS middleware → `include_router` for each router. There is no lifespan hook 
 ## 6. Recipe — adding a use case end to end
 
 Follow this order. It goes from the inside out, which is exactly the order the dependency rule
-implies. Example: adding book reviews.
+implies. Example: adding reviews.
 
 1. **`domain/models/review.py`** — the dataclass, with `id: int | None = None` last.
 2. **`domain/exceptions.py`** — `ReviewNotFoundError(DomainError)` and any other failure the use
@@ -291,7 +318,9 @@ implies. Example: adding book reviews.
 4. **`domain/services/review_service.py`** — the use case. Takes the port(s) in the constructor,
    enforces the business and authorization rules, raises domain exceptions.
 5. **`adapters/outbound/persistence/sqlalchemy_models.py`** — `ReviewORM(Base)` with its columns,
-   constraints and indexes.
+   constraints and indexes. If the entity belongs to the sample catalogue rather than to the
+   template, it goes in its own module under `persistence/example/` and gets re-exported from that
+   package's `__init__.py`.
 6. **Alembic migration** — `alembic revision --autogenerate -m "create reviews table"`, review the
    generated SQL, then `alembic upgrade head`.
 7. **`adapters/outbound/persistence/review_repository.py`** — `SqlAlchemyReviewRepository` plus its
