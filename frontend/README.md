@@ -135,7 +135,7 @@ usarlo. Los detalles están en
 - React Router v6 con rutas en `app/router.tsx`.
 - Lazy loading para las páginas principales.
 - Rutas protegidas con el componente `ProtectedRoute` de `features/auth`.
-- Rutas restringidas por rol con `RoleRoute`, que exige sesión **y** rol (`allow={['seller']}`).
+- Rutas restringidas por rol con `RoleRoute`, que exige sesión **y** rol (`allow={['admin']}`).
   Ninguna ruta lo usa todavía: `router.tsx` solo protege `/`, con `ProtectedRoute`. Hay un único
   `Layout`: el rol condiciona el acceso a una ruta, no le da un layout propio.
 
@@ -177,7 +177,7 @@ Los tests E2E asumen un entorno completo levantado, no solo el frontend:
 1. `make dev` — levanta PostgreSQL en Docker.
 2. `make dev-back` — API en `http://localhost:8000` (en otra terminal).
 3. `make seed` — puebla la base de datos, incluidas dos cuentas fijas (una
-   `seller` y otra `customer`) pensadas para el login manual y para los propios
+   `editor` y otra `viewer`) pensadas para el login manual y para los propios
    specs. Sus credenciales literales viven en `backend/seed.py`, que es su única
    fuente de verdad, y el spec de login las repite en `e2e/tests/auth.spec.ts`.
    Son datos de desarrollo únicamente — nunca credenciales válidas fuera de una

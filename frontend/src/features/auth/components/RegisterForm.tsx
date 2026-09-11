@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useApi } from '@/hooks/useApi';
 import { registerUser } from '../api/auth-api';
-import type { UserRole } from '../types';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN_LENGTH = 8;
@@ -14,7 +13,6 @@ export const RegisterForm = () => {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [role] = useState<UserRole>('customer');
   const [emailError, setEmailError] = useState<string | undefined>(undefined);
   const [passwordError, setPasswordError] = useState<string | undefined>(undefined);
   const { execute, isLoading, error } = useApi(registerUser);
@@ -49,7 +47,8 @@ export const RegisterForm = () => {
       return;
     }
 
-    const result = await execute({ email, name, password, role });
+    // No role is sent — the backend applies its own default (VIEWER).
+    const result = await execute({ email, name, password });
     if (result !== null) {
       // Registration only creates the account — there is no session to
       // start yet, so the user must log in explicitly.

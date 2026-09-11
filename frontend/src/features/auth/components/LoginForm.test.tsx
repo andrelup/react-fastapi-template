@@ -10,7 +10,7 @@ vi.mock('@/lib/api-client', () => ({
     post: vi.fn(async () => ({
       access_token: 'test-access-token',
       token_type: 'bearer',
-      user: { id: 1, email: 'user@example.com', name: 'Test User', role: 'customer' },
+      user: { id: 1, email: 'user@example.com', name: 'Test User', role: 'viewer' },
     })),
     get: vi.fn(),
     put: vi.fn(),

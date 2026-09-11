@@ -15,7 +15,7 @@ async def test_save_inserts_a_new_user_and_assigns_an_id(db_session: AsyncSessio
     new_user = User(
         email="alice@example.com",
         name="Alice",
-        role=UserRole.CUSTOMER,
+        role=UserRole.VIEWER,
         hashed_password="hashed:pw",
     )
 
@@ -25,7 +25,7 @@ async def test_save_inserts_a_new_user_and_assigns_an_id(db_session: AsyncSessio
     # Assert
     assert saved_user.id is not None
     assert saved_user.email == "alice@example.com"
-    assert saved_user.role == UserRole.CUSTOMER
+    assert saved_user.role == UserRole.VIEWER
 
 
 async def test_find_by_email_returns_the_matching_user(db_session: AsyncSession) -> None:
@@ -35,7 +35,7 @@ async def test_find_by_email_returns_the_matching_user(db_session: AsyncSession)
         User(
             email="bob@example.com",
             name="Bob",
-            role=UserRole.SELLER,
+            role=UserRole.EDITOR,
             hashed_password="hashed:pw",
         )
     )
@@ -46,7 +46,7 @@ async def test_find_by_email_returns_the_matching_user(db_session: AsyncSession)
     # Assert
     assert found_user is not None
     assert found_user.name == "Bob"
-    assert found_user.role == UserRole.SELLER
+    assert found_user.role == UserRole.EDITOR
 
 
 async def test_find_by_email_when_not_found_returns_none(db_session: AsyncSession) -> None:
@@ -67,7 +67,7 @@ async def test_find_by_id_returns_the_matching_user(db_session: AsyncSession) ->
         User(
             email="carol@example.com",
             name="Carol",
-            role=UserRole.CUSTOMER,
+            role=UserRole.VIEWER,
             hashed_password="hashed:pw",
         )
     )
@@ -99,7 +99,7 @@ async def test_save_with_existing_id_updates_the_user(db_session: AsyncSession) 
         User(
             email="dave@example.com",
             name="Dave",
-            role=UserRole.CUSTOMER,
+            role=UserRole.VIEWER,
             hashed_password="hashed:old-pw",
         )
     )
@@ -108,7 +108,7 @@ async def test_save_with_existing_id_updates_the_user(db_session: AsyncSession) 
         id=saved_user.id,
         email="dave@example.com",
         name="Dave Updated",
-        role=UserRole.SELLER,
+        role=UserRole.EDITOR,
         hashed_password="hashed:new-pw",
     )
 
@@ -118,5 +118,5 @@ async def test_save_with_existing_id_updates_the_user(db_session: AsyncSession) 
     # Assert
     assert result.id == saved_user.id
     assert result.name == "Dave Updated"
-    assert result.role == UserRole.SELLER
+    assert result.role == UserRole.EDITOR
     assert result.hashed_password == "hashed:new-pw"
