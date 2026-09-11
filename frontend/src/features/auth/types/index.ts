@@ -1,5 +1,5 @@
 /** Roles a user account can have, mirrors the backend `UserRole` enum. */
-export type UserRole = 'customer' | 'seller';
+export type UserRole = 'admin' | 'editor' | 'viewer';
 
 export interface User {
   id: number;
@@ -17,7 +17,7 @@ export interface RegisterPayload {
   email: string;
   name: string;
   password: string;
-  role: UserRole;
+  role?: UserRole;
 }
 
 export interface AuthToken {

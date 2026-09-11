@@ -12,7 +12,7 @@ vi.mock('@/lib/api-client', () => ({
       id: 1,
       email: 'user@example.com',
       name: 'Test User',
-      role: 'customer',
+      role: 'viewer',
     })),
     get: vi.fn(),
     put: vi.fn(),
@@ -76,7 +76,7 @@ describe('RegisterForm', () => {
     expect(apiClient.post).not.toHaveBeenCalled();
   });
 
-  it('registers and redirects to /login when email and password are valid', async () => {
+  it('registers without sending a role and redirects to /login when email and password are valid', async () => {
     const user = userEvent.setup();
     renderRegisterForm();
 
@@ -90,7 +90,6 @@ describe('RegisterForm', () => {
         email: 'user@example.com',
         name: 'Test User',
         password: 'valid-password',
-        role: 'customer',
       });
     });
 
