@@ -22,8 +22,10 @@ from src.adapters.inbound.schemas.common import ApiResponse
 from src.domain.exceptions import (
     DomainError,
     DuplicateEmailError,
+    DuplicateSlugError,
     ForbiddenError,
     InvalidCredentialsError,
+    ItemNotFoundError,
     UnauthorizedError,
 )
 
@@ -33,7 +35,9 @@ _STATUS_CODES: dict[type[DomainError], int] = {
     UnauthorizedError: 401,
     InvalidCredentialsError: 401,
     ForbiddenError: 403,
+    ItemNotFoundError: 404,
     DuplicateEmailError: 409,
+    DuplicateSlugError: 409,
 }
 _DEFAULT_STATUS_CODE = 500
 
