@@ -218,7 +218,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
 import { MyGatedComponent } from './MyGatedComponent';
 
-const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'seller' };
+const rawUser = { id: 1, email: 'ada@example.com', name: 'Ada Lovelace', role: 'editor' };
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -321,7 +321,7 @@ Two things to know before touching it:
 
 - **Playwright starts the SPA itself** through `webServer`, reusing an existing server on port 3000
   if there is one. It does **not** start the API: e2e needs `make dev`, `make dev-back` and
-  `make seed` first, for the two fixed accounts the seed creates — one `seller`, one `customer`.
+  `make seed` first, for the two fixed accounts the seed creates — one `editor`, one `viewer`.
   Their literal credentials live in `backend/seed.py`, the single source of truth, and the login
   spec repeats them at the top of `e2e/tests/auth.spec.ts`.
 - **`vite.config.ts` excludes `e2e/**` from Vitest.** Without that, Vitest's default glob would pick

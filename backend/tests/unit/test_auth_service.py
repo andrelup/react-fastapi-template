@@ -72,13 +72,13 @@ async def test_register_creates_a_new_user() -> None:
         email="new@example.com",
         name="New User",
         password="s3cret123",
-        role=UserRole.CUSTOMER,
+        role=UserRole.VIEWER,
     )
 
     # Assert
     assert user.id is not None
     assert user.email == "new@example.com"
-    assert user.role == UserRole.CUSTOMER
+    assert user.role == UserRole.VIEWER
     assert user.hashed_password == "hashed:s3cret123"
 
 
@@ -88,7 +88,7 @@ async def test_register_when_email_already_registered_raises_duplicate_email_err
         id=1,
         email="taken@example.com",
         name="Existing",
-        role=UserRole.CUSTOMER,
+        role=UserRole.VIEWER,
         hashed_password="hashed:whatever",
     )
     sut = make_auth_service([existing_user])
@@ -96,7 +96,7 @@ async def test_register_when_email_already_registered_raises_duplicate_email_err
     # Act / Assert
     with pytest.raises(DuplicateEmailError):
         await sut.register(
-            email="taken@example.com", name="Someone", password="pw", role=UserRole.CUSTOMER
+            email="taken@example.com", name="Someone", password="pw", role=UserRole.VIEWER
         )
 
 
@@ -106,7 +106,7 @@ async def test_login_with_valid_credentials_returns_user_and_token() -> None:
         id=1,
         email="user@example.com",
         name="User",
-        role=UserRole.SELLER,
+        role=UserRole.EDITOR,
         hashed_password="hashed:correct-pw",
     )
     sut = make_auth_service([existing_user])
@@ -116,7 +116,7 @@ async def test_login_with_valid_credentials_returns_user_and_token() -> None:
 
     # Assert
     assert user.email == "user@example.com"
-    assert user.role == UserRole.SELLER
+    assert user.role == UserRole.EDITOR
     assert token == "token-for:user@example.com"
 
 
@@ -135,7 +135,7 @@ async def test_login_with_wrong_password_raises_invalid_credentials_error() -> N
         id=1,
         email="user@example.com",
         name="User",
-        role=UserRole.CUSTOMER,
+        role=UserRole.VIEWER,
         hashed_password="hashed:correct-pw",
     )
     sut = make_auth_service([existing_user])
@@ -151,7 +151,7 @@ async def test_get_current_user_with_valid_token_returns_user() -> None:
         id=1,
         email="user@example.com",
         name="User",
-        role=UserRole.CUSTOMER,
+        role=UserRole.VIEWER,
         hashed_password="hashed:pw",
     )
     sut = make_auth_service([existing_user])
