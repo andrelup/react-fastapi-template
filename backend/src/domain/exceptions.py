@@ -29,3 +29,17 @@ class ForbiddenError(DomainError):
     action, or a user trying to act on a resource owned by someone else.
     Translated to HTTP 403 by the error_handler middleware.
     """
+
+
+class ItemNotFoundError(DomainError):
+    """Raised when the requested catalogue item does not exist.
+
+    Translated to HTTP 404 by the error_handler middleware.
+    """
+
+
+class DuplicateSlugError(DomainError):
+    """Raised when trying to save an item whose slug is already taken.
+
+    Translated to HTTP 409 by the error_handler middleware.
+    """
