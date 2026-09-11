@@ -1,8 +1,16 @@
 # Backend Testing
 
 How tests are written in `backend/`: pytest + pytest-asyncio + httpx, organised in three tiers that
-mirror the hexagonal layers. This document describes the conventions the existing 174 tests
-actually follow, so a new test looks like the ones already there.
+mirror the hexagonal layers. This document describes the conventions the existing suite actually
+follows, so a new test looks like the ones already there.
+
+The suite is deliberately small right now. The previous example domain was deleted, and the
+neutral catalogue that replaces it (`items`, `collections`, `tags`) exists so far only as ORM
+models, so what remains covers authentication, the shared adapters, the middleware and the ORM
+metadata. Some scaffolding went with the old domain: there is no `tests/factories.py` and no
+`tests/fakes/` package today. **The conventions below outlive the files** — they come back with the
+first entity that needs them (issues #36 and #37). Wherever that is the case, this document says so
+rather than pointing you at a module that is not there.
 
 Companion documents: [hexagonal architecture](./backend-hexagonal-architecture.md),
 [database access](./backend-database-sqlalchemy.md), [code style](./backend-code-style.md).
@@ -18,8 +26,8 @@ pythonpath = ["."]
 ```
 
 `asyncio_mode = "auto"` means **you never write `@pytest.mark.asyncio`** — any `async def test_…`
-is run as an asyncio test. No markers, no `testpaths` and no `addopts` are declared, so coverage
-flags are passed on the command line.
+is run as an asyncio test. No markers, no `testpaths` and no `addopts` are declared, so the
+coverage flags are passed on the command line.
 
 Run everything **from the repo root**:
 
@@ -30,12 +38,18 @@ make test-back
 which expands to:
 
 ```bash
-.venv/Scripts/python.exe -m pytest backend -c backend/pyproject.toml \
-    -o cache_dir=../.pytest_cache --cov=backend/src --cov-report=term-missing
+cd backend && ../.venv/Scripts/python.exe -m pytest --cov=src --cov-report=term-missing
 ```
 
-`make test` is currently an alias for the backend suite. Integration tests need **Docker** running;
-the tier skips itself if Docker is unavailable.
+(`../.venv/bin/python` on Linux and macOS — the Makefile picks the right one.)
+
+`make test` runs both stacks: `test-back` followed by `test-front`. `make test-e2e` is separate,
+because Playwright needs a running API and a seeded database.
+
+The integration tier and most of the API tier talk to a **real PostgreSQL** — the one
+`settings.database_url` points at, started by `make dev`. Run `make migrate` before the suite so
+the schema exists. Nothing skips itself: if the database is unreachable, those tests fail rather
+than silently pass.
 
 ---
 
@@ -43,33 +57,46 @@ the tier skips itself if Docker is unavailable.
 
 | Tier | Location | Tests | Ports are… |
 |---|---|---|---|
-| **Unit** | `tests/unit/` | Domain services, security adapters with pure logic, schemas, exceptions, the error handler, settings | **Fakes** — in-memory, hand-written |
-| **Integration** | `tests/integration/` | SQLAlchemy repository implementations and real DB behaviour (optimistic locking) | **Real PostgreSQL** |
-| **API** | `tests/api/` | Routers end to end: routing, validation, auth, error translation, envelope | **Fakes**, injected via `dependency_overrides` |
+| **Unit** | `tests/unit/` | Domain services, security adapters with pure logic, schemas, the error handler, the logging config and middleware, settings, ORM metadata | **Fakes** — in-memory, hand-written |
+| **Integration** | `tests/integration/` | SQLAlchemy repository implementations and real DB behaviour (unique constraints, optimistic locking) | **Real PostgreSQL** |
+| **API** | `tests/api/` | Routers end to end: routing, validation, auth, error translation, envelope | **Real**, through a rolled-back session; `get_current_user` overridden when a test needs an identity |
 
 The rule of thumb: **test each layer against the boundary it owns.** A domain rule is a unit test;
 "does this SQL actually do what I think" is an integration test; "does a customer get a 403 here"
 is an API test.
+
+The API tier drives the real app over `ASGITransport`, with `get_db_session` pointed at the test
+transaction. Swapping a port for a fake there is legitimate when the endpoint's collaborator is
+slow or external — override the provider from `config/container.py` inside the `client` fixture —
+but it is not what the current tests do, and it is not the default.
 
 ---
 
 ## 3. Fakes, not mocks
 
 There is **no `unittest.mock` anywhere in the suite** — no `Mock`, no `patch`. Ports are satisfied
-by small hand-written in-memory classes in `tests/fakes/`, backed by a `dict` and an
-auto-incrementing id.
+by small hand-written in-memory classes backed by a `dict` and an auto-incrementing id.
 
-The reason is important: a fake enforces the port's real contract. `FakeBookRepository.save()`
-replicates optimistic locking exactly as PostgreSQL does — comparing versions and raising the same
-`sqlalchemy.orm.exc.StaleDataError` — so a locking test that passes against the fake is asserting
+The reason is important: a fake enforces the port's real contract. A `FakeItemRepository.save()`
+would replicate optimistic locking exactly as PostgreSQL does — comparing versions and raising the
+same `sqlalchemy.orm.exc.StaleDataError` — so a locking test that passes against the fake asserts
 something real. A mock that just records calls would be green while asserting nothing.
 
 **When you add a port, add its fake**, and make it honour the same invariants the real adapter
-does. Reuse it in both the unit tests and the API tests — the API conftest injects the very same
-fakes, so there is no duplicated test double.
+does.
 
-Very small, single-use fakes (`FakeUserRepository`, `FakePasswordHasher`, `FakeTokenService` in
-`test_auth_service.py`) may stay local to the test module.
+Where the fake lives follows from who uses it:
+
+- **Used by one module** → keep it local to that test file. That is the whole story today:
+  `FakeUserRepository`, `FakePasswordHasher` and `FakeTokenService` are defined at the top of
+  `tests/unit/test_auth_service.py` and nowhere else.
+- **Shared by two or more** → promote it to a `tests/fakes/` package, one module per fake, and
+  import it from both. That package does not exist right now; the first port with two consumers
+  creates it. Do not create it empty in advance.
+
+The same rule governs object mothers. A `make_<entity>()` helper that builds a valid domain object
+with sensible defaults belongs next to its only user until a second one appears, at which point it
+moves to `tests/factories.py` — a module that, likewise, does not exist yet.
 
 ---
 
@@ -82,8 +109,10 @@ Very small, single-use fakes (`FakeUserRepository`, `FakePasswordHasher`, `FakeT
 | `db_connection` | An `AsyncConnection` to the **developer's dev database** inside an open transaction, rolled back at teardown. Requires `alembic upgrade head` to have been run. |
 | `db_session` | An `AsyncSession` bound to it with `join_transaction_mode="create_savepoint"`, so a repository's `commit()` only releases a SAVEPOINT and the outer transaction is still rolled back. |
 | `async_client` | `httpx.AsyncClient` against the real app, with `get_db_session` overridden to the isolated session. |
-| `seller_user`, `other_seller_user`, `customer_user`, `other_customer_user` | Plain `User` domain objects with fixed ids and roles, for authorization scenarios (owner vs. other seller, customer vs. seller). |
-| `client` | A DB-agnostic `httpx.AsyncClient` with no overrides, for health and CORS tests. |
+
+Those three are the whole file. There are no shared `User` fixtures: a test that needs a `seller`
+or a `customer` builds the `User` it wants in its own Arrange step, which keeps the roles and ids
+visible right where the assertion depends on them.
 
 ```python
 @pytest_asyncio.fixture
@@ -99,27 +128,31 @@ async def db_session(db_connection: AsyncConnection) -> AsyncGenerator[AsyncSess
 
 ### `tests/api/conftest.py` — API tier
 
-Provides the fake repositories, the services wired to them, and a `client` fixture (shadowing the
-global one) whose `get_*_service` dependencies are overridden. Plus:
+| Fixture | Purpose |
+|---|---|
+| `client` | A DB-agnostic `httpx.AsyncClient` with no overrides, for health, CORS and logging tests. |
+| `authenticated_as` | A callable that overrides `get_current_user` to return the `User` you pass it. |
 
 ```python
 authenticated_as(user)   # overrides get_current_user to return that user
 ```
 
-Call it to authenticate; skip it to test the 401 path.
+Call it to authenticate; skip it to test the 401 path — `get_current_user` is left un-overridden by
+default, so a test that never calls it exercises the real JWT dependency.
 
-### `tests/integration/conftest.py` — integration tier
+This is also where a fake repository and its service would go if the API tier ever needed one: add
+the fixture here and override the matching `get_*_service` provider inside `client`.
 
-Spins up a **throwaway `postgres:16-alpine` Docker container** once per session, and per test
-creates the schema from `Base.metadata`, seeds the rows needed to satisfy foreign keys, yields a
-session, then drops everything.
+### Integration tier — no conftest of its own
 
-Fixtures are deliberately named per entity — `book_db_session`, `favourite_db_session` — **not**
-`db_session`, so they do not shadow the global fixture for the whole directory. Keep that
-convention when you add one.
+`tests/integration/` has no `conftest.py`: its tests take the global `db_session` directly, so they
+run against the developer's dev database inside a transaction that is rolled back at teardown.
+`alembic upgrade head` must have been run first.
 
-`two_book_sessions` / `two_favourite_sessions` return two independent sessions on the same engine,
-used to prove that concurrent writes raise `StaleDataError`.
+If a tier-specific fixture is ever needed there, name it **per entity** — `item_db_session`, not
+`db_session` — so it cannot shadow the global fixture for the whole directory. The same applies to
+a pair of independent sessions on one engine, which is how a test proves that concurrent writes
+raise `StaleDataError`.
 
 ---
 
@@ -127,7 +160,7 @@ used to prove that concurrent writes raise `StaleDataError`.
 
 - **File naming:** `test_<subject>.py`, one file per service, repository, router or concern.
 - **Function naming:** `test_<method>_<scenario>_<expected_result>`, e.g.
-  `test_update_when_version_is_stale_raises_stale_data_error`. Followed by all 174 tests.
+  `test_update_when_version_is_stale_raises_stale_data_error`. Followed without exception.
 - **Everything in English** — names, docstrings and comments.
 - **AAA with comments, genuinely used:** `# Arrange` / `# Act` / `# Assert`, collapsed to
   `# Act / Assert` when the action is the `pytest.raises` block itself. Comments often carry a short
@@ -140,12 +173,15 @@ used to prove that concurrent writes raise `StaleDataError`.
   message.
 - **`parametrize` sparingly**, only for genuinely table-shaped cases (invalid-field combinations,
   exception→status mapping).
-- **Sync tests for sync code.** The hasher, the JWT service, the schemas and the exceptions are
-  tested with plain `def test_…`.
+- **Sync tests for sync code.** The hasher, the JWT service, the schemas, the settings, the logging
+  configuration and the ORM metadata are tested with plain `def test_…`.
 
 ---
 
 ## 6. Templates
+
+These are shapes to copy, not imports to trust: `SomethingService` stands in for the service you
+are actually testing.
 
 ### Unit test of a domain service
 
@@ -153,10 +189,19 @@ used to prove that concurrent writes raise `StaleDataError`.
 import pytest
 
 from src.domain.exceptions import ForbiddenError
-from src.domain.models.user import User
+from src.domain.models.something import Something
+from src.domain.models.user import User, UserRole
 from src.domain.services.something_service import SomethingService
-from tests.factories import make_something
-from tests.fakes.fake_something_repository import FakeSomethingRepository
+
+
+class FakeSomethingRepository:
+    """In-memory `SomethingRepository`, honouring the same invariants as the real one."""
+
+    def __init__(self) -> None:
+        self._rows: dict[int, Something] = {}
+        self._next_id = 1
+
+    ...
 
 
 @pytest.fixture
@@ -164,30 +209,47 @@ def sut() -> SomethingService:
     return SomethingService(FakeSomethingRepository())
 
 
-async def test_create_when_valid_returns_saved_entity(
-    sut: SomethingService, customer_user: User
-) -> None:
+def _user(role: UserRole, user_id: int = 1) -> User:
+    return User(
+        id=user_id,
+        email=f"{role.value}-{user_id}@example.com",
+        name="Test User",
+        role=role,
+        hashed_password="hashed",
+    )
+
+
+def _make_something() -> Something:
+    """Object mother: a valid entity with sensible defaults."""
+    return Something(name="Example")
+
+
+async def test_create_when_valid_returns_saved_entity(sut: SomethingService) -> None:
     # Arrange
-    entity = make_something()
+    owner = _user(UserRole.CUSTOMER)
+    entity = _make_something()
 
     # Act
-    created = await sut.create(customer_user, entity)
+    created = await sut.create(owner, entity)
 
     # Assert
     assert created.id is not None
-    assert created.owner_id == customer_user.id
+    assert created.owner_id == owner.id
 
 
-async def test_create_when_seller_attempts_raises_forbidden(
-    sut: SomethingService, seller_user: User
-) -> None:
+async def test_create_when_role_is_not_allowed_raises_forbidden(sut: SomethingService) -> None:
     # Arrange
-    entity = make_something()
+    intruder = _user(UserRole.SELLER, user_id=2)
+    entity = _make_something()
 
     # Act / Assert
     with pytest.raises(ForbiddenError):
-        await sut.create(seller_user, entity)
+        await sut.create(intruder, entity)
 ```
+
+Both the fake and `_make_something()` are the local-until-shared case from §3: they live in this
+module, private, until a second test file needs them — then they move to `tests/fakes/` and
+`tests/factories.py` respectively, and lose the leading underscore.
 
 ### Integration test of a repository
 
@@ -195,15 +257,12 @@ async def test_create_when_seller_attempts_raises_forbidden(
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.outbound.persistence.something_repository import SqlAlchemySomethingRepository
-from tests.factories import make_something
 
 
-async def test_save_when_new_entity_persists_and_assigns_id(
-    something_db_session: AsyncSession,
-) -> None:
+async def test_save_when_new_entity_persists_and_assigns_id(db_session: AsyncSession) -> None:
     # Arrange
-    sut = SqlAlchemySomethingRepository(something_db_session)
-    entity = make_something()
+    sut = SqlAlchemySomethingRepository(db_session)
+    entity = _make_something()
 
     # Act
     saved = await sut.save(entity)
@@ -213,9 +272,9 @@ async def test_save_when_new_entity_persists_and_assigns_id(
     assert saved.name == entity.name
 
 
-async def test_find_by_id_when_missing_returns_none(something_db_session: AsyncSession) -> None:
+async def test_find_by_id_when_missing_returns_none(db_session: AsyncSession) -> None:
     # Arrange
-    sut = SqlAlchemySomethingRepository(something_db_session)
+    sut = SqlAlchemySomethingRepository(db_session)
 
     # Act
     found = await sut.find_by_id(999)
@@ -224,51 +283,51 @@ async def test_find_by_id_when_missing_returns_none(something_db_session: AsyncS
     assert found is None
 ```
 
-A new repository needs its own session fixture in `tests/integration/conftest.py`, following the
-`book_db_session` pattern: create the schema, seed the FK parents, yield, drop.
+The global `db_session` is enough for most repositories. An entity whose rows need a foreign-key
+parent seeds it in the Arrange step, through the parent's repository — the same rule the seed
+script follows. Only introduce a `tests/integration/conftest.py` when several modules need the
+same setup, and name its fixtures per entity (§4).
 
 ### API endpoint test
 
 ```python
-from collections.abc import Callable
-
 import httpx
-
-from src.domain.models.user import User
 
 _VALID_PAYLOAD = {"name": "Example"}
 
 
-async def test_create_something_when_customer_returns_201(
-    client: httpx.AsyncClient,
-    authenticated_as: Callable[[User], None],
-    customer_user: User,
+async def test_create_something_when_authenticated_returns_201(
+    async_client: httpx.AsyncClient,
 ) -> None:
-    # Arrange
-    authenticated_as(customer_user)
+    # Arrange - register and log in through the real endpoints, so the test
+    # exercises the same path a client would.
+    token = await _register_and_login(async_client)
 
     # Act
-    response = await client.post("/somethings", json=_VALID_PAYLOAD)
+    response = await async_client.post(
+        "/somethings", json=_VALID_PAYLOAD, headers={"Authorization": f"Bearer {token}"}
+    )
 
     # Assert
     assert response.status_code == 201
     body = response.json()
     assert body["success"] is True
     assert body["error"] is None
-    assert body["data"]["owner_id"] == customer_user.id
 
 
-async def test_create_something_when_no_credentials_returns_401(client: httpx.AsyncClient) -> None:
-    # Act - authenticated_as was never called, so the real dependency runs
-    # against a request with no token.
-    response = await client.post("/somethings", json=_VALID_PAYLOAD)
+async def test_create_something_when_no_credentials_returns_401(
+    async_client: httpx.AsyncClient,
+) -> None:
+    # Act - no Authorization header, so the real dependency rejects the request.
+    response = await async_client.post("/somethings", json=_VALID_PAYLOAD)
 
     # Assert
     assert response.status_code == 401
 ```
 
-If the endpoint's port needs faking, add the `fake_*_repository` and `*_service` fixtures to
-`tests/api/conftest.py` and override the provider inside the `client` fixture.
+Use `async_client` when the endpoint touches the database, and the DB-agnostic `client` when it
+does not. When wiring a real login is more ceremony than the test is worth, take `authenticated_as`
+from `tests/api/conftest.py` and hand it the `User` you want.
 
 ---
 
@@ -287,17 +346,22 @@ A new endpoint is not done until all three tiers cover it:
 
 ## 8. Coverage and the gate
 
-The project minimum is **80 %**. Read the `term-missing` report from `make test-back` and add cases
-for the uncovered lines of anything you touched.
+The project minimum is **80 %**, and it is enforced rather than trusted. Read the `term-missing`
+report from `make test-back` and add cases for the uncovered lines of anything you touched.
 
-Be aware of what is **not** automated today, so you do not rely on it:
+Where the enforcement lives, so you do not go looking for it in the wrong place:
 
-- There is **no `--cov-fail-under`** and no coverage config, so `make test-back` exits 0 regardless
-  of the percentage. The 80 % rule is upheld by you, not by the tool.
-- There is **no CI pipeline** (`.github/workflows/` does not exist). Everything is enforced locally
-  by the pre-commit hooks plus discipline.
-- The pre-commit **mypy hook only covers `backend/src/`**, not the tests. `make lint` covers both —
-  run it.
+- **`backend/pyproject.toml`.** `[tool.coverage.run]` measures `src/` only, omitting `alembic/` and
+  `seed.py`; `[tool.coverage.report] fail_under = 80` makes any `--cov` run exit non-zero below the
+  threshold. The config is the gate — no `--cov-fail-under` is passed on the command line, so local
+  and CI fail identically. Never lower it; add tests.
+- **CI**, in `.github/workflows/ci-backend.yml`: a `lint` job (`ruff check`, `ruff format --check`,
+  `mypy --strict`) and a `test-backend` job that brings up a PostgreSQL service, runs
+  `alembic upgrade head`, then `pytest --cov=src`. A `paths:` filter keeps a frontend-only PR from
+  running it.
+- **The pre-commit mypy hook only covers `backend/src/`**, not the tests — its `files:` filter says
+  so. `make lint` and CI both run `mypy` over the whole of `backend/`, tests included, so a type
+  error in a test surfaces there rather than at commit time. Run `make lint` before pushing.
 
 ---
 
@@ -307,6 +371,8 @@ Be aware of what is **not** automated today, so you do not rely on it:
 - [ ] `test_<method>_<scenario>_<expected_result>` naming, in English.
 - [ ] AAA comments present; annotations complete (`-> None`).
 - [ ] Ports faked, not mocked; a new port got a fake honouring its invariants.
+- [ ] A fake or object mother used by a second module was promoted out of the test file, not
+      copy-pasted.
 - [ ] Domain exceptions asserted specifically with `pytest.raises`.
 - [ ] HTTP tests assert status code **and** the `{success, data, error}` envelope.
 - [ ] `make test-back` and `make lint` both pass; coverage at or above 80 %.
