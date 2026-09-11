@@ -365,6 +365,8 @@ the Protocol. No base class, no `ItemRepository` in its bases.
 ```python
 """SQLAlchemy implementation of the `ItemRepository` port."""
 
+from typing import Any
+
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import attributes
@@ -454,8 +456,13 @@ class SqlAlchemyItemRepository:
             await self._session.delete(item_orm)
             await self._session.commit()
 
+    # `tuple[Any, ...]` because this one helper serves both the row query
+    # (`Select[tuple[ItemORM]]`) and the count query (`Select[tuple[int]]`).
+    # Narrowing it to `tuple[ItemORM]` would break the count call site.
     @staticmethod
-    def _filtered(statement: Select[tuple], query: str | None, category: str | None):
+    def _filtered(
+        statement: Select[tuple[Any, ...]], query: str | None, category: str | None
+    ) -> Select[tuple[Any, ...]]:
         if query:
             pattern = f"%{query}%"
             statement = statement.where(
@@ -481,7 +488,27 @@ class SqlAlchemyItemRepository:
         # The parent's version does not move on its own when only the links
         # changed — force it so the optimistic lock still advances.
         attributes.flag_modified(item_orm, "name")
+
+    async def _get_or_create_tag(self, name: str) -> TagORM:
+        """Return the tag with that name, creating it if it does not exist yet."""
+        result = await self._session.execute(select(TagORM).where(TagORM.name == name))
+        tag_orm = result.scalar_one_or_none()
+        if tag_orm is None:
+            tag_orm = TagORM(name=name)
+            self._session.add(tag_orm)
+        return tag_orm
 ```
+
+`_get_or_create_tag` is select-or-create, and it is deliberately **not** wrapped in a
+`try/except IntegrityError`. Two concurrent saves that both introduce the same brand-new tag will
+race on `tags.name UNIQUE`, and the loser's `IntegrityError` is allowed to reach the error handler,
+which turns it into a 409. Catching it here would mean the repository deciding what a conflict means
+— that decision belongs to the domain, and swallowing it would hide a real race behind a retry the
+caller never asked for.
+
+Note this is the one place the guide resolves an aggregate by natural key rather than by id. Tags
+are labels: a caller sends `["onboarding"]`, not a tag id. Everything else in the repository joins
+on ids.
 
 ### The two lines that are not obvious
 
@@ -572,9 +599,12 @@ class ItemUpdate(ItemCreate):
 
 
 class ItemResponse(BaseModel):
-    """Public representation of an item."""
+    """Public representation of an item.
 
-    model_config = ConfigDict(from_attributes=True)
+    No `from_attributes=True`: `tags` does not line up with the domain model's
+    `tag_names`, so `model_validate(item)` would fail. The router builds it
+    field by field instead — see `_to_response` in step 9.
+    """
 
     id: int
     name: str
@@ -777,7 +807,9 @@ the dependency style here is `Annotated[..., Depends(...)]`; `auth_router.py` st
 bare-default form. New routers use `Annotated`.
 
 `_current_user` is prefixed with an underscore where the endpoint only needs authentication, not the
-identity — it keeps Ruff quiet about the unused argument while the dependency still runs.
+identity. It is a signal to the reader, not a linter workaround — Ruff's `ARG` family is not enabled
+here, so the plain name would not be flagged either. `error_handler.py` uses the same convention for
+its `_request` and `_exc` parameters.
 
 ## 10. The wiring
 
@@ -898,8 +930,9 @@ async def test_save_with_a_stale_version_raises_stale_data_error(db_session: Asy
     # Arrange — two callers read the same item
     sut = SqlAlchemyItemRepository(db_session)
     stored = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
-    first = await sut.find_by_id(stored.id or 0)
-    second = await sut.find_by_id(stored.id or 0)
+    assert stored.id is not None
+    first = await sut.find_by_id(stored.id)
+    second = await sut.find_by_id(stored.id)
 
     # Act — the first write wins and bumps the version
     assert first is not None and second is not None
@@ -912,8 +945,16 @@ async def test_save_with_a_stale_version_raises_stale_data_error(db_session: Asy
         await sut.save(second)
 ```
 
-Run it once with `set_committed_value` commented out. It passes — which is the whole point of the
-test existing.
+Run it once with `set_committed_value` commented out. It **fails** — `pytest.raises` reports
+"DID NOT RAISE", because without that line the UPDATE's `WHERE version = :v` uses whatever version
+the session already holds in memory (2, after the first `save()` refreshed it), which matches the
+row. That failure is the whole point of the test existing.
+
+One subtlety worth knowing, because it makes this test read strangely: both `find_by_id` calls hit
+the *same* session, so `session.get()` returns the same identity-mapped `ItemORM` rather than
+re-reading the row. What keeps `first` and `second` independent is `_to_domain`, which builds a new
+`Item` dataclass from the scalar values each time. In production the isolation is real — one session
+per request — and here it is `set_committed_value` doing the work. Either way the assertion holds.
 
 The `items` table must exist first: `make migrate` before the integration suite.
 
