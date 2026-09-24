@@ -6,8 +6,10 @@ from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import attributes
 
+from src.adapters.outbound.persistence.example.collection import CollectionORM
 from src.adapters.outbound.persistence.example.item import ItemORM
 from src.adapters.outbound.persistence.example.tag import TagORM
+from src.domain.models.example.collection import CollectionRef
 from src.domain.models.example.item import Item
 
 
@@ -21,6 +23,7 @@ def _to_domain(item_orm: ItemORM) -> Item:
         category=item_orm.category,
         owner_id=item_orm.owner_id,
         tag_names=[tag.name for tag in item_orm.tags],
+        collections=[CollectionRef(id=c.id, name=c.name) for c in item_orm.collections],
         version=item_orm.version,
     )
 
@@ -93,20 +96,22 @@ class SqlAlchemyItemRepository:
         # runs a SELECT, and an autoflush there would write the scalar changes
         # as their own UPDATE — bumping the version once — before
         # `flag_modified` below forced a second one, so a plain edit would
-        # advance the version by two.
+        # advance the version by two. Both reconciliations share this one
+        # block, and the flag below fires once for the pair.
         with self._session.no_autoflush:
             tags_changed = await self._reconcile_tags(item_orm, item.tag_names)
-        if item.id is not None and tags_changed:
+            collections_changed = await self._reconcile_collections(item_orm, item.collections)
+        if item.id is not None and (tags_changed or collections_changed):
             # No column on `items` changed when only the links moved, so
             # SQLAlchemy would emit no UPDATE on the parent row and the version
-            # would not advance — two clients could retag from the same version
-            # and neither would notice. Marking a column dirty forces the
-            # UPDATE, and with it the version bump.
+            # would not advance — two clients could retag/re-collect from the
+            # same version and neither would notice. Marking a column dirty
+            # forces the UPDATE, and with it the version bump.
             #
             # Only on an update: an INSERT already writes version 1, and
             # flagging the row there would append a gratuitous UPDATE to the
-            # same flush, so a brand-new item with tags would come back at
-            # version 2.
+            # same flush, so a brand-new item with tags/collections would come
+            # back at version 2.
             attributes.flag_modified(item_orm, "name")
         await self._session.commit()
         await self._session.refresh(item_orm)
@@ -167,3 +172,29 @@ class SqlAlchemyItemRepository:
             tag_orm = TagORM(name=name)
             self._session.add(tag_orm)
         return tag_orm
+
+    async def _reconcile_collections(
+        self, item_orm: ItemORM, collection_refs: list[CollectionRef]
+    ) -> bool:
+        """Make `item_orm.collections` match `collection_refs`, preserving the links that stay.
+
+        Unlike `_reconcile_tags`, there is no get-or-create: the ids arriving
+        here were already validated by `ItemService.set_collections` against
+        the collections catalogue, so a plain `session.get` suffices. Returns
+        whether any link actually moved, for the same reason `_reconcile_tags`
+        does.
+        """
+        desired_ids = {ref.id for ref in collection_refs}
+        current_ids = {collection.id for collection in item_orm.collections}
+        if desired_ids == current_ids:
+            return False
+
+        for collection in list(item_orm.collections):
+            if collection.id not in desired_ids:
+                item_orm.collections.remove(collection)
+        for collection_id in desired_ids - current_ids:
+            collection_orm = await self._session.get(CollectionORM, collection_id)
+            if collection_orm is None:
+                raise ValueError(f"Cannot link collection {collection_id}: it does not exist")
+            item_orm.collections.append(collection_orm)
+        return True

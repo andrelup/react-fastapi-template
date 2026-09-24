@@ -20,7 +20,9 @@ from sqlalchemy.orm.exc import StaleDataError
 
 from src.adapters.inbound.schemas.common import ApiResponse
 from src.domain.exceptions import (
+    CollectionNotFoundError,
     DomainError,
+    DuplicateCollectionNameError,
     DuplicateEmailError,
     DuplicateSlugError,
     ForbiddenError,
@@ -36,8 +38,10 @@ _STATUS_CODES: dict[type[DomainError], int] = {
     InvalidCredentialsError: 401,
     ForbiddenError: 403,
     ItemNotFoundError: 404,
+    CollectionNotFoundError: 404,
     DuplicateEmailError: 409,
     DuplicateSlugError: 409,
+    DuplicateCollectionNameError: 409,
 }
 _DEFAULT_STATUS_CODE = 500
 

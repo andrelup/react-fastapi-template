@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.adapters.inbound.api.auth_router import router as auth_router
+from src.adapters.inbound.api.example.collection_router import router as collection_router
 from src.adapters.inbound.api.example.item_router import router as item_router
 from src.adapters.inbound.api.health_router import router as health_router
 from src.adapters.inbound.middleware.error_handler import register_exception_handlers
@@ -43,3 +44,4 @@ app.add_middleware(RequestLoggingMiddleware)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(item_router)
+app.include_router(collection_router)

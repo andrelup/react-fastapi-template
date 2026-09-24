@@ -1,9 +1,15 @@
-"""Item use cases: search, creation, update and deletion, with authorization."""
+"""Item use cases: search, creation, update, deletion and membership, with authorization."""
 
-from src.domain.exceptions import DuplicateSlugError, ForbiddenError, ItemNotFoundError
+from src.domain.exceptions import (
+    CollectionNotFoundError,
+    DuplicateSlugError,
+    ForbiddenError,
+    ItemNotFoundError,
+)
+from src.domain.models.example.collection import CollectionRef
 from src.domain.models.example.item import Item
 from src.domain.models.user import User, UserRole, has_role
-from src.domain.ports.example.repositories import ItemRepository
+from src.domain.ports.example.repositories import CollectionRepository, ItemRepository
 
 
 class ItemService:
@@ -17,8 +23,11 @@ class ItemService:
     may do*.
     """
 
-    def __init__(self, item_repository: ItemRepository) -> None:
+    def __init__(
+        self, item_repository: ItemRepository, collection_repository: CollectionRepository
+    ) -> None:
         self._item_repository = item_repository
+        self._collection_repository = collection_repository
 
     async def search(
         self, query: str | None, category: str | None, offset: int, limit: int
@@ -88,6 +97,46 @@ class ItemService:
         await self._get_or_raise(item_id)
         self._ensure_at_least(current_user, UserRole.ADMIN)
         await self._item_repository.delete(item_id)
+
+    async def set_collections(
+        self, item_id: int, collection_ids: list[int], version: int, current_user: User
+    ) -> Item:
+        """Set which collections an item belongs to.
+
+        Membership is governed by whoever may *edit the item*, not by who
+        may govern the collections catalogue: this reuses `_ensure_may_write`,
+        the exact rule `update` enforces, so an ADMIN may set it on any item
+        and an EDITOR only on its own — never on a collection it does not
+        already know exists, since every id is resolved against the
+        catalogue before anything is written.
+
+        Raises:
+            ItemNotFoundError: if no item has that id.
+            ForbiddenError: if the user is neither an ADMIN nor the item's owner.
+            CollectionNotFoundError: if any collection id does not exist.
+        """
+        existing = await self._get_or_raise(item_id)
+        self._ensure_may_write(existing, current_user)
+
+        # Preserve the client's order, deduplicated, so a caller sending the
+        # same id twice does not get it counted twice in the "missing" check.
+        requested_ids = list(dict.fromkeys(collection_ids))
+        found = await self._collection_repository.find_by_ids(requested_ids)
+        found_by_id = {
+            collection.id: collection for collection in found if collection.id is not None
+        }
+        missing = [
+            collection_id for collection_id in requested_ids if collection_id not in found_by_id
+        ]
+        if missing:
+            raise CollectionNotFoundError(f"Collection(s) not found: {missing}")
+
+        existing.collections = [
+            CollectionRef(id=collection_id, name=found_by_id[collection_id].name)
+            for collection_id in requested_ids
+        ]
+        existing.version = version
+        return await self._item_repository.save(existing)
 
     async def _get_or_raise(self, item_id: int) -> Item:
         item = await self._item_repository.find_by_id(item_id)
