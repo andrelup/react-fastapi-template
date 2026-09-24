@@ -89,4 +89,54 @@ describe('items-api', () => {
 
     expect(apiClient.get).toHaveBeenCalledWith('/items/search?q=c%C3%A1mara&page=1&page_size=20');
   });
+
+  it('maps a single item plus its collections onto the camelCase domain type', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      ...rawItem,
+      collections: [
+        { id: 1, name: 'Clásicos' },
+        { id: 2, name: 'Colección de otoño' },
+      ],
+    });
+
+    const { getItem } = await import('./items-api');
+    const result = await getItem(1);
+
+    expect(apiClient.get).toHaveBeenCalledWith('/items/1');
+    expect(result).toEqual({
+      id: 1,
+      name: 'Cámara analógica',
+      slug: 'camara-analogica',
+      description: 'Una cámara de 35mm en buen estado.',
+      category: 'electronica',
+      tags: ['vintage', 'fotografia'],
+      ownerId: 7,
+      version: 1,
+      collections: [
+        { id: 1, name: 'Clásicos' },
+        { id: 2, name: 'Colección de otoño' },
+      ],
+    });
+  });
+
+  it('maps a single item with no collections to an empty array', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ ...rawItem, collections: [] });
+
+    const { getItem } = await import('./items-api');
+    const result = await getItem(1);
+
+    expect(result.collections).toEqual([]);
+  });
+
+  it('calls DELETE on the item endpoint', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.delete).mockResolvedValueOnce(null);
+
+    const { deleteItem } = await import('./items-api');
+    await deleteItem(1);
+
+    expect(apiClient.delete).toHaveBeenCalledWith('/items/1');
+  });
 });
