@@ -1459,3 +1459,46 @@ the deliberate "no shared render helper" rule in
 [frontend-testing.md](./frontend-testing.md): when a component gains a provider requirement, every
 test file that renders it has to be updated by hand. Expected, but worth knowing before you start
 rather than after the suite goes red.
+
+### From #40 — the item detail screen
+
+**`useApi`'s `error` string alone cannot drive a 404 vs. 500 branch, and the guide never said so.**
+Nothing before this issue needed to tell the two apart — the catalogue screen only ever shows
+`ServerErrorState`. The detail screen needs `NotFoundState` for a 404 and `ServerErrorState` for
+everything else, which means the *status code* has to survive the trip through `useApi`, not just
+the flattened message. `UseApiState` now carries `status: number | null`, reset on every new
+request and filled from `err.status ?? null` — the `?? null` matters because `ApiError.status` is
+typed `number | undefined`, not `number | null`, so a bare `err.status` would have leaked
+`undefined` into state that every other field in `UseApiState` deliberately keeps as `null`.
+`useApiOnMount` passes it straight through.
+
+**A naive loading/error/data branch flashes a false error for one tick.** The obvious version of the
+screen's state machine is `if (isLoading) …; if (status === 404) …; if (error || !item) return
+<ServerErrorState/>`. That last condition is wrong: on the render *before* `useApiOnMount`'s effect
+has fired, `isLoading` is still `false` (its initial value) and `item` is still `null`, so
+`!item` is true and the screen renders a server error for a frame it was never actually in. The fix
+is to give "no data and no error yet" its own branch that renders nothing, *after* the `error`
+check, not folded into it. `ItemsCatalog` never hit this because it only renders its no-data states
+behind `!isLoading && !error && data`, i.e. it never treats "no data" as an error case at all.
+
+**Two duplicate, identically-named buttons is what a responsive action bar actually is, and nothing
+in the testing guide covers it.** The screen shows a desktop action row (`hidden md:flex`) and the
+same actions again inside `MobileActionBar` (`md:hidden`, built into the component). Both are always
+in the DOM in jsdom — there is no layout engine to make `getByRole('button', { name: 'Eliminar' })`
+resolve to just one of them, so it throws on finding two. The fix is not a `getByTestId` escape
+hatch: each row gets its own `role="group"` with a distinguishing `aria-label` ("Acciones del
+artículo" / "Acciones del artículo (móvil)"), which is a real accessibility improvement — a fixed
+action bar with no landmark is itself a gap — and lets tests scope with
+`within(screen.getByRole('group', { name: … }))`. Any screen that pairs an inline action row with
+`MobileActionBar` will hit this; group-and-scope is the pattern to reach for.
+
+**A screen gated by both a role and its own fetch drains `apiClient.get` from two independent
+callers, and the order between them is not guaranteed.** `AuthProvider` calls `/auth/me` to
+rehydrate the session at the same time `useItem` calls `/items/:id`. Chained
+`mockResolvedValueOnce`/`mockResolvedValueOnce` — the pattern every earlier test in this codebase
+uses, because nothing before this screen fetched its own data *and* required a specific role in the
+same render — hands whichever call resolves first the wrong payload, non-deterministically. Keying a
+single `mockImplementation` on the requested path fixes it outright, and is worth reaching for
+by default whenever a gated screen also fetches: `frontend-testing.md` §5 shows the login-a-role
+pattern but not this interaction, since `RoleRoute.test.tsx` renders static children with no fetch of
+their own.
