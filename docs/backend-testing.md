@@ -4,13 +4,11 @@ How tests are written in `backend/`: pytest + pytest-asyncio + httpx, organised 
 mirror the hexagonal layers. This document describes the conventions the existing suite actually
 follows, so a new test looks like the ones already there.
 
-The suite covers authentication, the shared adapters, the middleware, the ORM metadata and the
-`Item` slice — the catalogue's other entities (`collections`, `tags`) are still ORM models alone
-(issue #37). Some scaffolding went with the old example domain and has not come back: there is no
-`tests/factories.py` and no `tests/fakes/` package, because both are promoted from a test file only
-when a second consumer appears, and `FakeItemRepository` still has exactly one. **The conventions
-below outlive the files** — wherever a module is not there yet, this document says so rather than
-pointing you at it.
+The suite covers authentication, the shared adapters, the middleware, the ORM metadata and every
+slice of the sample domain across all three tiers. `tests/fakes/` exists; `tests/factories.py` does
+not, because both are promoted out of a test file only when a second consumer appears and no object
+mother has one yet. **The conventions below outlive the files** — wherever a module is not there
+yet, this document says so rather than pointing you at it.
 
 Companion documents: [hexagonal architecture](./backend-hexagonal-architecture.md),
 [database access](./backend-database-sqlalchemy.md), [code style](./backend-code-style.md).
@@ -77,31 +75,41 @@ but it is not what the current tests do, and it is not the default.
 There is **no `unittest.mock` anywhere in the suite** — no `Mock`, no `patch`. Ports are satisfied
 by small hand-written in-memory classes backed by a `dict` and an auto-incrementing id.
 
-The reason is important: a fake enforces the port's real contract. `FakeItemRepository.save()` in
-`tests/unit/test_item_service.py` replicates optimistic locking exactly as PostgreSQL does —
-comparing versions and raising the same `sqlalchemy.orm.exc.StaleDataError` — so a locking test that
-passes against the fake asserts something real. A mock that just records calls would be green while
-asserting nothing.
+The reason is important: a fake enforces the port's real contract. A fake `save()` for a versioned
+aggregate replicates optimistic locking exactly as PostgreSQL does — comparing versions and raising
+the same `sqlalchemy.orm.exc.StaleDataError` — so a locking test that passes against the fake
+asserts something real. A mock that just records calls would be green while asserting nothing.
 
-A fake enforcing the contract also means copying the real adapter's *aliasing*, not just its return
-types. `SqlAlchemyItemRepository` builds a fresh domain object on every read, so the fake returns
-copies too. Hand back the stored instance instead and a caller that mutates what it read is writing
-straight into the store — the version check then compares an object with itself and the lock test
-passes while asserting nothing. That one is written up in
-[adding-a-feature.md](./adding-a-feature.md) §11.
+A fake enforcing the contract also means copying the real adapter's **aliasing**, not just its
+return types, and this is the one that has actually drawn blood. A SQLAlchemy repository builds a
+fresh domain object on every read, because `_to_domain` constructs a new dataclass from the row's
+scalar values. A fake backed by a dict does not, unless you make it:
+
+```python
+def _copy(review: Review) -> Review:
+    """Return an independent copy, mutable list fields included."""
+    return replace(review, label_names=list(review.label_names))
+```
+
+Hand back the stored instance instead and the update use case — which reads an entity, mutates what
+it got back, and passes it to `save` — is writing straight into the store. The version check then
+compares an object with itself, can never fail, and the stale-version test reports "DID NOT RAISE"
+while appearing to cover the single most interesting failure mode the port has. Every method that
+returns an entity hands out a copy.
 
 **When you add a port, add its fake**, and make it honour the same invariants the real adapter
 does.
 
 Where the fake lives follows from who uses it:
 
-- **Used by one module** → keep it local to that test file. That is the whole story today:
-  `FakeUserRepository`, `FakePasswordHasher` and `FakeTokenService` at the top of
-  `tests/unit/test_auth_service.py`, and `FakeItemRepository` at the top of
-  `tests/unit/test_item_service.py`.
-- **Shared by two or more** → promote it to a `tests/fakes/` package, one module per fake, and
-  import it from both. That package does not exist right now; the first port with two consumers
-  creates it. Do not create it empty in advance.
+- **Used by one module** → keep it local to that test file, at its top, next to its only consumer.
+- **Shared by two or more** → promote it to the `tests/fakes/` package, one module per fake, and
+  import it from both.
+
+**The promotion can happen in the very PR that introduces the fake**, so do not assume it is always
+a later refactor. A use case that crosses two entities — a service taking a second port to resolve
+something it does not own — gives that second port's fake two consumers on day one: the service
+test for the port's own entity, and the service test for the one that borrows it.
 
 The same rule governs object mothers. A `make_<entity>()` helper that builds a valid domain object
 with sensible defaults belongs next to its only user until a second one appears, at which point it
@@ -149,6 +157,25 @@ authenticated_as(user)   # overrides get_current_user to return that user
 Call it to authenticate; skip it to test the 401 path — `get_current_user` is left un-overridden by
 default, so a test that never calls it exercises the real JWT dependency.
 
+**The user has to be a real row as soon as the request actually writes.** Handing
+`authenticated_as` an invented `User(id=1, …)` is right for the 401 and 403 cases, where the service
+refuses before anything reaches the database. Any test expecting a 201 or a 200 on a write is
+different: an entity whose owner column is a foreign key against `users` breaks that constraint with
+an invented id, and the central `IntegrityError` handler answers **409 where the test wanted 201** —
+a failure that looks like a duplicate rather than a missing user. Those tests take `db_session`
+alongside the client, insert the user through the real repository, and authenticate as whatever
+comes back:
+
+```python
+async def _a_user(db_session: AsyncSession, role: UserRole, email: str) -> User:
+    return await SqlAlchemyUserRepository(db_session).save(
+        User(email=email, name=role.value.title(), role=role, hashed_password="hashed:pw")
+    )
+```
+
+It is the same session the app is using, so the row is visible to the request and is rolled back
+with everything else at teardown.
+
 This is also where a fake repository and its service would go if the API tier ever needed one: add
 the fixture here and override the matching `get_*_service` provider inside `client`.
 
@@ -158,7 +185,7 @@ the fixture here and override the matching `get_*_service` provider inside `clie
 run against the developer's dev database inside a transaction that is rolled back at teardown.
 `alembic upgrade head` must have been run first.
 
-If a tier-specific fixture is ever needed there, name it **per entity** — `item_db_session`, not
+If a tier-specific fixture is ever needed there, name it **per entity** — `<entity>_db_session`, not
 `db_session` — so it cannot shadow the global fixture for the whole directory. The same applies to
 a pair of independent sessions on one engine, which is how a test proves that concurrent writes
 raise `StaleDataError`.
