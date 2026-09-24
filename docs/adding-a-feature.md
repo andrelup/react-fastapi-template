@@ -155,6 +155,13 @@ needs three.
 total to build the paginated response, and asking for it in a second call would mean a second query
 against a table that may have moved underneath.
 
+**Decide where the pagination arithmetic lives, and say so.** `search` above takes a pre-computed
+`offset` and lets the router turn `page` into it. `CollectionRepository.find_all(page, page_size)`
+does the opposite and takes the page itself. Both are in the repo, neither is wrong, and the
+asymmetry reads as an accident when you meet the second one — it is not, it is what happens when two
+entities are written at two different times by following this guide. Pick one for a new port and
+make it match its siblings.
+
 ## 3. The exceptions — and their entry in `_STATUS_CODES`
 
 Two edits, and **the second one is the step everybody forgets.**
@@ -543,12 +550,44 @@ version bump — before `flag_modified` forces a second. A plain rename with tag
 advances the version by two, so the client's next write is stale against a version it never saw and
 the 409 looks like a phantom concurrent editor.
 
+**Two link collections in one `save`, still one `flag_modified`.** An item owns both `tags` and
+`collections`, and the pattern does not survive being repeated once per collection. Both
+reconciliations have to run inside the **same** `no_autoflush` block, and the flag has to fire
+**once**, guarded by the union of the two results:
+
+```python
+with self._session.no_autoflush:
+    tags_changed = await self._reconcile_tags(item_orm, item.tag_names)
+    collections_changed = await self._reconcile_collections(item_orm, item.collections)
+if item.id is not None and (tags_changed or collections_changed):
+    attributes.flag_modified(item_orm, "name")
+```
+
+Two independently guarded calls are two extra UPDATEs in the same flush — the same off-by-one on
+`version` the guards above exist to prevent, arriving through a different door as soon as a second
+link collection appears.
+
+Note also what `_reconcile_collections` does **not** do. Tags are resolved by natural key and
+created on demand; collections are resolved by id and must already exist, because creating one is an
+ADMIN privilege that the item's owner does not have. The service validates the ids before the
+repository ever sees them, so a plain `session.get(CollectionORM, id)` is enough here and a
+get-or-create would quietly grant a permission the authorization matrix withholds.
+
 The rest of the query and mapping conventions — `scalar_one_or_none`, unit-of-work updates,
 never a bulk `update()`, no raw SQL — are in
 [backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md) §4 and §5. Do not reinvent them
 here.
 
 ## 7. The migration
+
+**First check whether you need one at all.** This step reads as unconditional and is not: a table
+may already exist, created with the catalogue's foundations long before the slice that finally uses
+it. `collections` and `item_collections` were both in the initial revision by the time the
+`Collection` slice was written, so the step was to *prove* the diff was empty — run
+`alembic revision --autogenerate`, read the generated file, confirm both `upgrade()` and
+`downgrade()` bodies are just `pass`, and delete it. An autogenerate run you throw away is a
+legitimate outcome here, and a much better one than a redundant revision nobody can safely
+downgrade.
 
 `ItemORM` already has a migration (the single initial revision). For a new entity:
 
@@ -655,6 +694,17 @@ Three shapes, three reasons:
 
 `ItemPageResponse` uses `page_size` in snake_case, like every other field on the wire. The SPA maps
 it to `pageSize`; that is the frontend's job, not the API's.
+
+Mind the width while you are in here. Every snippet in this guide is meant to be copied verbatim, so
+it has to pass `ruff check` as written — and `line-length = 100` is the limit that catches you, not
+the obvious ones. The `version` field above is the shape that overruns first: a `Field(...)` with a
+`description` wants to be one line and is two characters too long as one.
+
+A read that needs more than the base response gets **its own schema**, not an optional field bolted
+onto the shared one. `GET /items/{id}` returns an `ItemDetailResponse` — `ItemResponse` plus the
+collections the item belongs to — while the two listing endpoints keep returning the plain
+`ItemResponse`. Widening the shared schema instead would put a field on every list row that only the
+detail screen reads, and every existing client and test mock would have to grow it.
 
 ## 9. The router — thin, and mind the route order
 
@@ -903,6 +953,16 @@ app.include_router(item_router)
 `main.py` must not trigger a database connection or any other side effect at import time. Adding a
 router is safe; adding a module-level query is not.
 
+**Wiring an adapter that does not exist yet takes the whole test suite down, not just its own tier.**
+The inside-out order above tempts you to leave the repository for later — the unit tests talk to
+fakes, after all, so surely they still run. They do not. `tests/conftest.py` imports `src.main.app`
+at module level for the `async_client` fixture, that import pulls in this file, and pytest collects
+the root `conftest.py` for **any** subset of the suite. While one provider's module is missing,
+`pytest tests/unit` dies at collection with a `ModuleNotFoundError`, and so does every unrelated
+suite that was green a minute ago. The dependency rule orders what you *write*; it does not order
+what you can *run*. Either write step 6 before this step, or expect the suite to be red in between
+and do not go hunting for the cause.
+
 ## 11–13. The three test tiers
 
 Full copy-paste templates are in [backend-testing.md](./backend-testing.md) §6. What follows is
@@ -978,8 +1038,11 @@ unit tier silently stops covering the one failure mode it exists for. The real r
 have this problem because `_to_domain` builds a fresh `Item` on every read — a fake that honours the
 same contract has to do the same.
 
-```python
-```
+**A fake gets its own module in `tests/fakes/` the moment it has a second consumer**, and that can
+happen in the very PR that introduces it. `FakeCollectionRepository` was born with two, because
+`ItemService` takes a `CollectionRepository` to resolve membership: the collection's own service
+test needs it and the item's does too. A use case that crosses two entities creates the second
+consumer on day one, so do not assume the promotion is always a later refactor.
 
 Then one test per cell of the authorization matrix, named
 `test_<method>_<scenario>_<expected_result>`:
@@ -1039,6 +1102,14 @@ re-reading the row. What keeps `first` and `second` independent is `_to_domain`,
 per request — and here it is `set_committed_value` doing the work. Either way the assertion holds.
 
 The `items` table must exist first: `make migrate` before the integration suite.
+
+**"Reconcile, do not recreate" cannot be asserted directly, so assert it the way the suite already
+does.** An association table like `item_tags` or `item_collections` has nothing but its two
+composite-primary-key foreign keys — no surrogate id, no timestamp, nothing whose identity would
+survive a delete-and-reinsert and let you prove the surviving rows were never touched. The invariant
+is pinned indirectly, as `test_save_keeps_the_tags_that_stay` pins it: perform an add and a remove
+in the same save, then assert the resulting membership set. Worth knowing before you go looking for
+the direct test, because it does not exist and cannot.
 
 ### API — the matrix over HTTP
 
@@ -1236,6 +1307,14 @@ captured values are invisible to the `JSON.stringify(args)` comparison that deci
 so the screen silently stops reloading when they change. Every value the request depends on has to
 travel through `args`.
 
+**The failure's status code survives the trip; the message alone does not.** `useApi` exposes
+`status: number | null` next to `data`, `isLoading` and `error`, reset on every new request and
+filled from the `ApiError` it catches. A screen that has to tell a 404 from a server error — a
+detail screen showing `NotFoundState` for the first and `ServerErrorState` for the second — branches
+on `status`, never on the text of `error`. Note the `?? null` when filling it: `ApiError.status` is
+typed `number | undefined`, and every other field in that state object deliberately uses `null` for
+"nothing yet", so a bare assignment would leak an `undefined` into it.
+
 ## 17. Components and the public contract
 
 Feature components live in `src/features/example/items/components/` and are built **only** from the
@@ -1248,6 +1327,32 @@ binding: a screen may not use anything the catalogue does not show with its real
 primitive is missing, it goes through the procedure in
 [frontend-ui-components.md](./frontend-ui-components.md) — take it from shadcn/ui, adapt it to the
 tokens, add it to the catalogue, test it — **before** any screen uses it.
+
+**Give "nothing yet" its own branch, or the screen flashes an error it was never in.** The obvious
+state machine is `if (isLoading) …; if (status === 404) …; if (error || !item) return
+<ServerErrorState/>`, and that last condition is wrong. On the render *before* `useApiOnMount`'s
+effect fires, `isLoading` is still its initial `false` and the data is still `null`, so `!item`
+holds and the screen renders a server error for a frame. Put the no-data-no-error case in its own
+branch that renders nothing, **after** the `error` check rather than folded into it. `ItemsCatalog`
+never hits this because it guards its empty states with `!isLoading && !error && data` — it never
+treats "no data" as a failure at all.
+
+**A responsive action bar puts the same button in the DOM twice, and tests have to cope.** A detail
+screen shows an inline action row (`hidden md:flex`) and repeats those actions inside
+`MobileActionBar` (`md:hidden`). jsdom has no layout engine, so both are always present and
+`getByRole('button', { name: 'Eliminar' })` throws on finding two. The answer is not a
+`getByTestId` escape hatch: wrap each row in its own `role="group"` with a distinguishing
+`aria-label` — "Acciones del artículo" and "Acciones del artículo (móvil)" — and scope the query with
+`within(screen.getByRole('group', { name: … }))`. A fixed action bar with no landmark is a real
+accessibility gap, so this pays for itself twice. Remember the bar is fixed above the tab bar, so
+the screen reserves its own bottom padding on top of `PageContainer`'s.
+
+**A filter whose options have no endpoint ships a static list, marked as such.** The category
+`Select` needs a list of categories and no route returns one, so the screen hard-codes it with an
+inline comment saying it is a placeholder. That is a defensible answer rather than a documented one
+— neither this guide nor [frontend-architecture.md](./frontend-architecture.md) says what should
+happen — so keep the comment, and treat the second screen that needs the same list as the signal to
+decide properly.
 
 Then `src/features/example/items/index.ts`, the entire public surface:
 
@@ -1323,6 +1428,27 @@ There is no shared render helper on purpose: each test file declares its own `re
 whatever providers it needs. Cover the listing, the search, the pagination and each of the three
 states — `EmptyState`, `NoResultsState`, `ServerErrorState`.
 
+**When a screen both requires a role and fetches its own data, key the mock on the path.**
+`AuthProvider` calls `/auth/me` to rehydrate the session at the same time the screen's hook calls
+its own endpoint, and both drain the same `apiClient.get` mock. Chaining
+`mockResolvedValueOnce` — the pattern every earlier test here uses, because nothing before needed
+both at once — hands whichever call resolves first the wrong payload, non-deterministically. One
+`mockImplementation` that switches on the requested URL fixes it outright, and gated content is then
+asserted with `findBy*` rather than `getBy*`:
+
+```ts
+vi.mocked(apiClient.get).mockImplementation((url: string) =>
+  url.startsWith('/auth/me') ? Promise.resolve(rawUser) : Promise.resolve(rawItem),
+);
+```
+
+**Giving a component a router dependency breaks its siblings' tests.** The moment a component gains
+a `<Link>`, a `useParams` or a `useNavigate`, every test file that renders it needs a
+`MemoryRouter` — including the ones testing something else entirely that happened to render it
+bare. That is the cost of the no-shared-render-helper rule above, and it is paid by hand. Expect it
+when you wire a listing to a new detail route, and update those files in the same commit rather than
+discovering them when the suite goes red.
+
 ```bash
 npm --prefix frontend run lint
 npm --prefix frontend run test
@@ -1387,167 +1513,3 @@ reference example code from template code, you are adding a seventh step.
 - [ ] No colour outside the tokens; no component used that is not in `/components-ui`.
 - [ ] `make lint` and `make test` pass. Conventional commit with a scope. PR against `main` with
       `Closes #<n>`.
-
----
-
-## Corrections from real use
-
-This guide was written **before** the features it describes, against an empty repository, so that it
-could not simply narrate code that already existed. Anything that had to be improvised while
-following it is a bug in the guide, not in the implementation.
-
-Record those corrections here as the sample catalogue is rebuilt — the backend slices (issues #36 and
-#37) and the screens (issues #39 to #43).
-
-### From #36 — the Item backend slice
-
-**The guide was missing an endpoint the SPA already calls.** Step 9 showed `/items/search` and the
-four CRUD routes, but not the plain `GET /items` listing that `items-api.ts` uses whenever the search
-box is empty. Following the guide literally produced a backend the catalogue screen could only talk
-to while someone was typing. Step 9 now shows both, sharing a `_page` helper, and says why they are
-two endpoints rather than one.
-
-**`flag_modified` as written bumped the version twice, and once on insert.** Step 6 called it
-unconditionally at the end of `_reconcile_tags`. Two separate failures came out of that, both of them
-an off-by-one on `version`, which is the one field where an off-by-one turns into a 409 for the next
-caller:
-
-- On an INSERT the row is already being written, so the extra flag appends a second UPDATE to the
-  same flush and a new item with tags is born at version 2.
-- On an UPDATE, `_get_or_create_tag` runs a SELECT, whose autoflush writes the scalar changes as
-  their own UPDATE *before* the flag forces another — a plain rename with tags advanced the version
-  by two.
-
-Step 6 now returns a `tags_changed` flag from `_reconcile_tags`, guards the call with
-`item.id is not None and tags_changed`, and wraps the reconciliation in `no_autoflush` so the whole
-save is a single flush. Two integration tests pin each half down.
-
-**The unit fake could not fail.** Step 11's `FakeItemRepository` returned its stored instances, so
-`ItemService.update` mutated the store directly and `save` compared an object's version with itself.
-The stale-version test passed by reporting "DID NOT RAISE" — exactly the silence
-[backend-testing.md](./backend-testing.md) §3 warns about, arriving through the fake the guide itself
-supplied. The fake now hands out copies, like the real `_to_domain` does.
-
-**API tests that write need a real user row.** The step 13 snippet authenticates as an invented
-`User(id=1, ...)`, which is right for the 401/403 cases it illustrates but fails the `items.owner_id`
-foreign key on anything that reaches the database: the 201 test came back 409 from the
-`IntegrityError` handler. Step 13 now says when the user has to be inserted for real and how.
-
-**And one line simply did not lint.** The `version` field in step 8 was 102 characters, two over
-`line-length = 100`. Snippets in this guide are copied verbatim; they have to pass `ruff check` as
-written.
-
-### From #39 — the items feature and the catalogue screen
-
-**The hook step was wrong, and the guide now says why.** Step 16 originally passed the API function
-straight to `useApiOnMount`. That only works while a screen reads from exactly one endpoint. The
-catalogue reads from two — `/items` for the plain listing and `/items/search` for a query — and the
-obvious fix, a closure that captures the state and takes fewer parameters, breaks `TArgs` inference
-*and* hides the captured values from the refetch comparison. Step 16 now shows the fixed-arity
-wrapper and explains the failure mode.
-
-**A filter whose options have no backend source is not covered anywhere.** The category `Select`
-needs a list of categories; there is no endpoint that returns one. The screen ships a static list
-with an inline comment marking it as a placeholder. That is a reasonable answer, but it was an
-invention, not a documented one — neither this guide nor
-[frontend-architecture.md](./frontend-architecture.md) says what to do. Worth deciding properly when
-a second screen needs it.
-
-**Giving a component a router dependency breaks its siblings' tests.** Adding a `<Link>` to
-`HomePage` broke `HomePage.test.tsx`, which rendered it without a `MemoryRouter`. That is the cost of
-the deliberate "no shared render helper" rule in
-[frontend-testing.md](./frontend-testing.md): when a component gains a provider requirement, every
-test file that renders it has to be updated by hand. Expected, but worth knowing before you start
-rather than after the suite goes red.
-
-### From #40 — the item detail screen
-
-**`useApi`'s `error` string alone cannot drive a 404 vs. 500 branch, and the guide never said so.**
-Nothing before this issue needed to tell the two apart — the catalogue screen only ever shows
-`ServerErrorState`. The detail screen needs `NotFoundState` for a 404 and `ServerErrorState` for
-everything else, which means the *status code* has to survive the trip through `useApi`, not just
-the flattened message. `UseApiState` now carries `status: number | null`, reset on every new
-request and filled from `err.status ?? null` — the `?? null` matters because `ApiError.status` is
-typed `number | undefined`, not `number | null`, so a bare `err.status` would have leaked
-`undefined` into state that every other field in `UseApiState` deliberately keeps as `null`.
-`useApiOnMount` passes it straight through.
-
-**A naive loading/error/data branch flashes a false error for one tick.** The obvious version of the
-screen's state machine is `if (isLoading) …; if (status === 404) …; if (error || !item) return
-<ServerErrorState/>`. That last condition is wrong: on the render *before* `useApiOnMount`'s effect
-has fired, `isLoading` is still `false` (its initial value) and `item` is still `null`, so
-`!item` is true and the screen renders a server error for a frame it was never actually in. The fix
-is to give "no data and no error yet" its own branch that renders nothing, *after* the `error`
-check, not folded into it. `ItemsCatalog` never hit this because it only renders its no-data states
-behind `!isLoading && !error && data`, i.e. it never treats "no data" as an error case at all.
-
-**Two duplicate, identically-named buttons is what a responsive action bar actually is, and nothing
-in the testing guide covers it.** The screen shows a desktop action row (`hidden md:flex`) and the
-same actions again inside `MobileActionBar` (`md:hidden`, built into the component). Both are always
-in the DOM in jsdom — there is no layout engine to make `getByRole('button', { name: 'Eliminar' })`
-resolve to just one of them, so it throws on finding two. The fix is not a `getByTestId` escape
-hatch: each row gets its own `role="group"` with a distinguishing `aria-label` ("Acciones del
-artículo" / "Acciones del artículo (móvil)"), which is a real accessibility improvement — a fixed
-action bar with no landmark is itself a gap — and lets tests scope with
-`within(screen.getByRole('group', { name: … }))`. Any screen that pairs an inline action row with
-`MobileActionBar` will hit this; group-and-scope is the pattern to reach for.
-
-**A screen gated by both a role and its own fetch drains `apiClient.get` from two independent
-callers, and the order between them is not guaranteed.** `AuthProvider` calls `/auth/me` to
-rehydrate the session at the same time `useItem` calls `/items/:id`. Chained
-`mockResolvedValueOnce`/`mockResolvedValueOnce` — the pattern every earlier test in this codebase
-uses, because nothing before this screen fetched its own data *and* required a specific role in the
-same render — hands whichever call resolves first the wrong payload, non-deterministically. Keying a
-single `mockImplementation` on the requested path fixes it outright, and is worth reaching for
-by default whenever a gated screen also fetches: `frontend-testing.md` §5 shows the login-a-role
-pattern but not this interaction, since `RoleRoute.test.tsx` renders static children with no fetch of
-their own.
-
-### From #37 — the Collection backend slice
-
-**A missing repository does not block its own layer — it blocks the whole test session.** The slice
-was built inside out, as this guide prescribes, on the assumption that the unit tier could run
-before the persistence adapter existed: the unit tests talk to fakes, after all. They cannot.
-`tests/conftest.py` imports `src.main.app` at module level for the `async_client` fixture, that
-import pulls in `container.py`, and pytest collects the root `conftest.py` for *any* subset of the
-suite. While one provider's module was missing, `pytest tests/unit` failed at collection with a
-`ModuleNotFoundError`, and so did every pre-existing `Item` suite. The dependency rule orders what
-you *write*; it does not order what you can *run*. Expect the suite to be red from step 10 until
-step 6 lands, or write the adapter before the wiring.
-
-**The `tests/fakes/` promotion fired in the first PR of the entity, not a later one.**
-[backend-testing.md](./backend-testing.md) §3 says a fake moves out of its test file when it gets a
-second consumer. Because `ItemService` now takes a `CollectionRepository` to resolve membership,
-`FakeCollectionRepository` was born with two consumers — `test_collection_service.py` and
-`test_item_service.py` — so the promotion happened immediately. A cross-entity use case creates the
-second consumer on day one.
-
-**Two reconciliations in one `save`, one `flag_modified`.** Step 6 shows a single M:N collection
-being reconciled, and the `### From #36` correction guards `flag_modified` with that one
-reconciliation's `changed` flag. An item that owns *two* M:N collections cannot simply repeat the
-pattern: both reconciliations have to run inside the **same** `no_autoflush` block, and
-`flag_modified` has to fire **once**, guarded by `item.id is not None and (tags_changed or
-collections_changed)`. Two independent guarded calls are two extra UPDATEs in the same flush, which
-is the same off-by-one on `version` that correction was written to prevent — the failure just comes
-back through a different door when a second link collection appears.
-
-**"Reconcile, do not recreate" is not directly observable on a bare association table.**
-`item_collections` has nothing but its two composite-primary-key foreign keys: no surrogate id, no
-timestamp, nothing whose identity survives a delete-and-reinsert. So the invariant cannot be
-asserted at the database-state level. It is pinned the way `test_save_keeps_the_tags_that_stay`
-already pins it — asserting the final membership set after an add plus a remove in the same save.
-Worth saying out loud, because the obvious test to reach for does not exist.
-
-**Not every entity needs a migration.** Step 7 reads as unconditional, but `collections` and
-`item_collections` were already in the initial revision, created with the catalogue's foundations
-long before the slice that uses them. The step for this slice was to *verify* the diff was empty —
-run `alembic revision --autogenerate`, read the generated file, confirm both bodies are `pass`, and
-delete it — not to write anything. An autogenerate run you throw away is a legitimate outcome of
-step 7.
-
-**Read endpoints and write endpoints do not have to paginate alike.**
-`CollectionRepository.find_all(page, page_size)` takes the page, while `ItemRepository.search` takes
-a pre-computed offset and lets the router do the arithmetic. Both are in the repo now and neither is
-wrong, but the guide shows only the second, so the asymmetry reads as an accident. It is not: it is
-what happens when two entities are written by following the same guide at two different times.
-Pick one for a new slice and say why.
