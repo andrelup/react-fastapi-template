@@ -71,15 +71,16 @@ backend/src/
     │
     └── outbound/                    How the domain reaches the world
         ├── persistence/             Base + UserORM, session factory, user_repository
-        │   └── example/             The neutral sample catalogue: item, collection, tag
+        │   └── example/             The removable sample domain (see the-example-domain.md)
         └── security/                BcryptPasswordHasher, JwtTokenService
 ```
 
-That is the whole tree as it stands today, and it is deliberately thin: the template ships the
-authentication slice end to end and nothing else. `persistence/example/` holds only ORM models —
-the sample catalogue's domain models, ports, services, repositories and routers are not written
-yet (issues #36 and #37). Snippets naming `Item` below therefore illustrate the **shape** a slice
-takes; they are not a claim that the file exists.
+That is the whole tree as it stands today. The template ships the authentication slice end to end;
+everything belonging to the removable sample lives under an `example/` folder per layer, and goes
+away with it — see [the example domain](./the-example-domain.md).
+
+Snippets below name a `Review` entity. It does not exist in this repository: it illustrates the
+**shape** a slice takes, so that the rules hold whether or not the sample is still present.
 
 `adapters/outbound/` holds only `persistence/` and `security/`. Nothing else is reserved or stubbed
 there: add a package when you add the adapter that fills it, never before.
@@ -127,14 +128,14 @@ A catalogue port grows a few more methods, but the shape is the same — one met
 case actually does:
 
 ```python
-class ItemRepository(Protocol):
-    async def find_by_id(self, item_id: int) -> Item | None: ...
-    async def find_all(self, skip: int, limit: int) -> list[Item]: ...
+class ReviewRepository(Protocol):
+    async def find_by_id(self, review_id: int) -> Review | None: ...
+    async def find_all(self, skip: int, limit: int) -> list[Review]: ...
     async def count(self) -> int: ...
-    async def search(self, query: str, skip: int, limit: int) -> list[Item]: ...
+    async def search(self, query: str, skip: int, limit: int) -> list[Review]: ...
     async def count_search(self, query: str) -> int: ...
-    async def save(self, item: Item) -> Item: ...
-    async def delete(self, item_id: int) -> None: ...
+    async def save(self, review: Review) -> Review: ...
+    async def delete(self, review_id: int) -> None: ...
 ```
 
 A port declares **only the methods the use cases actually need**. Do not add a method "for later".
@@ -146,31 +147,31 @@ Never let one class serve two layers:
 | Layer | Representation | Example file |
 |---|---|---|
 | Domain | plain `@dataclass` | `domain/models/user.py` |
-| Persistence | SQLAlchemy 2.0 `Mapped[...]` model | `adapters/outbound/persistence/sqlalchemy_models.py`, `adapters/outbound/persistence/example/item.py` |
+| Persistence | SQLAlchemy 2.0 `Mapped[...]` model | `adapters/outbound/persistence/sqlalchemy_models.py`, `adapters/outbound/persistence/example/<entity>.py` |
 | API | Pydantic schema | `adapters/inbound/schemas/auth_schemas.py` |
 
-Mirroring `ItemORM`, the domain side of the sample catalogue would look like this — a dataclass
-that knows nothing about SQLAlchemy:
+Mirroring `ReviewORM`, the domain side of that entity looks like this — a dataclass that knows
+nothing about SQLAlchemy:
 
 ```python
 @dataclass
-class Item:
+class Review:
     name: str
     slug: str
     owner_id: int
     description: str | None = None
     category: str | None = None
-    tag_names: list[str] = field(default_factory=list)
+    label_names: list[str] = field(default_factory=list)
     id: int | None = None
     version: int = 1
 ```
 
 `User` is `@dataclass(frozen=True, slots=True)` because nothing mutates it. A model whose service
-modifies fields before saving — anything carrying a `version`, such as `Item` — has to be mutable.
+modifies fields before saving — anything carrying a `version`, such as `Review` — has to be mutable.
 Follow that criterion for new models: **immutable unless a use case genuinely mutates it**.
 
-The three representations differ on purpose — an `ItemCreate` schema has no `owner_id` (it is
-derived from the JWT), while an `ItemResponse` exposes `version` for optimistic-lock
+The three representations differ on purpose — an `ReviewCreate` schema has no `owner_id` (it is
+derived from the JWT), while an `ReviewResponse` exposes `version` for optimistic-lock
 round-tripping.
 
 Conversion between domain and ORM is done by explicit hand-written helpers in each repository
@@ -182,14 +183,14 @@ A router validates input, calls a service, and wraps the result. That is all. Au
 (editor vs viewer, ownership) are **domain rules** and live in the services:
 
 ```python
-class ItemService:
-    def __init__(self, item_repository: ItemRepository) -> None:
-        self._item_repository = item_repository
+class ReviewService:
+    def __init__(self, review_repository: ReviewRepository) -> None:
+        self._review_repository = review_repository
 
-    async def update(self, item_id: int, changes: Item, current_user: User) -> Item:
-        existing = await self._get_or_raise(item_id)
+    async def update(self, review_id: int, changes: Review, current_user: User) -> Review:
+        existing = await self._get_or_raise(review_id)
         self._ensure_owner(existing, current_user)   # raises ForbiddenError
-        self._validate(changes)                      # raises ItemValidationError
+        self._validate(changes)                      # raises ReviewValidationError
         ...
 ```
 
@@ -214,8 +215,8 @@ _STATUS_CODES: dict[type[DomainError], int] = {
 
 An unmapped `DomainError` subclass falls through to `_DEFAULT_STATUS_CODE = 500` and is logged with
 a stack trace, because reaching it means someone added an exception and forgot this dict. A
-catalogue slice adds its own entries the same way — `ItemNotFoundError: 404`,
-`ItemValidationError: 422`.
+catalogue slice adds its own entries the same way — `ReviewNotFoundError: 404`,
+`ReviewValidationError: 422`.
 
 The same module also handles infrastructure failures that must not leak as a 500:
 `IntegrityError` → 409 (unique-constraint race), `StaleDataError` → 409 (optimistic-lock
@@ -235,7 +236,7 @@ def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> User
 ```
 
 The return annotation is the **port**, not the adapter: that is what stops a router from ever
-naming a concrete class. A catalogue slice adds a `get_item_service` here in the same shape.
+naming a concrete class. A catalogue slice adds a `get_review_service` here in the same shape.
 
 Stateless adapters are cached singletons; per-request adapters are rebuilt from the session
 dependency:
@@ -254,23 +255,44 @@ def get_token_service() -> TokenService:
 
 ## 4. The inbound side in practice
 
-Two routers today: `auth_router` under the `/auth` prefix with the `auth` tag, and the health
-router with no prefix. A catalogue router would add a third under `/items`, and its search endpoint
-would be `GET /items/search` inside that same `item_router.py` — a search endpoint belongs to its
+Two template routers: `auth_router` under the `/auth` prefix with the `auth` tag, and the health
+router with no prefix. A resource router adds its own under `/reviews`, and its search endpoint is
+`GET /reviews/search` inside that same `review_router.py` — a search endpoint belongs to its
 resource's router, never to a separate search router.
+
+**Specific routes are declared before parametrised ones, always.** Starlette matches in declaration
+order and `/{review_id}` happily accepts the literal string `search`. Declare the parametrised route
+first and every search request lands in the wrong handler, fails the path parameter's `int`
+coercion, and comes back as a 422 about a parameter the client never sent. Nothing warns you; the
+tests just go red somewhere confusing.
+
+**One schema per operation, never one schema with optional fields.** That shape is what quietly
+makes a version field optional on update, and with it the optimistic lock becomes opt-in. Create,
+update, read and any sub-resource payload are separate classes:
+
+- **create** accepts no owner — it is derived from the JWT, and accepting one would let any writer
+  publish as somebody else — and no version
+- **update** carries a **mandatory** `version`, so a client that does not round-trip it cannot build
+  a valid request at all
+- **read** exposes `version`, so the client has something to round-trip
+
+When one endpoint needs more than the others — the related rows a detail view shows — give it its
+own response schema inheriting from the base one, rather than widening the shared one. Widening puts
+a field on every list row that only one caller reads, and forces every existing client and test
+double to grow it.
 
 Endpoints receive everything through `Annotated[..., Depends(...)]`:
 
 ```python
-@router.put("/{item_id}", responses=error_responses(401, 403, 404, 409, 422))
+@router.put("/{review_id}", responses=error_responses(401, 403, 404, 409, 422))
 async def update_item(
-    item_id: int,
-    payload: ItemUpdate,
-    item_service: Annotated[ItemService, Depends(get_item_service)],
+    review_id: int,
+    payload: ReviewUpdate,
+    review_service: Annotated[ReviewService, Depends(get_review_service)],
     current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[ItemResponse]:
-    item = await item_service.update(item_id, _to_domain(payload), current_user)
-    return ApiResponse(success=True, data=_to_response(item), error=None)
+) -> ApiResponse[ReviewResponse]:
+    review = await review_service.update(review_id, _to_domain(payload), current_user)
+    return ApiResponse(success=True, data=_to_response(review), error=None)
 ```
 
 **Authentication** is `get_current_user` in `middleware/auth.py`: it resolves the HTTP Bearer
@@ -290,7 +312,7 @@ pins the behaviour. Flag the gap if it matters to the task; never close it on yo
 
 ```json
 { "success": true,  "data": { }, "error": null }
-{ "success": false, "data": null, "error": "Item 42 not found" }
+{ "success": false, "data": null, "error": "Review 42 not found" }
 ```
 
 Document the failure modes with the `error_responses(*status_codes)` helper so Swagger shows the
@@ -315,6 +337,10 @@ CORS middleware → `include_router` for each router. There is no lifespan hook 
 
 ## 6. Recipe — adding a use case end to end
 
+**This is the canonical backend order.** [adding-a-feature.md](./adding-a-feature.md) covers what
+spans both stacks — the API contract, the authorization shape, the cross-layer traps — and points
+here for the backend half rather than repeating it.
+
 Follow this order. It goes from the inside out, which is exactly the order the dependency rule
 implies. Example: adding reviews.
 
@@ -326,8 +352,8 @@ implies. Example: adding reviews.
 4. **`domain/services/review_service.py`** — the use case. Takes the port(s) in the constructor,
    enforces the business and authorization rules, raises domain exceptions.
 5. **`adapters/outbound/persistence/sqlalchemy_models.py`** — `ReviewORM(Base)` with its columns,
-   constraints and indexes. If the entity belongs to the sample catalogue rather than to the
-   template, it goes in its own module under `persistence/example/` and gets re-exported from that
+   constraints and indexes. If the entity belongs to a removable sample rather than to the project
+   itself, it goes in its own module under `persistence/example/` and gets re-exported from that
    package's `__init__.py`.
 6. **Alembic migration** — `alembic revision --autogenerate -m "create reviews table"`, review the
    generated SQL, then `alembic upgrade head`.
