@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ItemsCatalog } from './ItemsCatalog';
 
 vi.mock('@/lib/api-client', () => ({
@@ -26,7 +27,18 @@ const rawItem = (overrides: Partial<Record<string, unknown>> = {}) => ({
   ...overrides,
 });
 
-const renderCatalog = () => render(<ItemsCatalog />);
+// The catalogue now navigates to the item detail route on selection, so it
+// needs a router in its render tree — see the `### From #40` correction in
+// docs/adding-a-feature.md.
+const renderCatalog = () =>
+  render(
+    <MemoryRouter initialEntries={['/items']}>
+      <Routes>
+        <Route path="/items" element={<ItemsCatalog />} />
+        <Route path="/items/:id" element={<h1>Detalle del artículo</h1>} />
+      </Routes>
+    </MemoryRouter>,
+  );
 
 describe('ItemsCatalog', () => {
   afterEach(() => {
@@ -46,6 +58,24 @@ describe('ItemsCatalog', () => {
 
     expect(await screen.findByRole('heading', { name: 'Cámara analógica' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tocadiscos vintage' })).toBeInTheDocument();
+  });
+
+  it('navigates to the item detail route when a card is selected', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.get).mockResolvedValueOnce({
+      items: [rawItem()],
+      total: 1,
+      page: 1,
+      page_size: 20,
+    });
+
+    renderCatalog();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Cámara analógica' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Detalle del artículo' }),
+    ).toBeInTheDocument();
   });
 
   it('searches the catalogue and shows the matching results', async () => {

@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/api';
-import type { Item, ItemFilters } from '../types';
+import type { CollectionRef, Item, ItemDetail, ItemFilters } from '../types';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -25,6 +25,12 @@ interface RawPaginatedItems {
   page_size: number;
 }
 
+/** Raw shape returned by `GET /items/{id}` — `RawItem` plus the collections
+ * the item belongs to. The listing endpoints never send `collections`. */
+interface RawItemDetail extends RawItem {
+  collections: CollectionRef[];
+}
+
 const toItem = (raw: RawItem): Item => ({
   id: raw.id,
   name: raw.name,
@@ -34,6 +40,11 @@ const toItem = (raw: RawItem): Item => ({
   tags: raw.tags,
   ownerId: raw.owner_id,
   version: raw.version,
+});
+
+const toItemDetail = (raw: RawItemDetail): ItemDetail => ({
+  ...toItem(raw),
+  collections: raw.collections,
 });
 
 const toPaginatedItems = (raw: RawPaginatedItems): PaginatedResponse<Item> => ({
@@ -73,4 +84,15 @@ export const searchItems = async (
   const query = buildQueryString({ q: search, page, page_size: pageSize });
   const raw = await apiClient.get<RawPaginatedItems>(`/items/search${query}`);
   return toPaginatedItems(raw);
+};
+
+/** `GET /items/{id}` — a single item plus the collections it belongs to. */
+export const getItem = async (id: number): Promise<ItemDetail> => {
+  const raw = await apiClient.get<RawItemDetail>(`/items/${id}`);
+  return toItemDetail(raw);
+};
+
+/** `DELETE /items/{id}` — ADMIN only; the backend enforces the role. */
+export const deleteItem = async (id: number): Promise<void> => {
+  await apiClient.delete<null>(`/items/${id}`);
 };
