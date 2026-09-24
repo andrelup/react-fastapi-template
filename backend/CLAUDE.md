@@ -97,7 +97,7 @@ layer**, never in one folder cutting across layers: the layer structure is the a
 the other way, which is why `ItemORM` points at `users` with a bare foreign key and no
 `relationship()`. Removing the sample domain is a `rm -rf` of those folders plus the marked import
 in `alembic/env.py`, the `include_router` in `main.py` and the two providers in `container.py` —
-the full list is at the end of `docs/adding-a-feature.md`.
+the full list is in `docs/the-example-domain.md`.
 
 Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are per-repository); the backend hooks filter with `files: ^backend/`.
 
