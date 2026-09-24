@@ -7,6 +7,7 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ItemsPage = lazy(() => import('./pages/ItemsPage'));
+const ItemDetailPage = lazy(() => import('./pages/ItemDetailPage'));
 const UiComponentsPage = lazy(() => import('./pages/UiComponentsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -35,6 +36,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ItemsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/items/:id',
+        element: (
+          <ProtectedRoute>
+            <ItemDetailPage />
           </ProtectedRoute>
         ),
       },

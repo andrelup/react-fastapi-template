@@ -25,7 +25,7 @@ export const useApiOnMount = <TArgs extends unknown[], TResult>(
   args: TArgs,
   { enabled = true }: UseApiOnMountOptions = {},
 ) => {
-  const { data, isLoading, error, execute } = useApi(requestFn);
+  const { data, isLoading, error, status, execute } = useApi(requestFn);
 
   // Refs so the effect below can always call the latest `execute`/`args`
   // without needing either in its dependency array — that is what keeps an
@@ -47,5 +47,5 @@ export const useApiOnMount = <TArgs extends unknown[], TResult>(
 
   const refetch = useCallback(() => executeRef.current(...argsRef.current), []);
 
-  return { data, isLoading, error, refetch };
+  return { data, isLoading, error, status, refetch };
 };
