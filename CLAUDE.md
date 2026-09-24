@@ -32,6 +32,7 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 | Debug a ruff/mypy failure | `docs/backend-code-style.md` |
 | Write backend tests | `docs/backend-testing.md` |
 | Add a log line, or touch the logging config or middleware | `docs/backend-logging.md` |
+| Work on the sample catalogue, or remove it | `docs/the-example-domain.md` |
 
 `docs/README.md` is the index; consult it only if the table above does not resolve which document applies.
 

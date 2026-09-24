@@ -10,7 +10,8 @@ Read the document for the layer you are about to touch **before** writing code.
 
 | Document | Read it when |
 |---|---|
-| [Adding a Feature End to End](./adding-a-feature.md) | Adding a whole domain slice, backend and frontend. The executable walkthrough: domain model → port → service with the authorization → repository → migration → router → per-operation schemas → the three test tiers → frontend feature → route and screen. Also the `example/` folder convention and how to delete the sample domain. |
+| [Adding a Feature End to End](./adding-a-feature.md) | Adding a whole domain slice, backend and frontend. What spans both stacks: the order the two halves are built in, the API contract where they meet, the four authorization shapes, and the traps that only appear when a change crosses a layer. Each stack's own order is in its architecture document. |
+| [The Example Domain](./the-example-domain.md) | Working on the sample catalogue, or removing it. The `example/`-per-layer convention, the one-way dependency it rests on, and the step-by-step deletion procedure. |
 
 The short architecture decisions behind it live in `backend/docs/`:
 [why hexagonal](../backend/docs/por-que-hexagonal.md),
