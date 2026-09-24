@@ -72,7 +72,7 @@ cruza dos entidades, o el **segundo** consumidor del mismo caso de uso.
 
 ## Ver también
 
-- El recorrido ejecutable: [`docs/adding-a-feature.md`](../../docs/adding-a-feature.md)
-- Las reglas en detalle: [`docs/backend-hexagonal-architecture.md`](../../docs/backend-hexagonal-architecture.md)
+- Las reglas en detalle, y el recetario del backend paso a paso: [`docs/backend-hexagonal-architecture.md`](../../docs/backend-hexagonal-architecture.md)
+- Lo que cruza las dos capas — el contrato, los permisos y las trampas: [`docs/adding-a-feature.md`](../../docs/adding-a-feature.md)
 - La versión larga en español: [`arquitectura-hexagonal.md`](./arquitectura-hexagonal.md)
 - [`por-que-protocol-y-no-abc.md`](./por-que-protocol-y-no-abc.md)
