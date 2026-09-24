@@ -43,3 +43,20 @@ class DuplicateSlugError(DomainError):
 
     Translated to HTTP 409 by the error_handler middleware.
     """
+
+
+class CollectionNotFoundError(DomainError):
+    """Raised when the requested catalogue collection does not exist.
+
+    Also raised when `ItemService.set_collections` is given an id that does
+    not resolve to an existing collection.
+
+    Translated to HTTP 404 by the error_handler middleware.
+    """
+
+
+class DuplicateCollectionNameError(DomainError):
+    """Raised when trying to save a collection whose name is already taken.
+
+    Translated to HTTP 409 by the error_handler middleware.
+    """

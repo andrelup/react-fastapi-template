@@ -5,6 +5,8 @@ Plain dataclass, independent of any persistence or web framework.
 
 from dataclasses import dataclass, field
 
+from src.domain.models.example.collection import CollectionRef
+
 
 @dataclass
 class Item:
@@ -25,5 +27,9 @@ class Item:
     # own from the item's point of view: the repository resolves these names
     # to `TagORM` rows.
     tag_names: list[str] = field(default_factory=list)
+    # Collections, unlike tags, are addressed by id — the client resolves an
+    # existing collection through `CollectionRepository`, never creates one
+    # implicitly by naming it. See `ItemService.set_collections`.
+    collections: list[CollectionRef] = field(default_factory=list)
     id: int | None = None
     version: int = 1

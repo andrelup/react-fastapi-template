@@ -68,9 +68,44 @@ class ItemPageResponse(BaseModel):
 
     `page_size` is snake_case like every other field on the wire; mapping it to
     `pageSize` is the SPA's job, not the API's.
+
+    Deliberately still built from `ItemResponse`, without collections: the
+    list endpoints (`GET /items`, `GET /items/search`) keep the lighter
+    shape so existing frontend mocks never break. Only `GET /items/{item_id}`
+    returns `ItemDetailResponse`.
     """
 
     items: list[ItemResponse]
     total: int
     page: int
     page_size: int
+
+
+class CollectionRefResponse(BaseModel):
+    """Lightweight reference to a collection an item belongs to."""
+
+    id: int
+    name: str
+
+
+class ItemDetailResponse(ItemResponse):
+    """`ItemResponse` plus the collections the item belongs to.
+
+    Only `GET /items/{item_id}` returns this shape; the paginated list
+    endpoints keep returning plain `ItemResponse`.
+    """
+
+    collections: list[CollectionRefResponse]
+
+
+class ItemCollectionsUpdate(BaseModel):
+    """Payload for `PUT /items/{item_id}/collections`. `version` is mandatory.
+
+    Membership takes part in the item's own optimistic lock — a stale
+    version returns 409, exactly like `ItemUpdate`.
+    """
+
+    collection_ids: list[int] = Field(default_factory=list, description="Collections to belong to.")
+    version: int = Field(
+        ge=1, description="Version the client last read. A stale value returns 409."
+    )
