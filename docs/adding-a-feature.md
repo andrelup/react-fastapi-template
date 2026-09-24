@@ -1459,3 +1459,52 @@ the deliberate "no shared render helper" rule in
 [frontend-testing.md](./frontend-testing.md): when a component gains a provider requirement, every
 test file that renders it has to be updated by hand. Expected, but worth knowing before you start
 rather than after the suite goes red.
+
+### From #37 — the Collection backend slice
+
+**A missing repository does not block its own layer — it blocks the whole test session.** The slice
+was built inside out, as this guide prescribes, on the assumption that the unit tier could run
+before the persistence adapter existed: the unit tests talk to fakes, after all. They cannot.
+`tests/conftest.py` imports `src.main.app` at module level for the `async_client` fixture, that
+import pulls in `container.py`, and pytest collects the root `conftest.py` for *any* subset of the
+suite. While one provider's module was missing, `pytest tests/unit` failed at collection with a
+`ModuleNotFoundError`, and so did every pre-existing `Item` suite. The dependency rule orders what
+you *write*; it does not order what you can *run*. Expect the suite to be red from step 10 until
+step 6 lands, or write the adapter before the wiring.
+
+**The `tests/fakes/` promotion fired in the first PR of the entity, not a later one.**
+[backend-testing.md](./backend-testing.md) §3 says a fake moves out of its test file when it gets a
+second consumer. Because `ItemService` now takes a `CollectionRepository` to resolve membership,
+`FakeCollectionRepository` was born with two consumers — `test_collection_service.py` and
+`test_item_service.py` — so the promotion happened immediately. A cross-entity use case creates the
+second consumer on day one.
+
+**Two reconciliations in one `save`, one `flag_modified`.** Step 6 shows a single M:N collection
+being reconciled, and the `### From #36` correction guards `flag_modified` with that one
+reconciliation's `changed` flag. An item that owns *two* M:N collections cannot simply repeat the
+pattern: both reconciliations have to run inside the **same** `no_autoflush` block, and
+`flag_modified` has to fire **once**, guarded by `item.id is not None and (tags_changed or
+collections_changed)`. Two independent guarded calls are two extra UPDATEs in the same flush, which
+is the same off-by-one on `version` that correction was written to prevent — the failure just comes
+back through a different door when a second link collection appears.
+
+**"Reconcile, do not recreate" is not directly observable on a bare association table.**
+`item_collections` has nothing but its two composite-primary-key foreign keys: no surrogate id, no
+timestamp, nothing whose identity survives a delete-and-reinsert. So the invariant cannot be
+asserted at the database-state level. It is pinned the way `test_save_keeps_the_tags_that_stay`
+already pins it — asserting the final membership set after an add plus a remove in the same save.
+Worth saying out loud, because the obvious test to reach for does not exist.
+
+**Not every entity needs a migration.** Step 7 reads as unconditional, but `collections` and
+`item_collections` were already in the initial revision, created with the catalogue's foundations
+long before the slice that uses them. The step for this slice was to *verify* the diff was empty —
+run `alembic revision --autogenerate`, read the generated file, confirm both bodies are `pass`, and
+delete it — not to write anything. An autogenerate run you throw away is a legitimate outcome of
+step 7.
+
+**Read endpoints and write endpoints do not have to paginate alike.**
+`CollectionRepository.find_all(page, page_size)` takes the page, while `ItemRepository.search` takes
+a pre-computed offset and lets the router do the arithmetic. Both are in the repo now and neither is
+wrong, but the guide shows only the second, so the asymmetry reads as an accident. It is not: it is
+what happens when two entities are written by following the same guide at two different times.
+Pick one for a new slice and say why.
