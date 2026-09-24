@@ -1,24 +1,31 @@
 # Adding a Feature End to End
 
-The executable walkthrough. It takes one feature — `Item`, the publishable resource of the sample
-catalogue — from an empty repository to a working screen, and shows the actual file you write at
-each step, in the order you write it.
+Adding a domain slice touches both stacks, and each stack already has a document that owns its
+rules. This one owns what falls **between** them: the order the two halves have to be built in, the
+contract where they meet, the authorization shape you have to choose before writing either, and the
+traps that only appear when a change crosses a layer boundary.
 
-This document does **not** re-explain the rules. Those live elsewhere and are linked at each step:
+Read it alongside exactly one or two of these, never all of them:
 
-| For the *why* | Read |
+| For | Read |
 |---|---|
-| The dependency rule, ports, the three representations, error handling | [backend-hexagonal-architecture.md](./backend-hexagonal-architecture.md) |
-| ORM models, sessions, query patterns, optimistic locking, migrations | [backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md) |
-| The three test tiers, fixtures, fakes, copy-paste templates | [backend-testing.md](./backend-testing.md) |
-| Feature layering, routing, data access on the SPA side | [frontend-architecture.md](./frontend-architecture.md) |
-| The component catalogue, tokens, colour and typography policy | [frontend-ui-components.md](./frontend-ui-components.md) |
-| Vitest + React Testing Library conventions | [frontend-testing.md](./frontend-testing.md) |
+| The backend order, layer by layer | [backend-hexagonal-architecture.md](./backend-hexagonal-architecture.md) §6 |
+| ORM models, relationships, queries, optimistic locking, migrations | [backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md) |
+| The three backend test tiers, fixtures, fakes | [backend-testing.md](./backend-testing.md) |
+| The frontend order, feature layout, routing, data access | [frontend-architecture.md](./frontend-architecture.md) §7 |
+| The component catalogue, tokens, responsive rules | [frontend-ui-components.md](./frontend-ui-components.md) |
+| Vitest and React Testing Library conventions | [frontend-testing.md](./frontend-testing.md) |
+| Structured logging | [backend-logging.md](./backend-logging.md) |
 
-The short architecture decisions behind the shape of all this are in `backend/docs/`:
+The decisions behind the shape of all this are in `backend/docs/`:
 [why hexagonal](../backend/docs/por-que-hexagonal.md),
 [why `Protocol` and not ABC](../backend/docs/por-que-protocol-y-no-abc.md),
 [why the `ApiResponse` envelope](../backend/docs/por-que-el-envelope-apiresponse.md).
+
+Examples below use a neutral `Review` / `Topic` / `Label` / `Comment` vocabulary. They name shapes,
+not files — none of them exists in this repository, and nothing here depends on the sample domain
+being present. For that sample and how to delete it, see
+[the-example-domain.md](./the-example-domain.md).
 
 ---
 
@@ -31,1483 +38,297 @@ make dev-back                       # backend on the host, port 8000
 make dev-front                      # frontend on the host, port 3000
 ```
 
-Read the one or two documents from the table above that match what you are about to touch. Not all
-of them — that only burns context.
+Then decide two things, in this order, **before writing any code**. Both are cheap now and
+expensive later:
 
-## The shape of a vertical slice
-
-Nineteen steps, inside out. The order is not stylistic: it is what the dependency rule forces. You
-can never write a step before the thing it depends on exists.
-
-| # | Layer | File |
-|---|---|---|
-| 1 | Domain | `src/domain/models/example/item.py` |
-| 2 | Domain | `src/domain/ports/example/repositories.py` |
-| 3 | Domain | `src/domain/exceptions.py` **+** `middleware/error_handler.py` |
-| 4 | Domain | `src/domain/services/example/item_service.py` |
-| 5 | Persistence | `src/adapters/outbound/persistence/example/item.py` (already exists) |
-| 6 | Persistence | `src/adapters/outbound/persistence/example/item_repository.py` |
-| 7 | Persistence | Alembic revision |
-| 8 | API | `src/adapters/inbound/schemas/example/item_schemas.py` |
-| 9 | API | `src/adapters/inbound/api/example/item_router.py` |
-| 10 | Wiring | `src/config/container.py` **+** `src/main.py` |
-| 11–13 | Tests | unit → integration → API |
-| 14 | Frontend | `src/features/example/items/types/index.ts` |
-| 15 | Frontend | `src/features/example/items/api/items-api.ts` |
-| 16 | Frontend | `src/features/example/items/hooks/useItems.ts` |
-| 17 | Frontend | `src/features/example/items/components/*.tsx` + `index.ts` |
-| 18 | Frontend | `src/app/pages/ItemsPage.tsx`, `app/router.tsx`, nav |
-| 19 | Frontend | Component and hook tests |
-
-The three representations of `Item` — dataclass, ORM model, Pydantic schema — are **three different
-classes on purpose**. If you find yourself reusing one across layers, stop and re-read Rule 3 of
-[backend-hexagonal-architecture.md](./backend-hexagonal-architecture.md).
+1. **Which authorization shape the entity has** — §2. It determines the service's signature, the
+   status codes the API can return, and which actions the UI is allowed to offer.
+2. **What crosses the wire** — §3. It is the only thing both halves have to agree on, and the only
+   thing that makes them buildable in parallel.
 
 ---
 
-# Backend
+## 1. The order, and why the two halves meet in the middle
 
-## 1. The domain model
+Each stack builds inside out, and each has its own ordered recipe:
 
-`src/domain/models/example/item.py`. A plain dataclass. No SQLAlchemy, no Pydantic, no FastAPI — if
-you need an import from any of those three, you are in the wrong file.
+- **Backend** — [backend-hexagonal-architecture.md](./backend-hexagonal-architecture.md) §6, the
+  canonical thirteen steps: domain model → exceptions → port → service → ORM model → migration →
+  repository → schemas → wiring → router → error mapping → `include_router` → tests.
+- **Frontend** — [frontend-architecture.md](./frontend-architecture.md) §7: types → API module →
+  hook → components → `index.ts` → page, route and navigation → tests.
+
+Neither recipe mentions the other, because the dependency between them is not an import — it is the
+**API contract**. The frontend's types and API module are written against a response shape; until
+that shape is settled, the frontend has nothing to be correct against.
+
+That leaves two ways to sequence the work, and you have to pick one deliberately:
+
+- **Sequentially** — finish and merge the backend, then write the frontend against the real
+  endpoints. No risk of drift. This is the default.
+- **In parallel** — freeze the contract in writing first, then build both halves against it. Worth
+  it when the two halves are large enough to be separate branches. The cost of drift, if the backend
+  ends up returning something else, is the frontend's types plus its test mocks — small, but real,
+  so freeze the shape explicitly rather than assuming it.
+
+### The trap the order creates
+
+The inside-out order tempts you to wire the composition root before the adapter it points at
+exists — the service and its port are written, the repository is not, and the unit tests only talk
+to fakes anyway.
+
+They will not run. `tests/conftest.py` imports the FastAPI app at module level for its HTTP client
+fixture, that import pulls in `config/container.py`, and pytest collects the root `conftest.py` for
+**any** subset of the suite. A provider pointing at a module that does not exist yet therefore fails
+collection for the whole session — including every unrelated suite that was green a minute ago.
+
+The dependency rule orders what you **write**. It does not order what you can **run**. Either write
+the repository before the wiring, or expect a red suite in between and do not go hunting for the
+cause.
+
+---
+
+## 2. Choosing the authorization shape
+
+Authorization lives in the domain service — never in the router, never in a FastAPI dependency, and
+never only in the UI. The reasoning is Rule 4 of
+[backend-hexagonal-architecture.md](./backend-hexagonal-architecture.md); what follows is the
+choice that document leaves to you.
+
+Roles are ranked, and the rank table is the one place the ordering is defined
+(`src/domain/models/user.py`, template code that survives any deletion):
 
 ```python
-"""Item domain model — the publishable resource of the sample catalogue.
+_ROLE_RANK: dict[UserRole, int] = {UserRole.VIEWER: 0, UserRole.EDITOR: 1, UserRole.ADMIN: 2}
 
-Plain dataclass, independent of any persistence or web framework.
-"""
-
-from dataclasses import dataclass, field
-
-
-@dataclass
-class Item:
-    """An item in the catalogue, owned by the editor who created it."""
-
-    name: str
-    slug: str
-    owner_id: int
-    description: str | None = None
-    category: str | None = None
-    tag_names: list[str] = field(default_factory=list)
-    id: int | None = None
-    version: int = 1
+def has_role(user: User, minimum: UserRole) -> bool:
+    """True when `user` holds `minimum` or a role above it in the hierarchy."""
 ```
 
-Two decisions worth naming, because both are easy to get wrong:
+`has_role` is the only way to ask about a role. Everything below is built from it — as private
+helpers on the service, because the rule is part of the use case, not a shared utility.
 
-- **`id: int | None = None` goes last**, and `None` means "not persisted yet". The repository's
-  `save()` reads it to decide between an INSERT and an UPDATE.
-- **Not `frozen=True`.** `User` is `@dataclass(frozen=True, slots=True)` because nothing mutates it.
-  `Item` carries a `version` that the update use case rolls forward before saving, so it has to be
-  mutable. The criterion is *immutable unless a use case genuinely mutates it* — not a default you
-  apply everywhere.
+### Shape A — role minimum
 
-`tag_names: list[str]` rather than a `list[Tag]`: tags are a detail of how an item is labelled, not
-an aggregate of their own from the item's point of view. The repository resolves the names to
-`TagORM` rows.
-
-## 2. The port
-
-`src/domain/ports/example/repositories.py`. A `typing.Protocol`, structurally typed — the
-repository that implements it **never inherits from it**.
+The entity has no owner and every caller at or above a rank may act. One guard covers it:
 
 ```python
-"""Persistence ports for the sample catalogue."""
-
-from typing import Protocol
-
-from src.domain.models.example.item import Item
-
-
-class ItemRepository(Protocol):
-    """Persistence contract for `Item` aggregates."""
-
-    async def find_by_id(self, item_id: int) -> Item | None:
-        """Return the item with the given id, or None if it does not exist."""
-        ...
-
-    async def find_by_slug(self, slug: str) -> Item | None:
-        """Return the item with the given slug, or None if it does not exist."""
-        ...
-
-    async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
-    ) -> tuple[list[Item], int]:
-        """Return a page of matching items and the total number of matches."""
-        ...
-
-    async def save(self, item: Item) -> Item:
-        """Persist an item, inserting it if `item.id` is None or updating it otherwise."""
-        ...
-
-    async def delete(self, item_id: int) -> None:
-        """Remove the item with the given id. A missing row is a no-op."""
-        ...
-```
-
-**Declare only the methods the use cases actually call.** A port is not a mirror of the ORM's
-capabilities; it is the domain's shopping list. `UserRepository` has three methods because auth
-needs three.
-
-`search` returns `tuple[list[Item], int]` — the page and the total — because the router needs the
-total to build the paginated response, and asking for it in a second call would mean a second query
-against a table that may have moved underneath.
-
-**Decide where the pagination arithmetic lives, and say so.** `search` above takes a pre-computed
-`offset` and lets the router turn `page` into it. `CollectionRepository.find_all(page, page_size)`
-does the opposite and takes the page itself. Both are in the repo, neither is wrong, and the
-asymmetry reads as an accident when you meet the second one — it is not, it is what happens when two
-entities are written at two different times by following this guide. Pick one for a new port and
-make it match its siblings.
-
-## 3. The exceptions — and their entry in `_STATUS_CODES`
-
-Two edits, and **the second one is the step everybody forgets.**
-
-First, `src/domain/exceptions.py`:
-
-```python
-class ItemNotFoundError(DomainError):
-    """Raised when the requested item does not exist."""
-
-
-class DuplicateSlugError(DomainError):
-    """Raised when trying to save an item whose slug is already taken."""
-```
-
-`ForbiddenError` already exists and covers both role and ownership refusals — do not add a third one
-for "not the owner". Read its docstring before inventing a new exception.
-
-Second, `src/adapters/inbound/middleware/error_handler.py`:
-
-```python
-_STATUS_CODES: dict[type[DomainError], int] = {
-    UnauthorizedError: 401,
-    InvalidCredentialsError: 401,
-    ForbiddenError: 403,
-    ItemNotFoundError: 404,        # new
-    DuplicateEmailError: 409,
-    DuplicateSlugError: 409,       # new
-}
-```
-
-**If you skip this, the exception still works — it just becomes a 500.** `_DEFAULT_STATUS_CODE` is
-500, and `_handle_domain_error` logs anything at or above 500 at `error` level with a traceback. So
-the symptom is not a crash; it is a correct domain rule surfacing as a server error, with a stack
-trace in the logs and a client that cannot tell "you may not do that" from "we are broken". Add the
-entry in the same commit as the exception.
-
-The handler already covers two failures you do **not** map yourself: `IntegrityError` → 409 and
-SQLAlchemy's `StaleDataError` → 409. That second one is the optimistic lock firing; step 6 is what
-makes it fire.
-
-## 4. The domain service — where authorization lives
-
-`src/domain/services/example/item_service.py`. This is the file that makes the feature a feature.
-
-```python
-"""Item use cases: search, creation, update and deletion, with authorization."""
-
-from src.domain.exceptions import DuplicateSlugError, ForbiddenError, ItemNotFoundError
-from src.domain.models.example.item import Item
-from src.domain.models.user import User, UserRole, has_role
-from src.domain.ports.example.repositories import ItemRepository
-
-
-class ItemService:
-    """Coordinates the item use cases and enforces the catalogue's authorization matrix."""
-
-    def __init__(self, item_repository: ItemRepository) -> None:
-        self._item_repository = item_repository
-
-    async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
-    ) -> tuple[list[Item], int]:
-        """Return a page of items. Every authenticated role may read the catalogue."""
-        return await self._item_repository.search(query, category, offset, limit)
-
-    async def get(self, item_id: int) -> Item:
-        """Return one item.
-
-        Raises:
-            ItemNotFoundError: if no item has that id.
-        """
-        return await self._get_or_raise(item_id)
-
-    async def create(self, item: Item, current_user: User) -> Item:
-        """Create an item owned by `current_user`.
-
-        Raises:
-            ForbiddenError: if the user is below EDITOR.
-            DuplicateSlugError: if the slug is already taken.
-        """
-        self._ensure_at_least(current_user, UserRole.EDITOR)
-        await self._ensure_slug_is_free(item.slug)
-        if current_user.id is None:
-            raise ValueError("The authenticated user must be persisted")
-        item.owner_id = current_user.id
-        item.version = 1
-        return await self._item_repository.save(item)
-
-    async def update(self, item_id: int, changes: Item, current_user: User) -> Item:
-        """Apply `changes` to an existing item.
-
-        `changes.version` is the version the client read. A mismatch surfaces as
-        SQLAlchemy's `StaleDataError`, translated to HTTP 409 by the error handler.
-
-        Raises:
-            ItemNotFoundError: if no item has that id.
-            ForbiddenError: if the user is neither an ADMIN nor the item's owner.
-            DuplicateSlugError: if the new slug belongs to a different item.
-        """
-        existing = await self._get_or_raise(item_id)
-        self._ensure_may_write(existing, current_user)
-        if changes.slug != existing.slug:
-            await self._ensure_slug_is_free(changes.slug)
-
-        existing.name = changes.name
-        existing.slug = changes.slug
-        existing.description = changes.description
-        existing.category = changes.category
-        existing.tag_names = changes.tag_names
-        existing.version = changes.version
-        return await self._item_repository.save(existing)
-
-    async def delete(self, item_id: int, current_user: User) -> None:
-        """Delete an item. Deleting is an ADMIN privilege across the whole system.
-
-        Raises:
-            ItemNotFoundError: if no item has that id.
-            ForbiddenError: if the user is not an ADMIN.
-        """
-        await self._get_or_raise(item_id)
-        self._ensure_at_least(current_user, UserRole.ADMIN)
-        await self._item_repository.delete(item_id)
-
-    async def _get_or_raise(self, item_id: int) -> Item:
-        item = await self._item_repository.find_by_id(item_id)
-        if item is None:
-            raise ItemNotFoundError(f"Item {item_id} not found")
-        return item
-
-    async def _ensure_slug_is_free(self, slug: str) -> None:
-        if await self._item_repository.find_by_slug(slug) is not None:
-            raise DuplicateSlugError(f"Slug already in use: {slug}")
-
-    @staticmethod
-    def _ensure_at_least(user: User, minimum: UserRole) -> None:
-        if not has_role(user, minimum):
-            raise ForbiddenError("You do not have permission to perform this action")
-
-    @staticmethod
-    def _ensure_may_write(item: Item, user: User) -> None:
-        """ADMIN edits anything; EDITOR edits only what it owns; VIEWER edits nothing."""
-        if has_role(user, UserRole.ADMIN):
-            return
-        if has_role(user, UserRole.EDITOR) and item.owner_id == user.id:
-            return
+@staticmethod
+def _ensure_at_least(user: User, minimum: UserRole) -> None:
+    if not has_role(user, minimum):
         raise ForbiddenError("You do not have permission to perform this action")
 ```
 
-### Why authorization is here and not in the router
+### Shape B — role crossed with ownership
 
-Because it is a business rule, and the router is an adapter. Concretely:
-
-- **It has to be testable without HTTP.** `_ensure_may_write` is covered by a unit test that
-  constructs a `User` and an `Item` and calls the service. No client, no app, no database. If the
-  rule lived in a FastAPI dependency, every permission test would need the whole ASGI stack.
-- **It has to hold for every caller.** The day a CLI command, a background job or a second router
-  reaches the same use case, the rule comes with it. A rule stapled to one endpoint protects one
-  endpoint.
-- **The router cannot express it anyway.** "EDITOR, but only its own items" needs the item loaded.
-  By the time you have loaded the item, you are doing the use case.
-
-The dividing line is sharp, and `middleware/auth.py` is the other side of it: `get_current_user`
-answers **who** the caller is — it resolves the bearer token and raises `UnauthorizedError` when
-there is none. It never answers **what they may do**. Role and ownership belong here.
-
-The two failure modes are deliberately different HTTP codes: no credentials is a 401 from the
-middleware, wrong role or wrong owner is a 403 from this service.
-
-Note the ordering inside `delete`: the existence check runs **before** the role check, so an ADMIN
-and a VIEWER both get 404 for an item that does not exist. Pick an order and be consistent across
-the service; mixed orders produce an API whose error code leaks whether a row exists.
-
-### Constructor injection style
-
-`AuthService` is a `@dataclass` holding its three ports. `ItemService` takes a single port and reads
-better with an explicit `__init__`. Both are constructor injection and both are fine — what is not
-negotiable is that you inject the **port**, never `SqlAlchemyItemRepository`.
-
-## 5. The ORM model
-
-Already written, in `src/adapters/outbound/persistence/example/item.py`. Read it before writing the
-repository; two of its decisions change what your repository may do.
-
-**The foreign key to `users` has no `relationship()`.** `items.owner_id` is a plain
-`ForeignKey("users.id", ondelete="CASCADE")`. If it had a relationship, `UserORM` — template code —
-would end up referencing the sample domain, and `persistence/example/` would stop being deletable on
-its own. So the repository resolves owners by id, never by navigation.
-
-**`tags` and `collections` are `lazy="selectin"`, and the eager load stops after one hop.** Reaching
-`item_orm.tags[0].name` is fine; reaching `item_orm.tags[0].items` is a lazy load inside async code,
-which raises `MissingGreenlet` at runtime rather than failing a type check. A mapper may read scalar
-columns off the far side of a relationship and never its reverse collection.
-
-**`__mapper_args__ = {"version_id_col": version}`** is what arms the optimistic lock. `CollectionORM`
-has it too; `UserORM` and `TagORM` do not, because nothing edits them concurrently.
-
-New entity instead of an existing one? The ORM model goes in its own module under
-`persistence/example/` (sample domain) or in `persistence/sqlalchemy_models.py` (template domain),
-and the column conventions are in
-[backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md) §2.
-
-## 6. The repository — and the two non-obvious lines
-
-`src/adapters/outbound/persistence/example/item_repository.py`. A plain class that happens to match
-the Protocol. No base class, no `ItemRepository` in its bases.
+The entity records who created it, and an intermediate role may act only on its own rows, while a
+higher role may act on any. This is the shape that **cannot** be expressed in the router: deciding
+it requires the entity loaded, and by then you are already inside the use case.
 
 ```python
-"""SQLAlchemy implementation of the `ItemRepository` port."""
-
-from typing import Any
-
-from sqlalchemy import Select, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import attributes
-
-from src.adapters.outbound.persistence.example.item import ItemORM
-from src.adapters.outbound.persistence.example.tag import TagORM
-from src.domain.models.example.item import Item
-
-
-def _to_domain(item_orm: ItemORM) -> Item:
-    """Map an `ItemORM` row to the framework-agnostic `Item` domain model."""
-    return Item(
-        id=item_orm.id,
-        name=item_orm.name,
-        slug=item_orm.slug,
-        description=item_orm.description,
-        category=item_orm.category,
-        owner_id=item_orm.owner_id,
-        tag_names=[tag.name for tag in item_orm.tags],
-        version=item_orm.version,
-    )
-
-
-def _apply_fields(item_orm: ItemORM, item: Item) -> None:
-    """Copy the mutable scalar fields of `item` onto `item_orm`."""
-    item_orm.name = item.name
-    item_orm.slug = item.slug
-    item_orm.description = item.description
-    item_orm.category = item.category
-    item_orm.owner_id = item.owner_id
-
-
-class SqlAlchemyItemRepository:
-    """Implements `ItemRepository` (see `domain/ports/example/repositories.py`)."""
-
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def find_by_id(self, item_id: int) -> Item | None:
-        item_orm = await self._session.get(ItemORM, item_id)
-        return _to_domain(item_orm) if item_orm is not None else None
-
-    async def find_by_slug(self, slug: str) -> Item | None:
-        result = await self._session.execute(select(ItemORM).where(ItemORM.slug == slug))
-        item_orm = result.scalar_one_or_none()
-        return _to_domain(item_orm) if item_orm is not None else None
-
-    async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
-    ) -> tuple[list[Item], int]:
-        statement = self._filtered(select(ItemORM), query, category)
-        total_statement = self._filtered(select(func.count()).select_from(ItemORM), query, category)
-
-        total = (await self._session.execute(total_statement)).scalar_one()
-        result = await self._session.execute(
-            statement.order_by(ItemORM.name).offset(offset).limit(limit)
-        )
-        return [_to_domain(item_orm) for item_orm in result.scalars().all()], total
-
-    async def save(self, item: Item) -> Item:
-        if item.id is None:
-            item_orm = ItemORM(
-                name=item.name,
-                slug=item.slug,
-                description=item.description,
-                category=item.category,
-                owner_id=item.owner_id,
-            )
-            self._session.add(item_orm)
-        else:
-            existing_item_orm = await self._session.get(ItemORM, item.id)
-            if existing_item_orm is None:
-                raise ValueError(f"Cannot update item {item.id}: it does not exist")
-            # Load-bearing: see the note below.
-            attributes.set_committed_value(existing_item_orm, "version", item.version)
-            _apply_fields(existing_item_orm, item)
-            item_orm = existing_item_orm
-
-        # `no_autoflush`: see the note below.
-        with self._session.no_autoflush:
-            tags_changed = await self._reconcile_tags(item_orm, item.tag_names)
-        if item.id is not None and tags_changed:
-            attributes.flag_modified(item_orm, "name")
-        await self._session.commit()
-        await self._session.refresh(item_orm)
-        return _to_domain(item_orm)
-
-    async def delete(self, item_id: int) -> None:
-        item_orm = await self._session.get(ItemORM, item_id)
-        if item_orm is not None:
-            await self._session.delete(item_orm)
-            await self._session.commit()
-
-    # `tuple[Any, ...]` because this one helper serves both the row query
-    # (`Select[tuple[ItemORM]]`) and the count query (`Select[tuple[int]]`).
-    # Narrowing it to `tuple[ItemORM]` would break the count call site.
-    @staticmethod
-    def _filtered(
-        statement: Select[tuple[Any, ...]], query: str | None, category: str | None
-    ) -> Select[tuple[Any, ...]]:
-        if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(ItemORM.name.ilike(pattern), ItemORM.description.ilike(pattern))
-            )
-        if category:
-            statement = statement.where(ItemORM.category == category)
-        return statement
-
-    async def _reconcile_tags(self, item_orm: ItemORM, tag_names: list[str]) -> bool:
-        """Make `item_orm.tags` match `tag_names`, preserving the links that stay.
-
-        Returns whether any link actually moved — that is what tells `save`
-        the parent row needs forcing so its version advances.
-        """
-        desired = set(tag_names)
-        current = {tag.name for tag in item_orm.tags}
-        if desired == current:
-            return False
-
-        for tag in list(item_orm.tags):
-            if tag.name not in desired:
-                item_orm.tags.remove(tag)
-        for name in desired - current:
-            item_orm.tags.append(await self._get_or_create_tag(name))
-        return True
-
-    async def _get_or_create_tag(self, name: str) -> TagORM:
-        """Return the tag with that name, creating it if it does not exist yet."""
-        result = await self._session.execute(select(TagORM).where(TagORM.name == name))
-        tag_orm = result.scalar_one_or_none()
-        if tag_orm is None:
-            tag_orm = TagORM(name=name)
-            self._session.add(tag_orm)
-        return tag_orm
+@staticmethod
+def _ensure_may_write(review: Review, user: User) -> None:
+    """ADMIN writes anything; EDITOR writes only what it owns; VIEWER writes nothing."""
+    if has_role(user, UserRole.ADMIN):
+        return
+    if has_role(user, UserRole.EDITOR) and review.owner_id == user.id:
+        return
+    raise ForbiddenError("You do not have permission to perform this action")
 ```
 
-`_get_or_create_tag` is select-or-create, and it is deliberately **not** wrapped in a
-`try/except IntegrityError`. Two concurrent saves that both introduce the same brand-new tag will
-race on `tags.name UNIQUE`, and the loser's `IntegrityError` is allowed to reach the error handler,
-which turns it into a 409. Catching it here would mean the repository deciding what a conflict means
-— that decision belongs to the domain, and swallowing it would hide a real race behind a retry the
-caller never asked for.
+The owner is taken from the authenticated user and **never** accepted from the request body — a
+create schema that carries an `owner_id` lets any writer publish as somebody else.
 
-Note this is the one place the guide resolves an aggregate by natural key rather than by id. Tags
-are labels: a caller sends `["onboarding"]`, not a tag id. Everything else in the repository joins
-on ids.
+### Shape C — role pure, for an ownerless resource
 
-### The two lines that are not obvious
+Some entities belong to the system rather than to a user — a taxonomy, an editorial grouping, a
+configuration set. There is no ownership to check, so there is no shape-B guard to write. Say so in
+the service docstring rather than leaving a reader to wonder whether it was forgotten:
 
-**`attributes.set_committed_value(item_orm, "version", item.version)`** — without it, optimistic
-locking is silently a no-op. `session.get()` re-reads the row, so the ORM's idea of "the version I
-loaded" becomes whatever is in the database *right now*, not what the client read. The UPDATE would
-then always match, and the lost update you were trying to catch goes through. `set_committed_value`
-overwrites that with the caller's version, so the generated
-`UPDATE … WHERE id = :id AND version = :version` compares against the right number and
-`StaleDataError` fires when someone else got there first. Keep it.
+> Unlike `Review`, a `Topic` has no owner — it belongs to the catalogue itself, not to a user.
+> Authorization is therefore role alone, and there is deliberately no `_ensure_may_write` analogue.
 
-**`attributes.flag_modified(item_orm, "name")`** — when a request changes only an item's tags or
-collections, no column on `items` changed, so SQLAlchemy emits no UPDATE on the parent row and the
-version does not advance. Two clients could then both retag from the same version and neither would
-notice. Marking any column dirty forces the UPDATE, and with it the version bump.
+### Shape D — authorize the parent, not the child
 
-Both of its guards are load-bearing, and each one is a version that comes back wrong by exactly one:
+The interesting one, and the reason the other three are not enough. When a relationship joins an
+owned entity to a governed one, *membership* is a different question from *the catalogue itself*:
 
-- **`if item.id is not None`** — an INSERT already writes version 1. Flagging the row there appends
-  a gratuitous UPDATE to the same flush, and a brand-new item with tags comes back at version 2.
-- **`if tags_changed`** — the early return in `_reconcile_tags` is why this has to travel back as a
-  return value. Forcing an UPDATE when nothing moved would bump the version on a no-op save.
+- who may create or rename a `Topic` — the governing role, shape C
+- which topics a given `Review` belongs to — whoever may edit **that review**, shape B
 
-And **`with self._session.no_autoflush`** is what keeps the whole save in a single flush. Resolving
-a tag runs a SELECT; the autoflush it triggers writes the scalar changes as their own UPDATE — one
-version bump — before `flag_modified` forces a second. A plain rename with tags attached then
-advances the version by two, so the client's next write is stale against a version it never saw and
-the 409 looks like a phantom concurrent editor.
+Resolve it by putting the membership endpoint on the **owned** side, as a sub-resource of the
+parent, authorized by the parent's rule:
 
-**Two link collections in one `save`, still one `flag_modified`.** An item owns both `tags` and
-`collections`, and the pattern does not survive being repeated once per collection. Both
-reconciliations have to run inside the **same** `no_autoflush` block, and the flag has to fire
-**once**, guarded by the union of the two results:
+```
+PUT /reviews/{review_id}/topics     body: { topic_ids: [...], version: N }
+```
+
+An editor can then file its own reviews under existing topics without being able to create one. Put
+the same endpoint under `/topics/{id}/reviews` and you have accidentally handed the editor the
+topic's permissions.
+
+The ids in the body must be **resolved and validated by the service** before the repository sees
+them — an unknown id is a 404 from the use case, not an integrity error from the database.
+
+### The ordering rule, which spans all four
+
+**Check that the row exists before you check the role.**
 
 ```python
-with self._session.no_autoflush:
-    tags_changed = await self._reconcile_tags(item_orm, item.tag_names)
-    collections_changed = await self._reconcile_collections(item_orm, item.collections)
-if item.id is not None and (tags_changed or collections_changed):
-    attributes.flag_modified(item_orm, "name")
+await self._get_or_raise(review_id)          # 404 for everyone
+self._ensure_at_least(current_user, UserRole.ADMIN)
 ```
 
-Two independently guarded calls are two extra UPDATEs in the same flush — the same off-by-one on
-`version` the guards above exist to prevent, arriving through a different door as soon as a second
-link collection appears.
-
-Note also what `_reconcile_collections` does **not** do. Tags are resolved by natural key and
-created on demand; collections are resolved by id and must already exist, because creating one is an
-ADMIN privilege that the item's owner does not have. The service validates the ids before the
-repository ever sees them, so a plain `session.get(CollectionORM, id)` is enough here and a
-get-or-create would quietly grant a permission the authorization matrix withholds.
-
-The rest of the query and mapping conventions — `scalar_one_or_none`, unit-of-work updates,
-never a bulk `update()`, no raw SQL — are in
-[backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md) §4 and §5. Do not reinvent them
-here.
-
-## 7. The migration
-
-**First check whether you need one at all.** This step reads as unconditional and is not: a table
-may already exist, created with the catalogue's foundations long before the slice that finally uses
-it. `collections` and `item_collections` were both in the initial revision by the time the
-`Collection` slice was written, so the step was to *prove* the diff was empty — run
-`alembic revision --autogenerate`, read the generated file, confirm both `upgrade()` and
-`downgrade()` bodies are just `pass`, and delete it. An autogenerate run you throw away is a
-legitimate outcome here, and a much better one than a redundant revision nobody can safely
-downgrade.
-
-`ItemORM` already has a migration (the single initial revision). For a new entity:
-
-```bash
-cd backend
-alembic revision --autogenerate -m "create reviews table"
-# read the generated file — autogenerate is a first draft, not an answer
-alembic upgrade head          # or: make migrate
-alembic downgrade -1          # prove the downgrade works, then upgrade again
-```
-
-Two things autogenerate gets wrong often enough to be worth checking every time: server defaults it
-cannot see, and the drop order in `downgrade()` when foreign keys are involved — drop children
-before parents.
-
-If your entity belongs to the sample catalogue, it also needs to be reachable from
-`Base.metadata` at autogenerate time. That is what the marked import in `alembic/env.py` is for:
-
-```python
-from src.adapters.outbound.persistence import example  # noqa: F401
-# Delete this import along with the package (issue #14, `--no-example`)
-```
-
-Re-export your new ORM module from `persistence/example/__init__.py` and that single import keeps
-covering it.
-
-## 8. The schemas — one per operation
-
-`src/adapters/inbound/schemas/example/item_schemas.py`. Pydantic, and **a separate class per
-operation**. The temptation to have one `ItemSchema` with optional fields everywhere is exactly
-what this rule exists to stop: it makes `version` optional on update, and then the optimistic lock
-is opt-in.
-
-```python
-"""Per-operation API schemas for the catalogue's items."""
-
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class ItemCreate(BaseModel):
-    """Payload for creating an item. `owner_id` is derived from the JWT, never sent."""
-
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "name": "Manual de bienvenida",
-                "slug": "manual-de-bienvenida",
-                "description": "Guía de incorporación para el equipo.",
-                "category": "documentacion",
-                "tags": ["onboarding", "interno"],
-            }
-        }
-    )
-
-    name: str = Field(min_length=1, max_length=200)
-    slug: str = Field(min_length=1, max_length=200, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-    description: str | None = None
-    category: str | None = Field(default=None, max_length=50)
-    tags: list[str] = Field(default_factory=list)
-
-
-class ItemUpdate(ItemCreate):
-    """Payload for updating an item. `version` is mandatory — it is the optimistic lock."""
-
-    version: int = Field(
-        ge=1, description="Version the client last read. A stale value returns 409."
-    )
-
-
-class ItemResponse(BaseModel):
-    """Public representation of an item.
-
-    No `from_attributes=True`: `tags` does not line up with the domain model's
-    `tag_names`, so `model_validate(item)` would fail. The router builds it
-    field by field instead — see `_to_response` in step 9.
-    """
-
-    id: int
-    name: str
-    slug: str
-    description: str | None
-    category: str | None
-    tags: list[str]
-    owner_id: int
-    version: int
-
-
-class ItemPageResponse(BaseModel):
-    """One page of items, matching the SPA's `PaginatedResponse<T>`."""
-
-    items: list[ItemResponse]
-    total: int
-    page: int
-    page_size: int
-```
-
-Three shapes, three reasons:
-
-- `ItemCreate` has **no `owner_id`**. Accepting one would let any editor publish as somebody else.
-  The service takes it from the authenticated user.
-- `ItemUpdate` has a **required `version`**. This is where the lock is enforced at the contract
-  level: a client that does not round-trip the version cannot even build a valid request.
-- `ItemResponse` **exposes `version`** so the client has something to round-trip.
-
-`ItemPageResponse` uses `page_size` in snake_case, like every other field on the wire. The SPA maps
-it to `pageSize`; that is the frontend's job, not the API's.
-
-Mind the width while you are in here. Every snippet in this guide is meant to be copied verbatim, so
-it has to pass `ruff check` as written — and `line-length = 100` is the limit that catches you, not
-the obvious ones. The `version` field above is the shape that overruns first: a `Field(...)` with a
-`description` wants to be one line and is two characters too long as one.
-
-A read that needs more than the base response gets **its own schema**, not an optional field bolted
-onto the shared one. `GET /items/{id}` returns an `ItemDetailResponse` — `ItemResponse` plus the
-collections the item belongs to — while the two listing endpoints keep returning the plain
-`ItemResponse`. Widening the shared schema instead would put a field on every list row that only the
-detail screen reads, and every existing client and test mock would have to grow it.
-
-## 9. The router — thin, and mind the route order
-
-`src/adapters/inbound/api/example/item_router.py`. Validate, call the service, wrap. Nothing else.
-
-```python
-"""Catalogue item endpoints: listing, search, read, create, update and delete."""
-
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, Query
-
-from src.adapters.inbound.middleware.auth import get_current_user
-from src.adapters.inbound.schemas.common import ApiResponse, error_responses
-from src.adapters.inbound.schemas.example.item_schemas import (
-    ItemCreate,
-    ItemPageResponse,
-    ItemResponse,
-    ItemUpdate,
-)
-from src.config.container import get_item_service
-from src.domain.models.example.item import Item
-from src.domain.models.user import User
-from src.domain.services.example.item_service import ItemService
-
-router = APIRouter(prefix="/items", tags=["items"])
-
-
-def _to_response(item: Item) -> ItemResponse:
-    """Map a persisted domain `Item` to its public API representation."""
-    if item.id is None:
-        raise ValueError("Persisted items must have an id")
-    return ItemResponse(
-        id=item.id,
-        name=item.name,
-        slug=item.slug,
-        description=item.description,
-        category=item.category,
-        tags=item.tag_names,
-        owner_id=item.owner_id,
-        version=item.version,
-    )
-
-
-async def _page(
-    item_service: ItemService,
-    query: str | None,
-    category: str | None,
-    page: int,
-    page_size: int,
-) -> ApiResponse[ItemPageResponse]:
-    """Run the search use case and wrap its page in the response envelope."""
-    items, total = await item_service.search(query, category, (page - 1) * page_size, page_size)
-    page_response = ItemPageResponse(
-        items=[_to_response(item) for item in items],
-        total=total,
-        page=page,
-        page_size=page_size,
-    )
-    return ApiResponse(success=True, data=page_response, error=None)
-
-
-@router.get(
-    "",
-    response_model=ApiResponse[ItemPageResponse],
-    summary="List the catalogue",
-    response_description="A page of items, optionally narrowed by category.",
-    responses=error_responses(401),
-)
-async def list_items(
-    item_service: Annotated[ItemService, Depends(get_item_service)],
-    _current_user: Annotated[User, Depends(get_current_user)],
-    category: Annotated[str | None, Query(max_length=50)] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
-) -> ApiResponse[ItemPageResponse]:
-    """Return a page of catalogue items. Readable by every authenticated role."""
-    return await _page(item_service, None, category, page, page_size)
-
-
-# Declared BEFORE `/{item_id}` on purpose — see the note below.
-@router.get(
-    "/search",
-    response_model=ApiResponse[ItemPageResponse],
-    summary="Search the catalogue",
-    response_description="A page of items matching the query.",
-    responses=error_responses(401),
-)
-async def search_items(
-    item_service: Annotated[ItemService, Depends(get_item_service)],
-    _current_user: Annotated[User, Depends(get_current_user)],
-    q: Annotated[str | None, Query(max_length=200)] = None,
-    category: Annotated[str | None, Query(max_length=50)] = None,
-    page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
-) -> ApiResponse[ItemPageResponse]:
-    """Return a page of items whose name or description matches `q`."""
-    return await _page(item_service, q, category, page, page_size)
-
-
-@router.get(
-    "/{item_id}",
-    response_model=ApiResponse[ItemResponse],
-    summary="Get one catalogue item",
-    response_description="The requested item.",
-    responses=error_responses(401, 404),
-)
-async def get_item(
-    item_id: int,
-    item_service: Annotated[ItemService, Depends(get_item_service)],
-    _current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[ItemResponse]:
-    """Return a single item by id."""
-    item = await item_service.get(item_id)
-    return ApiResponse(success=True, data=_to_response(item), error=None)
-
-
-@router.post(
-    "",
-    response_model=ApiResponse[ItemResponse],
-    status_code=201,
-    summary="Create a catalogue item",
-    response_description="The newly created item.",
-    responses=error_responses(401, 403, 409),
-)
-async def create_item(
-    payload: ItemCreate,
-    item_service: Annotated[ItemService, Depends(get_item_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[ItemResponse]:
-    """Create an item owned by the authenticated user. Requires EDITOR or above."""
-    item = Item(
-        name=payload.name,
-        slug=payload.slug,
-        owner_id=0,  # replaced by the service with the authenticated user's id
-        description=payload.description,
-        category=payload.category,
-        tag_names=payload.tags,
-    )
-    created = await item_service.create(item, current_user)
-    return ApiResponse(success=True, data=_to_response(created), error=None)
-
-
-@router.put(
-    "/{item_id}",
-    response_model=ApiResponse[ItemResponse],
-    summary="Update a catalogue item",
-    response_description="The updated item, with its new version.",
-    responses=error_responses(401, 403, 404, 409),
-)
-async def update_item(
-    item_id: int,
-    payload: ItemUpdate,
-    item_service: Annotated[ItemService, Depends(get_item_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[ItemResponse]:
-    """Update an item. ADMIN may update any; EDITOR only its own."""
-    changes = Item(
-        name=payload.name,
-        slug=payload.slug,
-        owner_id=0,  # ownership never changes through this endpoint
-        description=payload.description,
-        category=payload.category,
-        tag_names=payload.tags,
-        version=payload.version,
-    )
-    updated = await item_service.update(item_id, changes, current_user)
-    return ApiResponse(success=True, data=_to_response(updated), error=None)
-
-
-@router.delete(
-    "/{item_id}",
-    response_model=ApiResponse[None],
-    summary="Delete a catalogue item",
-    response_description="Confirmation that the item was deleted.",
-    responses=error_responses(401, 403, 404),
-)
-async def delete_item(
-    item_id: int,
-    item_service: Annotated[ItemService, Depends(get_item_service)],
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[None]:
-    """Delete an item. ADMIN only."""
-    await item_service.delete(item_id, current_user)
-    return ApiResponse(success=True, data=None, error=None)
-```
-
-### `/items/search` must be declared before `/items/{item_id}`
-
-Starlette matches routes in declaration order, and `/{item_id}` is a wildcard that happily accepts
-the literal string `search`. Declare it first and every search request lands in `get_item` with
-`item_id="search"`, which fails Pydantic's `int` coercion and comes back as a 422 about a path
-parameter the client never sent. Nothing warns you; the tests just go red in a confusing place.
-
-**Specific routes before parametrised ones**, always.
-
-### Two read endpoints, one use case
-
-`GET /items` and `GET /items/search` both call `ItemService.search` and differ only in whether a
-query is passed, which is why they share `_page`. They stay two endpoints rather than one because
-they are two different things to the client: a catalogue screen lists on arrival and searches only
-when someone types, and the SPA's `items-api.ts` has a function for each. Collapsing them into
-`GET /items?q=` would work, but every caller would then have to know that an empty `q` means
-"everything" — a rule that lives nowhere in the contract.
-
-A search endpoint belongs to its resource's router, not to a separate search router. Note also that
-the dependency style here is `Annotated[..., Depends(...)]`; `auth_router.py` still uses the older
-bare-default form. New routers use `Annotated`.
-
-`_current_user` is prefixed with an underscore where the endpoint only needs authentication, not the
-identity. It is a signal to the reader, not a linter workaround — Ruff's `ARG` family is not enabled
-here, so the plain name would not be flagged either. `error_handler.py` uses the same convention for
-its `_request` and `_exc` parameters.
-
-## 10. The wiring
-
-`src/config/container.py` is **the only module allowed to import from both `domain` and `adapters`**.
-That is what keeps the dependency rule honest everywhere else.
-
-```python
-def get_item_repository(session: AsyncSession = Depends(get_db_session)) -> ItemRepository:
-    """Provide the SQLAlchemy-backed `ItemRepository` implementation."""
-    return SqlAlchemyItemRepository(session)
-
-
-def get_item_service(
-    item_repository: ItemRepository = Depends(get_item_repository),
-) -> ItemService:
-    """Wire the `ItemService` use case with its concrete port implementation."""
-    return ItemService(item_repository)
-```
-
-The return annotation is the **port**, not the adapter. That is not decoration: it is what makes the
-router's type checking depend on the Protocol, so swapping the implementation is a one-line change
-here and nowhere else. Per-request providers take the session through `Depends`; stateless adapters
-get `@lru_cache` (see `get_password_hasher`).
-
-Then `src/main.py`:
-
-```python
-from src.adapters.inbound.api.example.item_router import router as item_router
-...
-app.include_router(item_router)
-```
-
-`main.py` must not trigger a database connection or any other side effect at import time. Adding a
-router is safe; adding a module-level query is not.
-
-**Wiring an adapter that does not exist yet takes the whole test suite down, not just its own tier.**
-The inside-out order above tempts you to leave the repository for later — the unit tests talk to
-fakes, after all, so surely they still run. They do not. `tests/conftest.py` imports `src.main.app`
-at module level for the `async_client` fixture, that import pulls in this file, and pytest collects
-the root `conftest.py` for **any** subset of the suite. While one provider's module is missing,
-`pytest tests/unit` dies at collection with a `ModuleNotFoundError`, and so does every unrelated
-suite that was green a minute ago. The dependency rule orders what you *write*; it does not order
-what you can *run*. Either write step 6 before this step, or expect the suite to be red in between
-and do not go hunting for the cause.
-
-## 11–13. The three test tiers
-
-Full copy-paste templates are in [backend-testing.md](./backend-testing.md) §6. What follows is
-what to test *for this slice*, and the one test that only exists here.
-
-### Unit — the service against a fake
-
-`backend/tests/unit/test_item_service.py`. **Fakes, not mocks**: a hand-written in-memory class that
-satisfies the Protocol. `asyncio_mode = "auto"`, so no `@pytest.mark.asyncio`.
-
-The fake has to replicate the optimistic lock, or the unit tier silently stops covering the most
-interesting failure mode:
-
-```python
-from dataclasses import replace
-
-
-def _copy(item: Item) -> Item:
-    """Return an independent copy, mutable list field included."""
-    return replace(item, tag_names=list(item.tag_names))
-
-
-class FakeItemRepository:
-    """In-memory `ItemRepository`, including the version check PostgreSQL does for real.
-
-    Every method hands out copies — see the note below.
-    """
-
-    def __init__(self, items: list[Item] | None = None) -> None:
-        self._items = {item.id: _copy(item) for item in items or [] if item.id is not None}
-        self._next_id = max(self._items, default=0) + 1
-
-    async def find_by_id(self, item_id: int) -> Item | None:
-        stored = self._items.get(item_id)
-        return _copy(stored) if stored is not None else None
-
-    async def find_by_slug(self, slug: str) -> Item | None:
-        stored = next((item for item in self._items.values() if item.slug == slug), None)
-        return _copy(stored) if stored is not None else None
-
-    async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
-    ) -> tuple[list[Item], int]:
-        matches = [
-            item
-            for item in self._items.values()
-            if (query is None or query.lower() in item.name.lower())
-            and (category is None or item.category == category)
-        ]
-        return [_copy(item) for item in matches[offset : offset + limit]], len(matches)
-
-    async def save(self, item: Item) -> Item:
-        if item.id is None:
-            stored = replace(_copy(item), id=self._next_id)
-            self._next_id += 1
-        else:
-            current = self._items[item.id]
-            if current.version != item.version:
-                raise StaleDataError("UPDATE statement on table 'items' expected to update 1 row")
-            stored = replace(_copy(item), version=item.version + 1)
-        self._items[stored.id] = stored
-        return _copy(stored)
-
-    async def delete(self, item_id: int) -> None:
-        self._items.pop(item_id, None)
-```
-
-**The copies are the whole point.** `ItemService.update` reads the item, mutates the object it got
-back and hands it to `save`. A fake that returns its stored instance therefore hands the caller its
-own state: the mutation lands straight in the store, `save` compares that object's version against
-itself, and the check can never fail. The stale-version test then reports "DID NOT RAISE" and the
-unit tier silently stops covering the one failure mode it exists for. The real repository does not
-have this problem because `_to_domain` builds a fresh `Item` on every read — a fake that honours the
-same contract has to do the same.
-
-**A fake gets its own module in `tests/fakes/` the moment it has a second consumer**, and that can
-happen in the very PR that introduces it. `FakeCollectionRepository` was born with two, because
-`ItemService` takes a `CollectionRepository` to resolve membership: the collection's own service
-test needs it and the item's does too. A use case that crosses two entities creates the second
-consumer on day one, so do not assume the promotion is always a later refactor.
-
-Then one test per cell of the authorization matrix, named
-`test_<method>_<scenario>_<expected_result>`:
-
-```python
-async def test_update_when_editor_does_not_own_the_item_raises_forbidden_error() -> None:
-    # Arrange
-    owner = User(id=1, email="a@example.com", name="A", role=UserRole.EDITOR, hashed_password="x")
-    intruder = User(id=2, email="b@example.com", name="B", role=UserRole.EDITOR, hashed_password="x")
-    item = Item(id=10, name="Manual", slug="manual", owner_id=owner.id or 0)
-    sut = ItemService(FakeItemRepository([item]))
-
-    # Act & Assert
-    with pytest.raises(ForbiddenError):
-        await sut.update(10, item, intruder)
-```
-
-### Integration — the repository against real PostgreSQL
-
-`backend/tests/integration/test_item_repository.py`, plus
-`backend/tests/integration/test_optimistic_locking.py`, which is the one test that cannot exist at
-any other tier: it proves `set_committed_value` actually does something.
-
-Both take the `db_session` fixture from `tests/conftest.py` — a session bound to a connection whose
-transaction is rolled back at teardown, with `join_transaction_mode="create_savepoint"` so the
-repository's own `commit()` only releases a savepoint. No mocking anywhere.
-
-```python
-async def test_save_with_a_stale_version_raises_stale_data_error(db_session: AsyncSession) -> None:
-    # Arrange — two callers read the same item
-    sut = SqlAlchemyItemRepository(db_session)
-    stored = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
-    assert stored.id is not None
-    first = await sut.find_by_id(stored.id)
-    second = await sut.find_by_id(stored.id)
-
-    # Act — the first write wins and bumps the version
-    assert first is not None and second is not None
-    first.name = "Manual v2"
-    await sut.save(first)
-
-    # Assert — the second write is working from a version that no longer exists
-    second.name = "Manual v3"
-    with pytest.raises(StaleDataError):
-        await sut.save(second)
-```
-
-Run it once with `set_committed_value` commented out. It **fails** — `pytest.raises` reports
-"DID NOT RAISE", because without that line the UPDATE's `WHERE version = :v` uses whatever version
-the session already holds in memory (2, after the first `save()` refreshed it), which matches the
-row. That failure is the whole point of the test existing.
-
-One subtlety worth knowing, because it makes this test read strangely: both `find_by_id` calls hit
-the *same* session, so `session.get()` returns the same identity-mapped `ItemORM` rather than
-re-reading the row. What keeps `first` and `second` independent is `_to_domain`, which builds a new
-`Item` dataclass from the scalar values each time. In production the isolation is real — one session
-per request — and here it is `set_committed_value` doing the work. Either way the assertion holds.
-
-The `items` table must exist first: `make migrate` before the integration suite.
-
-**"Reconcile, do not recreate" cannot be asserted directly, so assert it the way the suite already
-does.** An association table like `item_tags` or `item_collections` has nothing but its two
-composite-primary-key foreign keys — no surrogate id, no timestamp, nothing whose identity would
-survive a delete-and-reinsert and let you prove the surviving rows were never touched. The invariant
-is pinned indirectly, as `test_save_keeps_the_tags_that_stay` pins it: perform an add and a remove
-in the same save, then assert the resulting membership set. Worth knowing before you go looking for
-the direct test, because it does not exist and cannot.
-
-### API — the matrix over HTTP
-
-`backend/tests/api/test_item_endpoints.py`. The `authenticated_as` fixture in `tests/api/conftest.py`
-overrides `get_current_user`, so you assert the status codes without minting real JWTs:
-
-```python
-async def test_create_item_as_viewer_returns_403(
-    async_client: AsyncClient, authenticated_as: Callable[[User], None]
-) -> None:
-    # Arrange
-    authenticated_as(User(id=1, email="v@example.com", name="V",
-                          role=UserRole.VIEWER, hashed_password="x"))
-
-    # Act
-    response = await async_client.post("/items", json={"name": "X", "slug": "x"})
-
-    # Assert
-    assert response.status_code == 403
-    assert response.json()["success"] is False
-```
-
-**The user has to be real as soon as the request actually writes.** The snippet above invents a
-`User(id=1, ...)`, and for that test it is fine: a VIEWER's POST is refused by the service before
-anything reaches the database. Every test that expects a 201 or a 200 is different — `items.owner_id`
-is a foreign key against `users`, so an invented id breaks the constraint and the `IntegrityError`
-handler answers 409 where the test wanted 201. Those tests take `db_session` alongside
-`async_client`, insert the user through `SqlAlchemyUserRepository` and authenticate as the user that
-comes back:
-
-```python
-async def _a_user(db_session: AsyncSession, role: UserRole, email: str) -> User:
-    return await SqlAlchemyUserRepository(db_session).save(
-        User(email=email, name=role.value.title(), role=role, hashed_password="hashed:pw")
-    )
-```
-
-It is the same session the app is using — `async_client` overrides `get_db_session` with it — so the
-row is visible to the request and rolled back with everything else at teardown.
-
-Cover every cell: VIEWER writes → 403, EDITOR creates → 201, EDITOR edits someone else's → 403,
-EDITOR deletes → 403, ADMIN edits and deletes anything → 200, stale `version` → 409, missing token
-→ 401, unknown id → 404.
-
-### The gate
-
-```bash
-make test-back        # pytest
-make lint             # ruff check, ruff format --check, mypy --strict
-```
-
-`fail_under = 80` in `backend/pyproject.toml`. Coverage is measured over `src`, with `alembic/` and
-`seed.py` omitted.
+Reverse those two lines and a caller without permission gets a 403 for a row that does not exist,
+which tells them it does. Pick the order once and keep it identical in every method of every
+service; a mixed order produces an API whose status codes leak the contents of the database.
+
+### The matrix is a test artefact, not just a design one
+
+Write the permission matrix down — one row per role, one column per operation — and turn every cell
+into a test. The API tier is where it belongs, because that is the only tier that proves the rule
+survives the whole stack. See [backend-testing.md](./backend-testing.md) §7.
 
 ---
 
-# Frontend
+## 3. The contract that crosses the wire
 
-The SPA is Bulletproof React: a feature owns `types/`, `api/`, `hooks/`, `components/` and an
-`index.ts` that is its entire public surface. The dependency rule runs one way,
-`app/ → features/ → components/ui, hooks/, lib/, types/`, and one feature may import another only
-through its `index.ts`. The full rules are in
-[frontend-architecture.md](./frontend-architecture.md); what follows is the order of execution.
+This section is the whole reason the two recipes can be followed independently.
 
-## 14. The types
+### One schema per operation
 
-`src/features/example/items/types/index.ts` — camelCase, the domain shape the components use. The
-snake_case the API speaks does not appear here.
+Never one schema with everything optional. That shape is what quietly makes a version field optional
+on update, and with it the optimistic lock becomes opt-in. Create, update, read and any sub-resource
+payload are separate classes, and the differences between them are the contract:
 
-```ts
-export interface Item {
-  id: number;
-  name: string;
-  slug: string;
-  description: string | null;
-  category: string | null;
-  tags: string[];
-  ownerId: number;
-  version: number;
-}
+- **create** carries no `owner_id` and no `version`
+- **update** carries a **mandatory** `version` — the lock enforced at the contract level, so a
+  client that does not round-trip it cannot build a valid request
+- **read** exposes `version`, so the client has something to round-trip
 
-export interface ItemFilters {
-  query: string;
-  category: string | null;
-  page: number;
-}
+### A detail read gets its own response
+
+When one endpoint needs more than the others — the related rows a detail screen shows, say — give
+it **its own response schema** rather than widening the shared one:
+
+```
+GET  /reviews          -> ReviewResponse        (the light shape)
+GET  /reviews/{id}     -> ReviewDetailResponse  (ReviewResponse + its topics)
 ```
 
-## 15. The API module — the only place snake_case exists
+Widening the shared schema instead puts a field on every list row that only one screen reads, and
+forces every existing caller and every existing test mock to grow it. Inheritance keeps the
+duplication at zero.
 
-`src/features/example/items/api/items-api.ts`. Follow `features/auth/api/auth-api.ts` exactly: a
-private `Raw*` interface mirroring the wire format, a pure mapper, and an exported async function.
+### snake_case stops at exactly one file
 
-```ts
-import { apiClient } from '@/lib/api-client';
-import type { PaginatedResponse } from '@/types/api';
+The API speaks `snake_case` on the wire, including `page_size`. The SPA speaks `camelCase`. The
+translation happens in the feature's `api/` module and nowhere else: a private `Raw*` interface
+mirroring the wire format, a pure mapper, and exported functions that return domain types. That is
+also why frontend tests mock the HTTP client with a **raw** payload — mocking an already-mapped
+object would leave the mapper untested and a backend field rename would pass CI.
 
-import type { Item } from '../types';
+Details in [frontend-architecture.md](./frontend-architecture.md) §4.
 
-interface RawItem {
-  id: number;
-  name: string;
-  slug: string;
-  description: string | null;
-  category: string | null;
-  tags: string[];
-  owner_id: number;
-  version: number;
-}
+### Freezing it
 
-interface RawItemPage {
-  items: RawItem[];
-  total: number;
-  page: number;
-  page_size: number;
-}
-
-const toItem = (raw: RawItem): Item => ({
-  id: raw.id,
-  name: raw.name,
-  slug: raw.slug,
-  description: raw.description,
-  category: raw.category,
-  tags: raw.tags,
-  ownerId: raw.owner_id,
-  version: raw.version,
-});
-
-const toItemPage = (raw: RawItemPage): PaginatedResponse<Item> => ({
-  items: raw.items.map(toItem),
-  total: raw.total,
-  page: raw.page,
-  pageSize: raw.page_size,
-});
-
-export const searchItems = async (
-  query: string,
-  category: string | null,
-  page: number,
-): Promise<PaginatedResponse<Item>> => {
-  const params = new URLSearchParams({ page: String(page) });
-  if (query) params.set('q', query);
-  if (category) params.set('category', category);
-
-  const raw = await apiClient.get<RawItemPage>(`/items/search?${params.toString()}`);
-  return toItemPage(raw);
-};
-```
-
-**Type the generic to the content, not to the envelope.** `apiClient` already unwraps
-`{ success, data, error }` and returns `payload.data`, so `apiClient.get<RawItemPage>` is correct and
-`apiClient.get<ApiResponse<RawItemPage>>` would be wrong twice over. Nothing outside
-`src/lib/api-client.ts` calls `fetch`, and `api-client` has no query-string helper — build it with
-`URLSearchParams` here.
-
-The mapper is why the tests mock `api-client` with a **raw snake_case object**: mocking a mapped
-`Item` would leave `toItem` untested and a backend field rename would pass CI.
-
-## 16. The hook
-
-`src/features/example/items/hooks/useItems.ts`. Built on `useApiOnMount`, which wraps `useApi` and
-fires on mount and whenever `JSON.stringify(args)` changes.
-
-```ts
-import { useApiOnMount } from '@/hooks/useApiOnMount';
-import type { PaginatedResponse } from '@/types/api';
-
-import { getItems, searchItems } from '../api/items-api';
-import type { Item } from '../types';
-
-// A fixed-arity function, on purpose — see the note below.
-const fetchItems = (
-  page: number,
-  pageSize: number,
-  category: string | undefined,
-  search: string,
-): Promise<PaginatedResponse<Item>> => {
-  const trimmed = search.trim();
-  return trimmed ? searchItems(trimmed, page, pageSize) : getItems({ page, pageSize, category });
-};
-
-export const useItems = ({ page, pageSize = 20, category, search = '' }: UseItemsOptions) =>
-  useApiOnMount(fetchItems, [page, pageSize, category, search]);
-```
-
-**Never fetch in a bare `useEffect`.** Use `useApi` when the call is triggered by an action, and
-`useApiOnMount` when the screen loads data on arrival. Anything else and every screen invents its own
-loading, error and race-condition handling.
-
-**When one screen reads from two endpoints, put the choice in a fixed-arity function, not in a
-closure.** `useApiOnMount<TArgs, TResult>(requestFn, args)` infers `TArgs` from the request
-function's parameter list and matches it against the `args` array positionally. A closure that
-captures some of the state and takes fewer parameters breaks that inference — and worse, the
-captured values are invisible to the `JSON.stringify(args)` comparison that decides when to refetch,
-so the screen silently stops reloading when they change. Every value the request depends on has to
-travel through `args`.
-
-**The failure's status code survives the trip; the message alone does not.** `useApi` exposes
-`status: number | null` next to `data`, `isLoading` and `error`, reset on every new request and
-filled from the `ApiError` it catches. A screen that has to tell a 404 from a server error — a
-detail screen showing `NotFoundState` for the first and `ServerErrorState` for the second — branches
-on `status`, never on the text of `error`. Note the `?? null` when filling it: `ApiError.status` is
-typed `number | undefined`, and every other field in that state object deliberately uses `null` for
-"nothing yet", so a bare assignment would leak an `undefined` into it.
-
-## 17. Components and the public contract
-
-Feature components live in `src/features/example/items/components/` and are built **only** from the
-primitives in `src/components/ui/`. They never define their own colours: every class comes from the
-design tokens (`bg-surface`, `text-ink`, `text-muted`, `border-border`…), so changing
-`--color-primary` in `app/index.css` retints them too. Red is reserved for destructive actions.
-
-Before using a component, check it is in the catalogue at **`/components-ui`**. That route is
-binding: a screen may not use anything the catalogue does not show with its real states. If a
-primitive is missing, it goes through the procedure in
-[frontend-ui-components.md](./frontend-ui-components.md) — take it from shadcn/ui, adapt it to the
-tokens, add it to the catalogue, test it — **before** any screen uses it.
-
-**Give "nothing yet" its own branch, or the screen flashes an error it was never in.** The obvious
-state machine is `if (isLoading) …; if (status === 404) …; if (error || !item) return
-<ServerErrorState/>`, and that last condition is wrong. On the render *before* `useApiOnMount`'s
-effect fires, `isLoading` is still its initial `false` and the data is still `null`, so `!item`
-holds and the screen renders a server error for a frame. Put the no-data-no-error case in its own
-branch that renders nothing, **after** the `error` check rather than folded into it. `ItemsCatalog`
-never hits this because it guards its empty states with `!isLoading && !error && data` — it never
-treats "no data" as a failure at all.
-
-**A responsive action bar puts the same button in the DOM twice, and tests have to cope.** A detail
-screen shows an inline action row (`hidden md:flex`) and repeats those actions inside
-`MobileActionBar` (`md:hidden`). jsdom has no layout engine, so both are always present and
-`getByRole('button', { name: 'Eliminar' })` throws on finding two. The answer is not a
-`getByTestId` escape hatch: wrap each row in its own `role="group"` with a distinguishing
-`aria-label` — "Acciones del artículo" and "Acciones del artículo (móvil)" — and scope the query with
-`within(screen.getByRole('group', { name: … }))`. A fixed action bar with no landmark is a real
-accessibility gap, so this pays for itself twice. Remember the bar is fixed above the tab bar, so
-the screen reserves its own bottom padding on top of `PageContainer`'s.
-
-**A filter whose options have no endpoint ships a static list, marked as such.** The category
-`Select` needs a list of categories and no route returns one, so the screen hard-codes it with an
-inline comment saying it is a placeholder. That is a defensible answer rather than a documented one
-— neither this guide nor [frontend-architecture.md](./frontend-architecture.md) says what should
-happen — so keep the comment, and treat the second screen that needs the same list as the signal to
-decide properly.
-
-Then `src/features/example/items/index.ts`, the entire public surface:
-
-```ts
-export { ItemsCatalog } from './components/ItemsCatalog';
-export { useItems } from './hooks/useItems';
-export { getItems, searchItems } from './api/items-api';
-export type { Item, ItemFilters } from './types';
-```
-
-Anything not exported here is private to the feature. `app/` and other features import from
-`@/features/example/items`, never from a path inside it.
-
-## 18. The page, the route and the navigation
-
-The page lives in `src/app/pages/`, not in the feature — pages are composition, features are
-capability.
-
-```tsx
-import { ItemsCatalog } from '@/features/example/items';
-
-/** Catalogue screen at `/items`, visible to all three roles. */
-const ItemsPage = () => <ItemsCatalog />;
-
-// Default export required for React.lazy().
-export default ItemsPage;
-```
-
-The page is deliberately thin: it names the route and mounts the feature's screen component. The
-layout, the filters and the data live in `features/example/items/components/`, where they are
-testable without a router.
-
-Then `src/app/router.tsx`:
-
-```tsx
-const ItemsPage = lazy(() => import('./pages/ItemsPage'));
-// ...
-{ path: '/items', element: <ProtectedRoute><ItemsPage /></ProtectedRoute> }
-```
-
-`ProtectedRoute` requires a session; `RoleRoute` narrows to a role. The catalogue is readable by
-every role, so it only needs the first.
-
-**And in the same PR, flip the navigation placeholder.** Routes that do not exist yet appear in
-`Sidebar` as `InactiveNavItem` and in the mobile drawer as a `DrawerItem` — visual only, not links.
-The convention is that the PR which ships the route converts its placeholder into a real `NavLink`.
-Check `Sidebar`, `MobileTabBar` and `MobileAccountDrawer`; leaving a dead placeholder next to a live
-route is the failure mode this rule exists to prevent.
-
-## 19. The frontend tests
-
-Colocated, `.test.tsx` next to the file. `getByRole` first — **never** `getByTestId`. `userEvent`,
-not `fireEvent`. `describe`/`it` text in English, assertions against the real Spanish copy.
-
-Mock `@/lib/api-client` wholesale and return the **raw snake_case DTO**:
-
-```ts
-vi.mock('@/lib/api-client', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
-  setAuthToken: vi.fn(),
-}));
-
-vi.mocked(apiClient.get).mockResolvedValueOnce({
-  items: [{ id: 1, name: 'Manual', slug: 'manual', description: null,
-             category: null, tags: [], owner_id: 1, version: 1 }],
-  total: 1,
-  page: 1,
-  page_size: 20,
-});
-```
-
-There is no shared render helper on purpose: each test file declares its own `renderXxx()` wrapping
-whatever providers it needs. Cover the listing, the search, the pagination and each of the three
-states — `EmptyState`, `NoResultsState`, `ServerErrorState`.
-
-**When a screen both requires a role and fetches its own data, key the mock on the path.**
-`AuthProvider` calls `/auth/me` to rehydrate the session at the same time the screen's hook calls
-its own endpoint, and both drain the same `apiClient.get` mock. Chaining
-`mockResolvedValueOnce` — the pattern every earlier test here uses, because nothing before needed
-both at once — hands whichever call resolves first the wrong payload, non-deterministically. One
-`mockImplementation` that switches on the requested URL fixes it outright, and gated content is then
-asserted with `findBy*` rather than `getBy*`:
-
-```ts
-vi.mocked(apiClient.get).mockImplementation((url: string) =>
-  url.startsWith('/auth/me') ? Promise.resolve(rawUser) : Promise.resolve(rawItem),
-);
-```
-
-**Giving a component a router dependency breaks its siblings' tests.** The moment a component gains
-a `<Link>`, a `useParams` or a `useNavigate`, every test file that renders it needs a
-`MemoryRouter` — including the ones testing something else entirely that happened to render it
-bare. That is the cost of the no-shared-render-helper rule above, and it is paid by hand. Expect it
-when you wire a listing to a new detail route, and update those files in the same commit rather than
-discovering them when the suite goes red.
-
-```bash
-npm --prefix frontend run lint
-npm --prefix frontend run test
-```
-
-The pre-commit hooks run ESLint and Prettier only — `tsc` and the test suite are on you. All four
-coverage thresholds in `frontend/vite.config.ts` are at 80 %.
+When both halves are built in parallel, write the contract down before either starts — the endpoint,
+the exact response shape, and the field names on the wire. Two sentences in the issue are enough.
+What is not enough is "the frontend will call the reviews endpoint".
 
 ---
 
-## The `example/` convention, and deleting the example
+## 4. Traps that only appear when a change crosses a layer
 
-Everything that belongs to the sample catalogue rather than to the template lives in an `example/`
-folder **inside its own layer**, never in one big folder cutting across layers. The layer structure
-is the architecture; the `example/` folder is only a removability marker inside it.
+Each of these bit somebody. None of them belongs to a single layer's document, because each is
+caused by two layers meeting.
 
-```
-backend/src/domain/models/example/
-backend/src/domain/ports/example/
-backend/src/domain/services/example/
-backend/src/adapters/outbound/persistence/example/
-backend/src/adapters/inbound/api/example/
-backend/src/adapters/inbound/schemas/example/
-backend/tests/**/…                       (test files named after the example entities)
-frontend/src/features/example/
-```
+**A 404 and a 500 are different screens, so the status code has to survive the trip.** The
+data-access hook flattens a failure into a message; a detail screen needs to show "not found" for a
+404 and "something broke" for everything else. That means the hook exposes the **status code**
+alongside the message, and the screen branches on the number — never on the text of the error, which
+is server-authored copy that will change. See [frontend-architecture.md](./frontend-architecture.md)
+§4.
 
-The dependency runs **example → template, never the reverse**. That is why `ItemORM` points at
-`users` with a bare foreign key and no `relationship()`: the moment `UserORM` referenced the sample
-domain, the folder would stop being deletable.
+**A path parameter on the frontend needs the matching route order on the backend.** The moment a
+screen lives at `/reviews/:id`, the API grows `GET /reviews/{review_id}` — and a parametrised path
+happily swallows its literal siblings. `/reviews/search` declared *after* `/reviews/{review_id}`
+never matches: the literal arrives as the path parameter and fails its `int` coercion, surfacing as
+a 422 about a parameter the client never sent. Specific routes before parametrised ones, always.
 
-To remove the example entirely — which is what `--no-example` automates (issue #14):
+**The screen's own fetch and the session rehydration drain the same mock.** A screen that is gated
+by a role *and* loads its own data has two independent callers hitting the mocked HTTP client. A
+chain of one-shot mock resolutions hands whichever resolves first the wrong payload,
+non-deterministically. Key a single mock implementation on the requested path instead, and assert
+gated content with the async queries. See [frontend-testing.md](./frontend-testing.md) §4.
 
-1. `rm -rf` each directory above.
-2. Delete the marked import in `backend/alembic/env.py`, and the tables from the initial revision.
-3. Drop `include_router(item_router)` (and any sibling) from `backend/src/main.py`.
-4. Drop the example providers from `backend/src/config/container.py`.
-5. Drop the example routes from `frontend/src/app/router.tsx` and their nav entries.
-6. Delete the example entities from `backend/seed.py`.
+**Giving a component a router dependency breaks its siblings' tests.** The commit that wires a
+listing to a new detail route gives that listing a `<Link>` — and every test file that rendered it
+without a router now fails. There is deliberately no shared render helper, so those files are
+updated by hand, in the same commit.
 
-Steps 2–6 are the entire cost of the example. Keep it that way: every time you are tempted to
-reference example code from template code, you are adding a seventh step.
+**A filter whose options have no endpoint ships a static list, marked as such.** If a select needs a
+set of values and no route returns one, hard-code it with an inline comment saying it is a
+placeholder. That is a defensible answer, not a documented one — the second screen that needs the
+same list is the signal to decide properly.
 
 ---
 
-## Checklist before opening the PR
+## 5. Shapes beyond a plain entity
+
+The rules for each of these live in
+[backend-database-sqlalchemy.md](./backend-database-sqlalchemy.md); what follows is only which one
+to reach for, and what it costs.
+
+**A reference to another table — start with a bare foreign key.** A `ForeignKey` column does not
+imply a `relationship()`. Add one only when you actually navigate the association in a query;
+otherwise resolve by id, which keeps the two modules independent of each other.
+
+**One parent, many children (1:N).** The child table carries the foreign key. Whether the parent
+gets a `relationship()` back is the same question as above — if the parent's use cases never read
+its children, it does not need one. When it does, the eager-load and cascade rules are the ones in
+the SQLAlchemy doc, not something to improvise per entity.
+
+**Many to many.** An association table with a composite primary key of the two foreign keys, and a
+`relationship(secondary=...)` on each side. Reconciling the links on save is the delicate part —
+version bumps, flush ordering and the guards involved are written up in the SQLAlchemy doc, and
+getting them wrong produces an entity whose version is wrong by exactly one, which reaches the next
+caller as a spurious conflict.
+
+**A label resolved by name rather than by id.** When callers send `["draft", "internal"]` instead of
+ids, the repository looks the row up by its natural key and creates it if missing. This is the one
+place an aggregate is resolved by something other than an id, and it is deliberately not wrapped in
+a try/except: two concurrent saves introducing the same new label race on the unique constraint, and
+the loser's integrity error is allowed through to become a conflict response.
+
+**A closed set of values.** Never an `sa.Enum` column. Store a plain string with a length and
+convert to the domain enum in the repository's mapper, the way the user role already does.
+
+**Self-reference, timestamps, soft delete.** No code in this repository demonstrates any of the
+three, so treat what follows as derivation rather than precedent: a self-reference is an ordinary
+foreign key back to the same table and follows the bare-FK rule above; timestamp and soft-delete
+columns are ordinary columns, but both leak into every query and every response schema, so decide
+them for the whole project at once rather than per entity.
+
+---
+
+## 6. Checklist before opening the PR
 
 - [ ] The domain imports nothing from `adapters`, `fastapi`, `sqlalchemy` or `pydantic`.
 - [ ] The port declares only the methods the use cases call, and the repository does not inherit
       from it.
 - [ ] Every new domain exception has its entry in `_STATUS_CODES`.
-- [ ] Authorization lives in the service. The router validates, calls, wraps.
-- [ ] `set_committed_value` is in the update path; `flag_modified` fires only on an update
-      whose links actually moved, inside `no_autoflush`.
+- [ ] Authorization lives in the service, the shape is one of the four in §2, and existence is
+      checked before role in every method.
+- [ ] The optimistic lock is armed end to end: the version column, the committed-value overwrite on
+      update, and a link-only change that still advances the version exactly once.
 - [ ] Specific routes are declared before parametrised ones.
-- [ ] One schema per operation; `version` is required on update; `owner_id` is not accepted on
+- [ ] One schema per operation; `version` is required on update; the owner is never accepted on
       create.
-- [ ] The migration was read, applied and downgraded once.
-- [ ] Three tiers of test, the authorization matrix fully covered, coverage over 80 % in both stacks.
+- [ ] The migration was read, applied and downgraded once — or, if the table already existed,
+      autogenerate was run and confirmed empty.
+- [ ] Three tiers of backend test, the authorization matrix fully covered, coverage over 80 % in
+      both stacks.
 - [ ] The feature is reachable only through its `index.ts`; the page is `lazy()` with a default
       export; the nav placeholder became a real link.
 - [ ] No colour outside the tokens; no component used that is not in `/components-ui`.
