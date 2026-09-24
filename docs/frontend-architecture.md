@@ -35,10 +35,10 @@ frontend/src/
 └── test/setup.ts            Vitest setup (jest-dom matchers + RTL cleanup)
 ```
 
-Anything not in this tree does not exist yet. In particular `features/` holds `auth/` and nothing
-else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
-editorial grouping that orders it — is what issues #39 to #43 add, as `features/example/items/` and
-`features/example/collections/`. The Playwright suite is not part of `src/`; it lives in `frontend/e2e/`
+`features/` holds `auth/`, which is template code and the reference implementation for everything
+below, plus whatever the project adds. Anything belonging to a removable sample lives under
+`features/example/` and goes away with it — see [the example domain](./the-example-domain.md). The
+Playwright suite is not part of `src/`; it lives in `frontend/e2e/`
 (see [testing](./frontend-testing.md)).
 
 ---
@@ -58,8 +58,8 @@ app/  ──▶  features/  ──▶  components/ui, hooks/, lib/, types/, util
 2. **A feature is autonomous.** It owns `api/`, `components/`, `hooks/`, `types/` and an `index.ts`
    that is its public contract. Anything not exported from `index.ts` is private to the feature.
 3. **A feature never reaches into another feature's internals.** Importing `@/features/auth` is
-   allowed; importing `@/features/auth/components/LoginForm` is not. A component inside
-   `features/example/items` consuming `useAuth` from `@/features/auth` would be the compliant pattern.
+   allowed; importing `@/features/auth/components/LoginForm` is not. A component in one feature
+   consuming `useAuth` from `@/features/auth` is the compliant pattern.
 4. **`components/ui/` holds pure UI.** No business logic, no feature imports, no data fetching.
 5. **`components/layout/` is the one documented exception.** `Layout`, `Header`, `Sidebar`,
    `MobileTabBar` and `MobileAccountDrawer` import `useAuth` from `@/features/auth`, because
@@ -82,6 +82,9 @@ All routes live in a single `createBrowserRouter` call in `app/router.tsx`, nest
 | `/register` | `RegisterPage` | public |
 | `/components-ui` | `UiComponentsPage` (internal styleguide) | public |
 | `*` | `NotFoundPage` | public |
+
+Those are the template's own routes; the removable sample adds its own alongside them, including the
+only path-parameter route in the tree.
 
 Rules:
 
@@ -191,18 +194,45 @@ const { data, isLoading, error, execute } = useApi(loginUser);
 
 `useApi` never fetches by itself — `execute` has to be called. A screen that needs its data as soon
 as it mounts (the common case for a list or a detail page) uses `useApiOnMount` instead of writing
-that call inside a bare `useEffect`, so the five list/detail screens landing in issues #39-#43 do not
-each reinvent it differently:
+that call inside a bare `useEffect`, so no screen reinvents it differently:
 
 ```ts
-const { data, isLoading, error, refetch } = useApiOnMount(getItems, [filters]);
+const { data, isLoading, error, status, refetch } = useApiOnMount(getThing, [filters]);
 ```
 
 It wraps `useApi`, fires `execute` once on mount and again whenever `args` actually changes, and
-returns the same `data / isLoading / error` triple plus `refetch`. `args` is compared by its
-serialised contents, not by reference, so passing a fresh array literal on every render — the normal
-shape of that call — does not retrigger the fetch; only a genuine change in one of its values does.
-Pass `{ enabled: false }` to skip the automatic fetch, e.g. while a required id is not known yet.
+returns the same state plus `refetch`. `args` is compared by its serialised contents, not by
+reference, so passing a fresh array literal on every render — the normal shape of that call — does
+not retrigger the fetch; only a genuine change in one of its values does. Pass `{ enabled: false }`
+to skip the automatic fetch, e.g. while a required id is not known yet.
+
+**`status` is the HTTP status code of the failure**, and it exists because the flattened `error`
+message cannot drive a branch. A detail screen has to show `NotFoundState` for a 404 and
+`ServerErrorState` for anything else, so it branches on the number — never on the text of `error`,
+which is server-authored copy that will change. It is `null` when there was no failure, and filled
+with `?? null` from the caught `ApiError`, whose own `status` is typed `number | undefined`.
+
+**When one screen reads from two endpoints, put the choice in a fixed-arity function, not a
+closure.** `useApiOnMount<TArgs, TResult>` infers `TArgs` from the request function's parameter list
+and matches it against `args` positionally. A closure capturing part of the state and taking fewer
+parameters breaks that inference — and worse, the captured values are invisible to the comparison
+that decides when to refetch, so the screen silently stops reloading when they change:
+
+```ts
+// A fixed-arity function, on purpose.
+const fetchThings = (page: number, pageSize: number, search: string) =>
+  search.trim() ? searchThings(search.trim(), page, pageSize) : getThings({ page, pageSize });
+```
+
+Every value the request depends on has to travel through `args`. A screen reading from a single
+endpoint needs no wrapper at all — `useApiOnMount(getThing, [id])` is the whole hook.
+
+**Give "nothing yet" its own branch.** The obvious state machine —
+`if (isLoading) …; if (status === 404) …; if (error || !data) return <ServerErrorState/>` — is
+wrong in its last condition. On the render *before* the effect fires, `isLoading` is still its
+initial `false` and `data` is still `null`, so the screen flashes a server error for a frame it was
+never in. Put the no-data-no-error case in its own branch that renders nothing, **after** the error
+check rather than folded into it.
 
 ---
 
@@ -238,7 +268,7 @@ Pass `{ enabled: false }` to skip the automatic fetch, e.g. while a required id 
 | API / util / context files | `kebab-case.ts` | `auth-api.ts`, `get-initials.ts` |
 | Exports | Named, always | `export const Button = …` |
 | Default exports | Only `app/pages/*`, for `React.lazy` | `export default HomePage;` |
-| Props | `interface XxxProps`, never `type` | `interface ItemCardProps { … }` |
+| Props | `interface XxxProps`, never `type` | `interface ThingCardProps { … }` |
 | Components | Function components with hooks | no class components |
 | Tests | Colocated `Xxx.test.tsx` beside the file | `Header.test.tsx` |
 | Styling | Tailwind classes in JSX only | no `.css` files besides `app/index.css` |
