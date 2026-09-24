@@ -85,7 +85,7 @@ it('renders the action button and fires onAction when clicked', async () => {
   const user = userEvent.setup();
   const onAction = vi.fn();
 
-  render(<EmptyState title="No items" description="Add your first item." actionLabel="Add" onAction={onAction} />);
+  render(<EmptyState title="Sin resultados" description="Crea el primero." actionLabel="Add" onAction={onAction} />);
 
   await user.click(screen.getByRole('button', { name: 'Add' }));
 
@@ -147,6 +147,21 @@ afterEach(() => {
 
 Because rehydration is asynchronous, assertions on gated content use `findBy*`, not `getBy*`.
 
+**A screen that is gated *and* fetches its own data has two callers draining the same mock.**
+`AuthProvider` requests the current user at the same time the screen's hook requests its own
+resource, and chained `mockResolvedValueOnce` calls hand whichever resolves first the wrong payload
+— non-deterministically, so the test passes locally and fails under load. Key a single
+implementation on the requested path instead:
+
+```tsx
+vi.mocked(apiClient.get).mockImplementation((url: string) =>
+  url.startsWith('/auth/me') ? Promise.resolve(rawUser) : Promise.resolve(rawResource),
+);
+```
+
+Chained one-shot mocks stay fine for a screen that only fetches, or a component that only needs a
+session.
+
 ---
 
 ## 6. Wrapping providers and the router
@@ -158,9 +173,9 @@ There is no shared render helper. Each file declares its own small `renderXxx()`
 const renderComponent = () =>
   render(
     <AuthProvider>
-      <MemoryRouter initialEntries={['/items']}>
+      <MemoryRouter initialEntries={['/things']}>
         <Routes>
-          <Route path="/items" element={<ItemsPage />} />
+          <Route path="/things" element={<ThingsPage />} />
           <Route path="/login" element={<p>Login screen</p>} />
         </Routes>
       </MemoryRouter>
@@ -169,6 +184,27 @@ const renderComponent = () =>
 ```
 
 Rendering a sibling route with a marker element is the idiomatic way to assert a redirect happened.
+
+**Giving a component a router dependency breaks its siblings' tests**, and that is the price of
+having no shared helper. The moment a component gains a `<Link>`, a `useParams` or a `useNavigate`,
+every test file that rendered it bare starts failing — including files testing something else
+entirely that happened to render it. Update them in the same commit as the change that caused it;
+they will not be found for you.
+
+**A responsive action bar puts the same button in the DOM twice.** A screen that shows an inline
+action row on desktop and repeats those actions in a fixed mobile bar has both in the tree at once,
+because jsdom has no layout engine to hide either. `getByRole('button', { name: 'Eliminar' })` then
+throws on finding two. The answer is not `getByTestId`: give each row its own `role="group"` with a
+distinguishing `aria-label` and scope the query to it.
+
+```tsx
+within(screen.getByRole('group', { name: 'Acciones del artículo' })).getByRole('button', {
+  name: 'Eliminar',
+});
+```
+
+A fixed action bar with no landmark is an accessibility gap anyway, so the fix is worth making in
+the component rather than worked around in the test.
 
 ---
 
@@ -275,11 +311,11 @@ describe('useMyHook', () => {
 
   it('exposes the data once the request resolves', async () => {
     const { apiClient } = await import('@/lib/api-client');
-    vi.mocked(apiClient.get).mockResolvedValueOnce({ id: 1, name: 'Some item' });
+    vi.mocked(apiClient.get).mockResolvedValueOnce({ id: 1, name: 'Something' });
 
     const { result } = renderHook(() => useMyHook());
 
-    await waitFor(() => expect(result.current.data).toEqual({ id: 1, name: 'Some item' }));
+    await waitFor(() => expect(result.current.data).toEqual({ id: 1, name: 'Something' }));
   });
 });
 ```
