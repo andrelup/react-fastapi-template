@@ -5,6 +5,10 @@ interface UseApiState<T> {
   data: T | null;
   isLoading: boolean;
   error: string | null;
+  /** The HTTP status of the last failed request, or `null` while idle,
+   * loading, or after a success. Lets a screen tell a 404 from a 500 —
+   * something the flattened `error` message alone cannot do. */
+  status: number | null;
 }
 
 /**
@@ -23,18 +27,20 @@ export const useApi = <TArgs extends unknown[], TResult>(
     data: null,
     isLoading: false,
     error: null,
+    status: null,
   });
 
   const execute = useCallback(
     async (...args: TArgs): Promise<TResult | null> => {
-      setState({ data: null, isLoading: true, error: null });
+      setState({ data: null, isLoading: true, error: null, status: null });
       try {
         const result = await requestFn(...args);
-        setState({ data: result, isLoading: false, error: null });
+        setState({ data: result, isLoading: false, error: null, status: null });
         return result;
       } catch (err) {
         const message = err instanceof ApiError ? err.message : 'Unexpected error';
-        setState({ data: null, isLoading: false, error: message });
+        const status = err instanceof ApiError ? (err.status ?? null) : null;
+        setState({ data: null, isLoading: false, error: message, status });
         return null;
       }
     },

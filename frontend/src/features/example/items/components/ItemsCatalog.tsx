@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListingCard } from '@/components/ui/ListingCard';
@@ -29,6 +30,7 @@ const CATEGORY_OPTIONS: SelectOption[] = [
  * filter. Visible to all three roles — the example domain has no owner-only
  * view yet. */
 export const ItemsCatalog = () => {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -114,6 +116,7 @@ export const ItemsCatalog = () => {
                 description={item.description ?? undefined}
                 badge={item.category ? <Badge>{item.category}</Badge> : undefined}
                 meta={item.tags.length > 0 ? item.tags.join(', ') : undefined}
+                onSelect={() => navigate(`/items/${item.id}`)}
               />
             ))}
           </div>

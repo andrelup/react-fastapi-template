@@ -17,3 +17,15 @@ export interface ItemFilters {
   pageSize?: number;
   category?: string;
 }
+
+/** A collection an item belongs to, as shown on the item detail screen. */
+export interface CollectionRef {
+  id: number;
+  name: string;
+}
+
+/** `Item` plus the collections it belongs to — only `GET /items/{id}`
+ * returns this shape; the listing endpoints keep returning plain `Item`. */
+export interface ItemDetail extends Item {
+  collections: CollectionRef[];
+}
