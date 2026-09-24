@@ -9,15 +9,23 @@ from dataclasses import replace
 
 import pytest
 from sqlalchemy.orm.exc import StaleDataError
-from src.domain.exceptions import DuplicateSlugError, ForbiddenError, ItemNotFoundError
+from src.domain.exceptions import (
+    CollectionNotFoundError,
+    DuplicateSlugError,
+    ForbiddenError,
+    ItemNotFoundError,
+)
+from src.domain.models.example.collection import Collection, CollectionRef
 from src.domain.models.example.item import Item
 from src.domain.models.user import User, UserRole
 from src.domain.services.example.item_service import ItemService
 
+from tests.fakes.fake_collection_repository import FakeCollectionRepository
+
 
 def _copy(item: Item) -> Item:
-    """Return an independent copy, mutable list field included."""
-    return replace(item, tag_names=list(item.tag_names))
+    """Return an independent copy, mutable list fields included."""
+    return replace(item, tag_names=list(item.tag_names), collections=list(item.collections))
 
 
 class FakeItemRepository:
@@ -93,12 +101,19 @@ def _item(item_id: int | None, owner_id: int, slug: str = "manual", version: int
     )
 
 
+def _collection(collection_id: int, name: str = "Guias") -> Collection:
+    return Collection(id=collection_id, name=name)
+
+
 # --- search and get -------------------------------------------------------
 
 
 async def test_search_returns_the_page_and_the_total() -> None:
     # Arrange
-    sut = ItemService(FakeItemRepository([_item(1, 1, "a"), _item(2, 1, "b"), _item(3, 1, "c")]))
+    sut = ItemService(
+        FakeItemRepository([_item(1, 1, "a"), _item(2, 1, "b"), _item(3, 1, "c")]),
+        FakeCollectionRepository(),
+    )
 
     # Act
     items, total = await sut.search(None, None, offset=1, limit=1)
@@ -111,7 +126,7 @@ async def test_search_returns_the_page_and_the_total() -> None:
 async def test_search_narrows_by_category() -> None:
     # Arrange
     other = replace(_item(2, 1, "b"), category="otra")
-    sut = ItemService(FakeItemRepository([_item(1, 1, "a"), other]))
+    sut = ItemService(FakeItemRepository([_item(1, 1, "a"), other]), FakeCollectionRepository())
 
     # Act
     items, total = await sut.search(None, "otra", offset=0, limit=20)
@@ -123,7 +138,7 @@ async def test_search_narrows_by_category() -> None:
 
 async def test_get_returns_the_item() -> None:
     # Arrange
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
 
     # Act
     found = await sut.get(10)
@@ -134,7 +149,7 @@ async def test_get_returns_the_item() -> None:
 
 async def test_get_when_the_item_does_not_exist_raises_item_not_found_error() -> None:
     # Arrange
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ItemNotFoundError):
@@ -147,7 +162,7 @@ async def test_get_when_the_item_does_not_exist_raises_item_not_found_error() ->
 async def test_create_as_viewer_raises_forbidden_error() -> None:
     # Arrange
     viewer = _user(1, UserRole.VIEWER)
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ForbiddenError):
@@ -157,7 +172,7 @@ async def test_create_as_viewer_raises_forbidden_error() -> None:
 async def test_create_as_editor_assigns_ownership_to_the_authenticated_user() -> None:
     # Arrange
     editor = _user(7, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act
     created = await sut.create(_item(None, 0), editor)
@@ -171,7 +186,7 @@ async def test_create_as_editor_assigns_ownership_to_the_authenticated_user() ->
 async def test_create_as_admin_is_allowed() -> None:
     # Arrange
     admin = _user(1, UserRole.ADMIN)
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act
     created = await sut.create(_item(None, 0), admin)
@@ -183,7 +198,7 @@ async def test_create_as_admin_is_allowed() -> None:
 async def test_create_with_a_taken_slug_raises_duplicate_slug_error() -> None:
     # Arrange
     editor = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(1, 2, "manual")]))
+    sut = ItemService(FakeItemRepository([_item(1, 2, "manual")]), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(DuplicateSlugError):
@@ -195,7 +210,7 @@ async def test_create_with_an_unpersisted_user_raises_value_error() -> None:
     ghost = User(
         id=None, email="g@example.com", name="G", role=UserRole.EDITOR, hashed_password="hashed:pw"
     )
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ValueError, match="must be persisted"):
@@ -208,7 +223,7 @@ async def test_create_with_an_unpersisted_user_raises_value_error() -> None:
 async def test_update_as_viewer_raises_forbidden_error() -> None:
     # Arrange
     viewer = _user(1, UserRole.VIEWER)
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
 
     # Act & Assert — owning the item does not help: a VIEWER writes nothing
     with pytest.raises(ForbiddenError):
@@ -218,7 +233,7 @@ async def test_update_as_viewer_raises_forbidden_error() -> None:
 async def test_update_when_editor_does_not_own_the_item_raises_forbidden_error() -> None:
     # Arrange
     intruder = _user(2, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ForbiddenError):
@@ -228,7 +243,7 @@ async def test_update_when_editor_does_not_own_the_item_raises_forbidden_error()
 async def test_update_when_editor_owns_the_item_applies_the_changes() -> None:
     # Arrange
     owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
     changes = replace(_item(10, 1), name="Manual v2", tag_names=["onboarding"])
 
     # Act
@@ -243,7 +258,7 @@ async def test_update_when_editor_owns_the_item_applies_the_changes() -> None:
 async def test_update_as_admin_on_an_item_it_does_not_own_applies_the_changes() -> None:
     # Arrange
     admin = _user(9, UserRole.ADMIN)
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
 
     # Act
     updated = await sut.update(10, replace(_item(10, 1), name="Intervenido"), admin)
@@ -255,7 +270,7 @@ async def test_update_as_admin_on_an_item_it_does_not_own_applies_the_changes() 
 async def test_update_when_the_item_does_not_exist_raises_item_not_found_error() -> None:
     # Arrange
     admin = _user(9, UserRole.ADMIN)
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ItemNotFoundError):
@@ -265,7 +280,7 @@ async def test_update_when_the_item_does_not_exist_raises_item_not_found_error()
 async def test_update_with_a_stale_version_raises_stale_data_error() -> None:
     # Arrange — the stored item has already moved on to version 2
     owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1, version=2)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1, version=2)]), FakeCollectionRepository())
 
     # Act & Assert — the client still holds version 1
     with pytest.raises(StaleDataError):
@@ -275,7 +290,10 @@ async def test_update_with_a_stale_version_raises_stale_data_error() -> None:
 async def test_update_to_a_slug_owned_by_another_item_raises_duplicate_slug_error() -> None:
     # Arrange
     owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1, "manual"), _item(11, 1, "otro")]))
+    sut = ItemService(
+        FakeItemRepository([_item(10, 1, "manual"), _item(11, 1, "otro")]),
+        FakeCollectionRepository(),
+    )
 
     # Act & Assert
     with pytest.raises(DuplicateSlugError):
@@ -285,7 +303,7 @@ async def test_update_to_a_slug_owned_by_another_item_raises_duplicate_slug_erro
 async def test_update_keeping_its_own_slug_does_not_check_for_duplicates() -> None:
     # Arrange
     owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1, "manual")]))
+    sut = ItemService(FakeItemRepository([_item(10, 1, "manual")]), FakeCollectionRepository())
 
     # Act
     updated = await sut.update(10, replace(_item(10, 1, "manual"), name="Otro nombre"), owner)
@@ -300,7 +318,7 @@ async def test_update_keeping_its_own_slug_does_not_check_for_duplicates() -> No
 async def test_delete_as_viewer_raises_forbidden_error() -> None:
     # Arrange
     viewer = _user(1, UserRole.VIEWER)
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ForbiddenError):
@@ -310,7 +328,7 @@ async def test_delete_as_viewer_raises_forbidden_error() -> None:
 async def test_delete_as_editor_raises_forbidden_error_even_on_its_own_item() -> None:
     # Arrange — deleting is an ADMIN privilege across the whole system
     owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1)]))
+    sut = ItemService(FakeItemRepository([_item(10, 1)]), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ForbiddenError):
@@ -321,7 +339,7 @@ async def test_delete_as_admin_removes_the_item() -> None:
     # Arrange
     admin = _user(9, UserRole.ADMIN)
     repository = FakeItemRepository([_item(10, 1)])
-    sut = ItemService(repository)
+    sut = ItemService(repository, FakeCollectionRepository())
 
     # Act
     await sut.delete(10, admin)
@@ -334,8 +352,114 @@ async def test_delete_a_missing_item_as_viewer_raises_item_not_found_not_forbidd
     # Arrange — existence is checked before the role, so the error code never
     # leaks whether the row exists
     viewer = _user(1, UserRole.VIEWER)
-    sut = ItemService(FakeItemRepository())
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
 
     # Act & Assert
     with pytest.raises(ItemNotFoundError):
         await sut.delete(404, viewer)
+
+
+# --- membership (set_collections) ------------------------------------------
+
+
+async def test_set_collections_as_viewer_raises_forbidden_error() -> None:
+    # Arrange
+    viewer = _user(1, UserRole.VIEWER)
+    item_repository = FakeItemRepository([_item(10, 1)])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act & Assert — owning the item does not help: a VIEWER writes nothing
+    with pytest.raises(ForbiddenError):
+        await sut.set_collections(10, [1], version=1, current_user=viewer)
+
+
+async def test_set_collections_when_editor_does_not_own_the_item_raises_forbidden_error() -> None:
+    # Arrange
+    intruder = _user(2, UserRole.EDITOR)
+    item_repository = FakeItemRepository([_item(10, 1)])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act & Assert
+    with pytest.raises(ForbiddenError):
+        await sut.set_collections(10, [1], version=1, current_user=intruder)
+
+
+async def test_set_collections_when_editor_owns_the_item_applies_the_membership() -> None:
+    # Arrange
+    owner = _user(1, UserRole.EDITOR)
+    item_repository = FakeItemRepository([_item(10, 1)])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act
+    updated = await sut.set_collections(10, [1], version=1, current_user=owner)
+
+    # Assert
+    assert updated.collections == [CollectionRef(id=1, name="Guias")]
+    assert updated.version == 2
+
+
+async def test_set_collections_as_admin_on_an_item_it_does_not_own_applies_the_membership() -> None:
+    # Arrange
+    admin = _user(9, UserRole.ADMIN)
+    item_repository = FakeItemRepository([_item(10, 1)])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act
+    updated = await sut.set_collections(10, [1], version=1, current_user=admin)
+
+    # Assert
+    assert updated.collections == [CollectionRef(id=1, name="Guias")]
+
+
+async def test_set_collections_when_the_item_does_not_exist_raises_item_not_found_error() -> None:
+    # Arrange — existence of the item is checked before authorization or
+    # resolving the collection ids
+    admin = _user(9, UserRole.ADMIN)
+    sut = ItemService(FakeItemRepository(), FakeCollectionRepository())
+
+    # Act & Assert
+    with pytest.raises(ItemNotFoundError):
+        await sut.set_collections(404, [1], version=1, current_user=admin)
+
+
+async def test_set_collections_with_an_unknown_id_raises_collection_not_found_error() -> None:
+    # Arrange
+    owner = _user(1, UserRole.EDITOR)
+    item_repository = FakeItemRepository([_item(10, 1)])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act & Assert
+    with pytest.raises(CollectionNotFoundError):
+        await sut.set_collections(10, [1, 999], version=1, current_user=owner)
+
+
+async def test_set_collections_with_a_stale_version_raises_stale_data_error() -> None:
+    # Arrange — the stored item has already moved on to version 2
+    owner = _user(1, UserRole.EDITOR)
+    item_repository = FakeItemRepository([_item(10, 1, version=2)])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act & Assert — the client still holds version 1
+    with pytest.raises(StaleDataError):
+        await sut.set_collections(10, [1], version=1, current_user=owner)
+
+
+async def test_set_collections_to_an_empty_list_clears_membership() -> None:
+    # Arrange
+    owner = _user(1, UserRole.EDITOR)
+    item = replace(_item(10, 1), collections=[CollectionRef(id=1, name="Guias")])
+    item_repository = FakeItemRepository([item])
+    collection_repository = FakeCollectionRepository([_collection(1, "Guias")])
+    sut = ItemService(item_repository, collection_repository)
+
+    # Act
+    updated = await sut.set_collections(10, [], version=1, current_user=owner)
+
+    # Assert
+    assert updated.collections == []
