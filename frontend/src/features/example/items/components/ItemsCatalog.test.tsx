@@ -28,8 +28,7 @@ const rawItem = (overrides: Partial<Record<string, unknown>> = {}) => ({
 });
 
 // The catalogue now navigates to the item detail route on selection, so it
-// needs a router in its render tree — see the `### From #40` correction in
-// docs/adding-a-feature.md.
+// needs a router in its render tree — see step 19 of docs/adding-a-feature.md.
 const renderCatalog = () =>
   render(
     <MemoryRouter initialEntries={['/items']}>
