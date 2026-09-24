@@ -12,8 +12,12 @@ from collections.abc import Callable
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.adapters.outbound.persistence.example.collection_repository import (
+    SqlAlchemyCollectionRepository,
+)
 from src.adapters.outbound.persistence.example.item_repository import SqlAlchemyItemRepository
 from src.adapters.outbound.persistence.user_repository import SqlAlchemyUserRepository
+from src.domain.models.example.collection import Collection
 from src.domain.models.example.item import Item
 from src.domain.models.user import User, UserRole
 
@@ -30,6 +34,11 @@ async def _an_item(db_session: AsyncSession, owner_id: int, slug: str = "manual"
     return await SqlAlchemyItemRepository(db_session).save(
         Item(name="Manual", slug=slug, owner_id=owner_id, category="documentacion")
     )
+
+
+async def _a_collection(db_session: AsyncSession, name: str = "Guias") -> Collection:
+    """Insert a collection, bypassing the API."""
+    return await SqlAlchemyCollectionRepository(db_session).save(Collection(name=name))
 
 
 def _payload(slug: str = "nuevo-item", **overrides: object) -> dict[str, object]:
@@ -439,3 +448,190 @@ async def test_delete_an_unknown_item_as_viewer_returns_404_not_403(
 
     # Assert
     assert response.status_code == 404
+
+
+# --- membership: PUT /items/{item_id}/collections ---------------------------
+
+
+async def test_get_item_includes_its_collections(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    viewer = await _a_user(db_session, UserRole.VIEWER, "detail-viewer@example.com")
+    assert viewer.id is not None
+    item = await _an_item(db_session, viewer.id, "con-detalle")
+    authenticated_as(viewer)
+
+    # Act
+    response = await async_client.get(f"/items/{item.id}")
+
+    # Assert — a brand-new item belongs to no collection yet
+    assert response.status_code == 200
+    assert response.json()["data"]["collections"] == []
+
+
+async def test_set_item_collections_as_viewer_returns_403(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    viewer = await _a_user(db_session, UserRole.VIEWER, "membership-viewer@example.com")
+    assert viewer.id is not None
+    item = await _an_item(db_session, viewer.id, "membresia-viewer")
+    collection = await _a_collection(db_session, "coleccion-viewer")
+    authenticated_as(viewer)
+
+    # Act — owning the item does not help: a VIEWER writes nothing
+    response = await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [collection.id], "version": item.version},
+    )
+
+    # Assert
+    assert response.status_code == 403
+
+
+async def test_set_item_collections_as_editor_on_its_own_item_returns_200(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange — this is the acceptance criterion: an EDITOR may associate its
+    # own item with an existing collection
+    editor = await _a_user(db_session, UserRole.EDITOR, "membership-editor@example.com")
+    assert editor.id is not None
+    item = await _an_item(db_session, editor.id, "membresia-editor")
+    collection = await _a_collection(db_session, "coleccion-editor")
+    authenticated_as(editor)
+
+    # Act
+    response = await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [collection.id], "version": item.version},
+    )
+
+    # Assert
+    body = response.json()
+    assert response.status_code == 200
+    assert body["data"]["collections"] == [{"id": collection.id, "name": collection.name}]
+    assert body["data"]["version"] == item.version + 1
+
+
+async def test_set_item_collections_as_editor_on_someone_elses_item_returns_403(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    owner = await _a_user(db_session, UserRole.EDITOR, "membership-owner@example.com")
+    intruder = await _a_user(db_session, UserRole.EDITOR, "membership-intruder@example.com")
+    assert owner.id is not None
+    item = await _an_item(db_session, owner.id, "membresia-ajena")
+    collection = await _a_collection(db_session, "coleccion-ajena")
+    authenticated_as(intruder)
+
+    # Act
+    response = await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [collection.id], "version": item.version},
+    )
+
+    # Assert
+    assert response.status_code == 403
+
+
+async def test_set_item_collections_as_admin_on_someone_elses_item_returns_200(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    owner = await _a_user(db_session, UserRole.EDITOR, "membership-target@example.com")
+    admin = await _a_user(db_session, UserRole.ADMIN, "membership-admin@example.com")
+    assert owner.id is not None
+    item = await _an_item(db_session, owner.id, "membresia-admin")
+    collection = await _a_collection(db_session, "coleccion-admin")
+    authenticated_as(admin)
+
+    # Act
+    response = await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [collection.id], "version": item.version},
+    )
+
+    # Assert
+    assert response.status_code == 200
+    assert response.json()["data"]["collections"] == [
+        {"id": collection.id, "name": collection.name}
+    ]
+
+
+async def test_set_item_collections_with_an_unknown_collection_id_returns_404(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    editor = await _a_user(db_session, UserRole.EDITOR, "membership-404-editor@example.com")
+    assert editor.id is not None
+    item = await _an_item(db_session, editor.id, "membresia-404")
+    authenticated_as(editor)
+
+    # Act
+    response = await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [987654], "version": item.version},
+    )
+
+    # Assert
+    assert response.status_code == 404
+
+
+async def test_set_item_collections_on_an_unknown_item_returns_404(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange — the item's existence is checked before authorization or
+    # resolving the collection ids
+    admin = await _a_user(db_session, UserRole.ADMIN, "membership-404-item-admin@example.com")
+    authenticated_as(admin)
+
+    # Act
+    response = await async_client.put(
+        "/items/987654/collections", json={"collection_ids": [], "version": 1}
+    )
+
+    # Assert
+    assert response.status_code == 404
+
+
+async def test_set_item_collections_with_a_stale_version_returns_409(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange — somebody else already moved the item to version 2
+    editor = await _a_user(db_session, UserRole.EDITOR, "membership-stale-editor@example.com")
+    assert editor.id is not None
+    item = await _an_item(db_session, editor.id, "membresia-desactualizada")
+    collection = await _a_collection(db_session, "coleccion-desactualizada")
+    authenticated_as(editor)
+    await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [collection.id], "version": item.version},
+    )
+
+    # Act — this client still holds the item's original version
+    response = await async_client.put(
+        f"/items/{item.id}/collections",
+        json={"collection_ids": [], "version": item.version},
+    )
+
+    # Assert
+    assert response.status_code == 409
+    assert response.json()["success"] is False
+
+
+async def test_set_item_collections_without_a_version_returns_422(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange — `version` is mandatory, so membership takes part in the lock
+    editor = await _a_user(db_session, UserRole.EDITOR, "membership-noversion-editor@example.com")
+    assert editor.id is not None
+    item = await _an_item(db_session, editor.id, "membresia-sin-version")
+    authenticated_as(editor)
+
+    # Act
+    response = await async_client.put(f"/items/{item.id}/collections", json={"collection_ids": []})
+
+    # Assert
+    assert response.status_code == 422
+    assert "version" in response.json()["error"]

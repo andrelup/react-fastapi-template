@@ -1,4 +1,4 @@
-"""Catalogue item endpoints: listing, search, read, create, update and delete."""
+"""Catalogue item endpoints: listing, search, read, create, update, delete and membership."""
 
 from typing import Annotated
 
@@ -7,7 +7,10 @@ from fastapi import APIRouter, Depends, Query
 from src.adapters.inbound.middleware.auth import get_current_user
 from src.adapters.inbound.schemas.common import ApiResponse, error_responses
 from src.adapters.inbound.schemas.example.item_schemas import (
+    CollectionRefResponse,
+    ItemCollectionsUpdate,
     ItemCreate,
+    ItemDetailResponse,
     ItemPageResponse,
     ItemResponse,
     ItemUpdate,
@@ -33,6 +36,27 @@ def _to_response(item: Item) -> ItemResponse:
         tags=item.tag_names,
         owner_id=item.owner_id,
         version=item.version,
+    )
+
+
+def _to_detail_response(item: Item) -> ItemDetailResponse:
+    """Map a persisted domain `Item` to its detailed public API representation.
+
+    Only `GET /items/{item_id}` and the membership endpoint use this shape —
+    the paginated list endpoints keep returning plain `ItemResponse`.
+    """
+    if item.id is None:
+        raise ValueError("Persisted items must have an id")
+    return ItemDetailResponse(
+        id=item.id,
+        name=item.name,
+        slug=item.slug,
+        description=item.description,
+        category=item.category,
+        tags=item.tag_names,
+        owner_id=item.owner_id,
+        version=item.version,
+        collections=[CollectionRefResponse(id=ref.id, name=ref.name) for ref in item.collections],
     )
 
 
@@ -97,19 +121,19 @@ async def search_items(
 
 @router.get(
     "/{item_id}",
-    response_model=ApiResponse[ItemResponse],
+    response_model=ApiResponse[ItemDetailResponse],
     summary="Get one catalogue item",
-    response_description="The requested item.",
+    response_description="The requested item, with the collections it belongs to.",
     responses=error_responses(401, 404),
 )
 async def get_item(
     item_id: int,
     item_service: Annotated[ItemService, Depends(get_item_service)],
     _current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[ItemResponse]:
-    """Return a single item by id."""
+) -> ApiResponse[ItemDetailResponse]:
+    """Return a single item by id, including the collections it belongs to."""
     item = await item_service.get(item_id)
-    return ApiResponse(success=True, data=_to_response(item), error=None)
+    return ApiResponse(success=True, data=_to_detail_response(item), error=None)
 
 
 @router.post(
@@ -163,6 +187,32 @@ async def update_item(
     )
     updated = await item_service.update(item_id, changes, current_user)
     return ApiResponse(success=True, data=_to_response(updated), error=None)
+
+
+@router.put(
+    "/{item_id}/collections",
+    response_model=ApiResponse[ItemDetailResponse],
+    summary="Set the collections an item belongs to",
+    response_description="The updated item, with its new version and collections.",
+    responses=error_responses(401, 403, 404, 409),
+)
+async def set_item_collections(
+    item_id: int,
+    payload: ItemCollectionsUpdate,
+    item_service: Annotated[ItemService, Depends(get_item_service)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> ApiResponse[ItemDetailResponse]:
+    """Set which collections an item belongs to.
+
+    Governed by whoever may edit the item — ADMIN any item, EDITOR only its
+    own — never by who may edit the collections catalogue itself. That is
+    what lets an EDITOR put its own items into an existing collection
+    without being able to create or rename one.
+    """
+    updated = await item_service.set_collections(
+        item_id, payload.collection_ids, payload.version, current_user
+    )
+    return ApiResponse(success=True, data=_to_detail_response(updated), error=None)
 
 
 @router.delete(
