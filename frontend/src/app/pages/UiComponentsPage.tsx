@@ -12,6 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/Card';
+import { Combobox } from '@/components/ui/Combobox';
+import type { ComboboxOption } from '@/components/ui/Combobox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import {
   Dialog,
@@ -54,6 +56,76 @@ const categoryOptions = [
   { value: 'hogar', label: 'Hogar' },
   { value: 'electronica', label: 'Electrónica' },
 ];
+
+const tagOptions: ComboboxOption[] = [
+  { value: 'urgente', label: 'Urgente' },
+  { value: 'oferta', label: 'Oferta' },
+  { value: 'nuevo', label: 'Nuevo' },
+  { value: 'exterior', label: 'Exterior' },
+  { value: 'interior', label: 'Interior' },
+];
+
+// The demo's onSearch: a synchronous filter over an in-memory array, which is
+// exactly what shows that the component itself is agnostic of where its
+// options come from — a real screen would call the backend here instead.
+const filterTagOptions = (query: string): ComboboxOption[] => {
+  const normalized = query.trim().toLowerCase();
+  return tagOptions.filter((option) => option.label.toLowerCase().includes(normalized));
+};
+
+// Resolves after a short delay so the pending → success sequence of the
+// right-edge indicator is visible instead of instantaneous.
+const createTagAfterDelay = (name: string): Promise<ComboboxOption> =>
+  new Promise((resolve) => {
+    window.setTimeout(() => {
+      resolve({ value: name.toLowerCase().replace(/\s+/g, '-'), label: name });
+    }, 800);
+  });
+
+// Always rejects, to demonstrate the failed on-the-fly creation state: the
+// chip stays visible with its warning but never joins `value`.
+const createTagThatFails = (): Promise<ComboboxOption> =>
+  new Promise((_resolve, reject) => {
+    window.setTimeout(() => reject(new Error('No se pudo crear la etiqueta.')), 800);
+  });
+
+interface ComboboxDemoProps {
+  label: string;
+  defaultValue?: ComboboxOption[];
+  disabled?: boolean;
+  error?: string;
+  isLoading?: boolean;
+  allowCreate?: boolean;
+  onCreate?: (name: string) => Promise<ComboboxOption>;
+}
+
+const ComboboxDemo = ({
+  label,
+  defaultValue = [],
+  disabled = false,
+  error,
+  isLoading = false,
+  allowCreate = false,
+  onCreate,
+}: ComboboxDemoProps) => {
+  const [value, setValue] = useState<ComboboxOption[]>(defaultValue);
+  const [options, setOptions] = useState<ComboboxOption[]>(tagOptions);
+
+  return (
+    <Combobox
+      label={label}
+      options={options}
+      value={value}
+      onValueChange={setValue}
+      onSearch={(query) => setOptions(filterTagOptions(query))}
+      disabled={disabled}
+      error={error}
+      isLoading={isLoading}
+      allowCreate={allowCreate}
+      onCreate={onCreate}
+    />
+  );
+};
 
 /**
  * Internal styleguide at `/components-ui`, and the binding catalogue of the
@@ -140,6 +212,29 @@ const UiComponentsPage = () => {
           />
           <Select label="Categoría (cargando)" options={categoryOptions} isLoading />
           <Select label="Categoría (sin opciones)" options={[]} />
+        </div>
+      </Section>
+
+      <Section
+        title="Combobox"
+        description="Selector múltiple con buscador y alta al vuelo, sobre Command y Popover de shadcn/ui. El componente solo pinta options e isLoading; quien busca y quien crea es quien lo usa — aquí, un filtro en memoria sobre un array de etiquetas de mentira."
+      >
+        <div className="grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
+          <ComboboxDemo label="Etiquetas" />
+          <ComboboxDemo label="Etiquetas elegidas" defaultValue={[tagOptions[0], tagOptions[2]]} />
+          <ComboboxDemo label="Etiquetas (buscando)" isLoading />
+          <ComboboxDemo label="Etiquetas (deshabilitado)" disabled defaultValue={[tagOptions[1]]} />
+          <ComboboxDemo label="Etiquetas con error" error="Elige al menos una etiqueta." />
+          <ComboboxDemo
+            label="Etiquetas con alta al vuelo"
+            allowCreate
+            onCreate={createTagAfterDelay}
+          />
+          <ComboboxDemo
+            label="Etiquetas con alta al vuelo (falla)"
+            allowCreate
+            onCreate={createTagThatFails}
+          />
         </div>
       </Section>
 
@@ -231,6 +326,7 @@ const UiComponentsPage = () => {
           <Badge variant="secondary">Borrador</Badge>
           <Badge variant="outline">Contorno</Badge>
           <Badge variant="destructive">Caducado</Badge>
+          <Badge variant="warning">No guardado</Badge>
         </div>
       </Section>
 
