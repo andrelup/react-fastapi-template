@@ -4,11 +4,6 @@ import { LoginPage } from '../page-objects/LoginPage';
 // Fixed seed account created by `backend/seed.py` (`make seed`), kept out of the
 // Faker-generated pool precisely so this spec stays stable across seed re-runs.
 // Development-only credentials — never valid outside a local DB.
-//
-// PLACEHOLDER: the seed is mid-migration to the neutral catalogue (roles become
-// ADMIN/EDITOR/VIEWER in #11, `seed.py` is rewritten with one account per role
-// in #12). No account exists under these values yet, so this spec fails until
-// #12 lands and these two constants are pointed at what it actually creates.
 const VIEWER_EMAIL = 'viewer@example.com';
 const VIEWER_PASSWORD = 'ChangeMe123!';
 
