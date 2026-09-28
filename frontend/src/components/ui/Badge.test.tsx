@@ -22,6 +22,7 @@ describe('Badge', () => {
         <Badge variant="secondary">Secundario</Badge>
         <Badge variant="outline">Contorno</Badge>
         <Badge variant="destructive">Caducado</Badge>
+        <Badge variant="warning">No guardado</Badge>
       </>,
     );
 
@@ -29,6 +30,21 @@ describe('Badge', () => {
     expect(screen.getByText('Secundario')).toBeInTheDocument();
     expect(screen.getByText('Contorno')).toBeInTheDocument();
     expect(screen.getByText('Caducado')).toBeInTheDocument();
+    expect(screen.getByText('No guardado')).toBeInTheDocument();
+  });
+
+  it('paints a failed operation amber and a destructive one red', () => {
+    // §1 of docs/frontend-ui-components.md: these two are not interchangeable,
+    // so the test pins the distinction rather than just "a variant renders".
+    render(
+      <>
+        <Badge variant="destructive">Borrar</Badge>
+        <Badge variant="warning">No guardado</Badge>
+      </>,
+    );
+
+    expect(screen.getByText('Borrar')).toHaveClass('text-danger');
+    expect(screen.getByText('No guardado')).toHaveClass('text-warning');
   });
 
   it('accepts an extra className', () => {
