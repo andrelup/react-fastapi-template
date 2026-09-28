@@ -37,6 +37,11 @@ export default {
           border: 'var(--color-danger-border)',
           bg: 'var(--color-danger-bg)',
         },
+        warning: {
+          DEFAULT: 'var(--color-warning)',
+          border: 'var(--color-warning-border)',
+          bg: 'var(--color-warning-bg)',
+        },
         // Names shadcn/ui is written against, aliased in `index.css` to the
         // project tokens above.
         background: 'var(--background)',

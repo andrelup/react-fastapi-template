@@ -60,11 +60,22 @@ hit is a component that went around the tokens.
 | `--color-danger` | `#B23A2E` | `text-danger`, `border-danger` | Destructive only |
 | `--color-danger-border` | `#EBD3CF` | `border-danger-border` | Destructive button border |
 | `--color-danger-bg` | `#FBEEEC` | `bg-danger-bg` | Destructive button hover |
+| `--color-warning` | `#8A5A12` | `text-warning`, `border-warning` | An operation that did not succeed |
+| `--color-warning-border` | `#ECDCC0` | `border-warning-border` | Warning chip / callout border |
+| `--color-warning-bg` | `#FDF6E9` | `bg-warning-bg` | Warning chip / callout fill |
 
 **Colour policy — this is a hard rule.** Forest green is the only interactive/brand colour. **Red is
 reserved for destructive actions**: logout and delete confirmations. It is not an "error/warning"
 colour for general UI. The single sanctioned exception is the retry button inside
 `ServerErrorState`; do not treat it as a precedent.
+
+**Amber says "this did not work"; red says "this destroys something".** They are not two intensities
+of one idea, which is why `--color-warning` is its own token rather than a softer red: a tag that
+failed to be created is not a delete confirmation, and painting it red left red meaning two different
+things in the same palette. Amber rather than a pure yellow because saturated yellow does not reach AA
+contrast on `surface`. Its first consumer is `Combobox`'s on-the-fly-creation indicator. A field whose
+*input* is invalid still uses `danger`, through the `error` contract in §2 — that is a rejected value,
+not a failed operation.
 
 There are no blue tokens. If you find yourself reaching for one, you are off-palette.
 
@@ -229,6 +240,48 @@ focusable control — plus the same error message element. `options` is a flat `
 an empty array renders "No hay opciones disponibles." instead of the list when opened. `isLoading`
 disables the trigger and swaps the chevron for a `Spinner`.
 
+### `Combobox`
+
+```ts
+export interface ComboboxOption {
+  value: string;
+  label: string;
+}
+```
+
+Built on shadcn/ui's `command` (`cmdk`) and `popover` (Radix `Popover`) — shadcn/ui does not
+publish a `combobox` entry of its own; its Combobox page is a composition recipe over those two —
+for the cases `Select` does not cover: several values at once, a list rebuilt from the server while
+the user types, and the option to add a value that does not exist yet. `Command` and `Popover` are
+copies under §5 rule 5 (classes and copy only); `Combobox.tsx` composing them is not a copy of
+anything and is ordinary project code.
+
+Carries the same contract as `Input` and `Select`: `label` is mandatory, `error` drives
+`aria-invalid` / `aria-describedby` on the focusable control, with one documented gap — cmdk's
+`CommandInput` generates its own DOM `id` and points its own `aria-labelledby` at a hidden
+`<label>` it renders from `Command`'s `label` prop, so the `id` this component derives from
+`label` never lands on the input itself. The accessible name still equals `label` —
+`getByLabelText` and `getByRole('combobox', { name: label })` both resolve correctly — only the
+literal DOM `id` is not caller-controlled.
+
+The component **does not search and does not filter**: it debounces what is typed through the
+existing `useDebounce` hook (300 ms, same as `SearchInput`) and calls `onSearch(query, signal)`
+once typing pauses; the second argument is an `AbortController`'s signal, aborted the moment a
+newer query supersedes it, so a caller wiring it into `fetch` gets stale-response cancellation for
+free. `options` and `isLoading` arrive as props and are only painted — the search itself, and any
+filtering, is the caller's — which is also why cmdk's own client-side filtering is switched off
+(`shouldFilter={false}`): a list that already came back filtered from the server would otherwise be
+filtered a second time on top of it.
+
+Selection is multi-value: chosen options render as removable `Badge`s. When `allowCreate` and
+`onCreate` are given, typing a name that is not in the list offers to create it; `onCreate` returns
+a promise, and a single indicator at the field's right edge reflects its state — a `Spinner` while
+pending, a green check on success, a triangle on failure. On success the created option is folded
+into `value`; on failure the chip stays visible with its warning **outside** `value` — the only
+thing a consumer ever sends — and is retryable with a click, without blocking whatever form contains
+it. Full keyboard support: arrows to move, Enter to choose or create, Escape to close, Backspace on
+an empty field to drop the last value.
+
 ### `Textarea`
 
 ```ts
@@ -370,8 +423,10 @@ interface BadgeProps
 }
 ```
 
-A pill. `default` is the light-green one used for counters in navigation; `secondary`, `outline` and
-`destructive` are also available.
+A pill. `default` is the light-green one used for counters in navigation; `secondary`, `outline`,
+`destructive` and `warning` are also available. `destructive` and `warning` are not interchangeable —
+see the colour policy in §1: `destructive` marks something that deletes, `warning` marks something
+that did not work.
 
 ### `Spinner`
 
