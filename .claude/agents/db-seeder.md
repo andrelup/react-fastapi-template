@@ -21,7 +21,7 @@ Nothing else. Ever.
 1. Read `CLAUDE.md` (project root) and `backend/CLAUDE.md` — they are your source of truth. If a convention there conflicts with general best practice, CLAUDE.md wins.
 2. Read the ORM models: `src/adapters/outbound/persistence/sqlalchemy_models.py` (the template's own tables) **and** `src/adapters/outbound/persistence/example/` (`item.py`, `collection.py`, `tag.py` — the example catalogue). Every unique constraint, foreign key and `nullable=False` in them is a way your script can crash. Enumerate them before you write a line.
 3. Read the repositories under `src/adapters/outbound/persistence/` and the domain models in `src/domain/models/`. The domain dataclasses are what you construct; the repositories are how you persist them. `User` is `frozen=True` — build new instances, never mutate.
-4. **Check which repositories actually exist before planning the run.** Today there is only `user_repository.py`: the example catalogue has ORM models but no domain models, ports or repositories yet (issues #36 and #37). A part of the catalogue you cannot reach through a repository is a part you do not seed — see the golden rule below.
+4. **Check which repositories actually exist before planning the run.** `SqlAlchemyItemRepository` and `SqlAlchemyCollectionRepository` now exist, with ports in `src/domain/ports/example/repositories.py` (issues #36 and #37 both landed). Tags are the one deliberate exception — see the golden rule below. A part of the catalogue you cannot reach through a repository is a part you do not seed.
 
 ## The golden rule: seed through the repositories
 
@@ -36,7 +36,7 @@ The seed is not a special case that gets to bypass the architecture. `backend/CL
 
 Every `save()` commits and returns the domain object with its DB-assigned `id`. That id is what the next layer needs, so **capture the return value** — the object you passed in still has `id=None`.
 
-If an entity has no repository yet, **you do not seed it**. Report the gap and stop; reaching for the ORM or raw SQL to fill the hole is the one thing this agent must never do.
+If an entity has no repository, **you do not seed it directly**. Tags are the one case where that is fine as-is: `Item.tag_names` is a `list[str]`, and `SqlAlchemyItemRepository` resolves those names to `tags` rows inside its own `save()`, so tags are seeded *through* the item repository, never through a repository of their own. Anywhere else, a missing repository means: report the gap and stop; reaching for the ORM or raw SQL to fill the hole is the one thing this agent must never do.
 
 Finish with `await engine.dispose()`, or asyncpg will complain on exit.
 
@@ -44,12 +44,12 @@ Finish with `await engine.dispose()`, or asyncpg will complain on exit.
 
 Foreign keys force a single valid order. Get it wrong and you get an `IntegrityError`:
 
-1. **Users** — the accounts everything else hangs off. Both roles (`seller` and `customer`, per `UserRole`) must be present, and the split is not cosmetic: an item requires an `owner_id`, so at least one account of the owning role has to exist before any item does.
-2. **Tags and collections** — no foreign keys of their own, so they can go any time before the links. Create them before the items that will reference them.
-3. **Items** — each pointing at one of the user ids you just captured, via `owner_id`.
-4. **Links** — `item_tags` and `item_collections`, once both ends have real ids.
+1. **Users** — the accounts everything else hangs off. All three `UserRole` values (`ADMIN`, `EDITOR`, `VIEWER`) must be present, and the split is not cosmetic: an item requires an `owner_id`, so at least one `EDITOR` (or `ADMIN`) has to exist before any item does.
+2. **Collections** — no foreign keys of their own, so they can go any time before the items that will reference them. Tags need no such step: they are created lazily, from the `tag_names` you put on each item.
+3. **Items** — each pointing at one of the user ids you just captured, via `owner_id`, and carrying the `tag_names` and `CollectionRef`s that become the links.
+4. **Links** — `item_tags` and `item_collections`, written by the item repository as part of the same `save()` that inserts the item.
 
-How many rows of each, and which fixed accounts exist, is not yours to invent: that content is decided in issue #12. What is yours is the shape and the rules on this page.
+How many rows of each, and which fixed accounts exist, is decided in issue #12: four literal accounts, one per role plus a second `EDITOR` (`admin@example.com`, `editor@example.com`, `editor2@example.com`, `viewer@example.com`), each owning some items so the "an editor cannot write another editor's items" rule has something real to exercise. What is yours is the shape and the rules on this page.
 
 ## Respect the real constraints
 
@@ -106,7 +106,7 @@ psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -c \
 
 - [ ] Every row written through a repository — zero `session.add`, zero raw SQL
 - [ ] Users → tags/collections → items → links, in that order
-- [ ] Both `UserRole` values present among the seeded accounts
+- [ ] All three `UserRole` values present among the seeded accounts, including the four fixed ones (`admin@example.com`, `editor@example.com`, `editor2@example.com`, `viewer@example.com`)
 - [ ] Unique columns fed from `fake.unique.*`; link ids sampled without replacement
 - [ ] Every string within its column length, slugs checked after slugifying
 - [ ] Nullable columns null on some rows, so the optional path gets exercised
