@@ -16,16 +16,22 @@ from src.adapters.outbound.persistence.example.collection_repository import (
     SqlAlchemyCollectionRepository,
 )
 from src.adapters.outbound.persistence.example.item_repository import SqlAlchemyItemRepository
+from src.adapters.outbound.persistence.example.tag_repository import SqlAlchemyTagRepository
 from src.adapters.outbound.persistence.user_repository import SqlAlchemyUserRepository
 from src.adapters.outbound.security.jwt_token_service import JwtTokenService
 from src.adapters.outbound.security.password_hasher import BcryptPasswordHasher
 from src.config.settings import settings
-from src.domain.ports.example.repositories import CollectionRepository, ItemRepository
+from src.domain.ports.example.repositories import (
+    CollectionRepository,
+    ItemRepository,
+    TagRepository,
+)
 from src.domain.ports.repositories import UserRepository
 from src.domain.ports.services import PasswordHasher, TokenService
 from src.domain.services.auth_service import AuthService
 from src.domain.services.example.collection_service import CollectionService
 from src.domain.services.example.item_service import ItemService
+from src.domain.services.example.tag_service import TagService
 
 
 def get_user_repository(session: AsyncSession = Depends(get_db_session)) -> UserRepository:
@@ -92,3 +98,13 @@ def get_collection_service(
 ) -> CollectionService:
     """Wire the `CollectionService` use case with its concrete port implementation."""
     return CollectionService(collection_repository)
+
+
+def get_tag_repository(session: AsyncSession = Depends(get_db_session)) -> TagRepository:
+    """Provide the SQLAlchemy-backed `TagRepository` implementation."""
+    return SqlAlchemyTagRepository(session)
+
+
+def get_tag_service(tag_repository: TagRepository = Depends(get_tag_repository)) -> TagService:
+    """Wire the `TagService` use case with its concrete port implementation."""
+    return TagService(tag_repository)

@@ -4,6 +4,7 @@ from typing import Protocol
 
 from src.domain.models.example.collection import Collection
 from src.domain.models.example.item import Item
+from src.domain.models.example.tag import Tag
 
 
 class ItemRepository(Protocol):
@@ -72,4 +73,27 @@ class CollectionRepository(Protocol):
 
     async def delete(self, collection_id: int) -> None:
         """Remove the collection with the given id. A missing row is a no-op."""
+        ...
+
+
+class TagRepository(Protocol):
+    """Persistence contract for `Tag` rows, the catalogue's shared label vocabulary."""
+
+    async def search(self, query: str | None, limit: int) -> list[Tag]:
+        """Return up to `limit` tags ordered by name, optionally narrowed by `query`.
+
+        `query`, when given, is matched with `ILIKE` against `name` — a plain
+        substring search, never a full-text index. Deliberately no join
+        against `item_tags`: tags attached to no item are still real rows in
+        the vocabulary, and are meant to surface here too.
+        """
+        ...
+
+    async def get_or_create(self, name: str) -> tuple[Tag, bool]:
+        """Return the tag named `name`, creating it if it does not exist yet.
+
+        The second element of the tuple is whether this call created the row
+        (`True`) or found it already there (`False`) — the caller needs it to
+        answer with 201 or 200.
+        """
         ...
