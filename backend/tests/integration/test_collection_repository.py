@@ -24,6 +24,11 @@ from src.domain.models.example.collection import Collection, CollectionRef
 from src.domain.models.example.item import Item
 from src.domain.models.user import User, UserRole
 
+# Prefix that marks the rows a test created itself. `make seed` now populates
+# the example catalogue, so the listing tests below cannot assume an empty table:
+# they assert on their own rows and on deltas, never on absolute counts.
+_OWN = "zzz-test-"
+
 
 async def _an_owner(db_session: AsyncSession, email: str = "collections-owner@example.com") -> int:
     """Insert a user and return its id, for use as `items.owner_id`."""
@@ -136,31 +141,35 @@ async def test_find_by_ids_with_an_empty_list_returns_an_empty_list(
 async def test_find_all_orders_by_name_and_reports_the_total(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyCollectionRepository(db_session)
-    await sut.save(Collection(name="Zeta"))
-    await sut.save(Collection(name="Alfa"))
-    await sut.save(Collection(name="Mu"))
+    _, baseline = await sut.find_all(page=1, page_size=1)
+    names = [f"{_OWN}Zeta", f"{_OWN}Alfa", f"{_OWN}Mu"]
+    for name in names:
+        await sut.save(Collection(name=name))
 
     # Act
-    collections, total = await sut.find_all(page=1, page_size=20)
+    collections, total = await sut.find_all(page=1, page_size=baseline + len(names))
 
     # Assert
-    assert total == 3
-    assert [collection.name for collection in collections] == ["Alfa", "Mu", "Zeta"]
+    assert total == baseline + len(names)
+    assert [c.name for c in collections if c.name.startswith(_OWN)] == sorted(names)
 
 
 async def test_find_all_paginates_using_a_1_indexed_page(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyCollectionRepository(db_session)
-    for name in ["Alfa", "Beta", "Gamma"]:
+    for name in [f"{_OWN}Alfa", f"{_OWN}Beta", f"{_OWN}Gamma"]:
         await sut.save(Collection(name=name))
+    # What a 1-indexed page indexes into: the whole table in name order.
+    ordered, total = await sut.find_all(page=1, page_size=1_000)
+    assert total <= 1_000, "widen the probe: the table outgrew a single page"
 
-    # Act — page 2 of size 1 -> offset 1, limit 1 -> the second in name order
-    collections, total = await sut.find_all(page=2, page_size=1)
+    # Act — page 2 of size 1 -> offset 1, limit 1 -> the second row in name order
+    collections, page_total = await sut.find_all(page=2, page_size=1)
 
     # Assert
-    assert total == 3
+    assert page_total == total
     assert len(collections) == 1
-    assert collections[0].name == "Beta"
+    assert collections[0].name == ordered[1].name
 
 
 # --- optimistic locking ------------------------------------------------------

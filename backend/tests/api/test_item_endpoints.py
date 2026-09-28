@@ -29,10 +29,15 @@ async def _a_user(db_session: AsyncSession, role: UserRole, email: str) -> User:
     )
 
 
-async def _an_item(db_session: AsyncSession, owner_id: int, slug: str = "manual") -> Item:
+async def _an_item(
+    db_session: AsyncSession,
+    owner_id: int,
+    slug: str = "manual",
+    category: str = "documentacion",
+) -> Item:
     """Insert an item owned by `owner_id`, bypassing the API."""
     return await SqlAlchemyItemRepository(db_session).save(
-        Item(name="Manual", slug=slug, owner_id=owner_id, category="documentacion")
+        Item(name="Manual", slug=slug, owner_id=owner_id, category=category)
     )
 
 
@@ -82,11 +87,14 @@ async def test_list_items_as_viewer_returns_200(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "list-viewer@example.com")
     assert viewer.id is not None
-    await _an_item(db_session, viewer.id, "listado")
+    # Narrowed to a category of its own: `make seed` populates the catalogue, so
+    # an unfiltered first page of 20 no longer necessarily contains this item.
+    # What the test is really about is that a VIEWER may read the listing at all.
+    await _an_item(db_session, viewer.id, "listado", category="solo-listado")
     authenticated_as(viewer)
 
     # Act
-    response = await async_client.get("/items")
+    response = await async_client.get("/items", params={"category": "solo-listado"})
 
     # Assert
     body = response.json()
@@ -94,7 +102,7 @@ async def test_list_items_as_viewer_returns_200(
     assert body["success"] is True
     assert body["data"]["page"] == 1
     assert body["data"]["page_size"] == 20
-    assert any(item["slug"] == "listado" for item in body["data"]["items"])
+    assert [item["slug"] for item in body["data"]["items"]] == ["listado"]
 
 
 async def test_list_items_narrows_by_category(
