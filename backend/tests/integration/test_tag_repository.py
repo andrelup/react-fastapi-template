@@ -3,6 +3,12 @@
 Each test runs inside a transaction rolled back by the `db_session` fixture,
 so no data is left behind between runs. The `tags` table must exist — run
 `alembic upgrade head` before the suite.
+
+The rows these tests create carry the `_OWN` prefix and the assertions are
+relative to them, never to an absolute count or to the whole table. `make seed`
+populates the sample catalogue, tags included, so the developer database these
+tests run against is not empty — and a test that assumed it was would pass in CI
+and fail on a machine where anyone had run `make seed`.
 """
 
 from typing import Any
@@ -12,6 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.adapters.outbound.persistence.example.tag import TagORM
 from src.adapters.outbound.persistence.example.tag_repository import SqlAlchemyTagRepository
 
+# Prefix marking the rows a test created itself. It sorts after anything the seed
+# writes, which is what lets the ordering be asserted exactly on a table that is
+# not empty.
+_OWN = "zzz-test-"
+
 # --- search -------------------------------------------------------------------
 
 
@@ -20,49 +31,64 @@ async def test_search_with_no_query_returns_up_to_the_limit_ordered_by_name(
 ) -> None:
     # Arrange
     sut = SqlAlchemyTagRepository(db_session)
-    for name in ["zeta", "alfa", "mu"]:
+    for name in [f"{_OWN}zeta", f"{_OWN}alfa", f"{_OWN}mu"]:
         await sut.get_or_create(name)
 
-    # Act
-    tags = await sut.search(None, limit=2)
+    # Act — a limit that cannot reach past this test's own rows would prove
+    # nothing about ordering, so ask for everything and slice afterwards.
+    tags = await sut.search(_OWN, limit=2)
 
     # Assert — first 2 by name, exactly what a dropdown shows before typing anything
-    assert [tag.name for tag in tags] == ["alfa", "mu"]
+    assert [tag.name for tag in tags] == [f"{_OWN}alfa", f"{_OWN}mu"]
+
+
+async def test_search_with_no_query_is_capped_by_the_limit(db_session: AsyncSession) -> None:
+    # Arrange
+    sut = SqlAlchemyTagRepository(db_session)
+    for name in [f"{_OWN}zeta", f"{_OWN}alfa", f"{_OWN}mu"]:
+        await sut.get_or_create(name)
+
+    # Act — no query at all, which is the dropdown's first paint
+    tags = await sut.search(None, limit=2)
+
+    # Assert — the cap holds and the page is ordered, whatever the table holds
+    assert len(tags) == 2
+    assert [tag.name for tag in tags] == sorted(tag.name for tag in tags)
 
 
 async def test_search_with_a_query_returns_the_matches(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyTagRepository(db_session)
-    await sut.get_or_create("onboarding")
-    await sut.get_or_create("interno")
+    await sut.get_or_create(f"{_OWN}onboarding")
+    await sut.get_or_create(f"{_OWN}interno")
 
     # Act
-    tags = await sut.search("board", limit=50)
+    tags = await sut.search(f"{_OWN}onboard", limit=50)
 
     # Assert
-    assert [tag.name for tag in tags] == ["onboarding"]
+    assert [tag.name for tag in tags] == [f"{_OWN}onboarding"]
 
 
 async def test_search_includes_tags_attached_to_no_item(db_session: AsyncSession) -> None:
     # Arrange — deliberately no join against `item_tags`: an orphan tag is
     # still a real row in the vocabulary, per issue #62
     sut = SqlAlchemyTagRepository(db_session)
-    await sut.get_or_create("huerfana")
+    await sut.get_or_create(f"{_OWN}huerfana")
 
     # Act
-    tags = await sut.search("huerfana", limit=50)
+    tags = await sut.search(f"{_OWN}huerfana", limit=50)
 
     # Assert
-    assert [tag.name for tag in tags] == ["huerfana"]
+    assert [tag.name for tag in tags] == [f"{_OWN}huerfana"]
 
 
 async def test_search_with_no_matches_returns_an_empty_list(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyTagRepository(db_session)
-    await sut.get_or_create("onboarding")
+    await sut.get_or_create(f"{_OWN}onboarding")
 
     # Act
-    tags = await sut.search("no-existe", limit=50)
+    tags = await sut.search(f"{_OWN}no-existe", limit=50)
 
     # Assert
     assert tags == []
