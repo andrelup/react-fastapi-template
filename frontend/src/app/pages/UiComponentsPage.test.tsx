@@ -11,6 +11,7 @@ describe('UiComponentsPage', () => {
     expect(screen.getByRole('heading', { name: 'Botones' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Campos' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Selector' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Combobox' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Área de texto' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Buscador' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Tarjeta' })).toBeInTheDocument();
@@ -70,6 +71,28 @@ describe('UiComponentsPage', () => {
     expect(await screen.findByText('No hay opciones disponibles.')).toBeInTheDocument();
   });
 
+  it('shows the combobox demo with its chosen values and states', () => {
+    render(<UiComponentsPage />);
+
+    expect(screen.getByRole('button', { name: 'Quitar Urgente' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Quitar Nuevo' })).toBeInTheDocument();
+
+    const invalidCombobox = screen.getByRole('combobox', { name: 'Etiquetas con error' });
+    expect(invalidCombobox).toHaveAttribute('aria-invalid', 'true');
+    expect(invalidCombobox).toHaveAccessibleDescription('Elige al menos una etiqueta.');
+
+    expect(screen.getByRole('combobox', { name: 'Etiquetas (deshabilitado)' })).toBeDisabled();
+  });
+
+  it('lets the combobox demo choose a tag from the list', async () => {
+    const user = userEvent.setup();
+    render(<UiComponentsPage />);
+
+    await user.click(screen.getByRole('combobox', { name: 'Etiquetas' }));
+    await user.click(await screen.findByRole('option', { name: 'Oferta' }));
+
+    expect(screen.getAllByText('Oferta')).not.toHaveLength(0);
+  });
   it('shows a textarea with an error wired to it', () => {
     render(<UiComponentsPage />);
 

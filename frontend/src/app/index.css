@@ -22,6 +22,14 @@
   --color-danger: #b23a2e;
   --color-danger-border: #ebd3cf;
   --color-danger-bg: #fbeeec;
+  /* Aviso. No es «destructivo en tono suave»: dice que una operación no ha
+     salido, no que algo se vaya a borrar. Existe porque `danger` está reservado
+     a las acciones destructivas, y estirarlo hasta «ha fallado» dejaba al rojo
+     significando dos cosas a la vez. Ámbar y no amarillo puro: el amarillo
+     saturado no llega al contraste AA sobre `surface`. */
+  --color-warning: #8a5a12;
+  --color-warning-border: #ecdcc0;
+  --color-warning-bg: #fdf6e9;
   /* Tipografía */
   --font-serif: 'Lora', Georgia, serif;
   --font-sans: 'Public Sans', system-ui, sans-serif;
