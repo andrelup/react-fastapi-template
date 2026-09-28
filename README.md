@@ -87,13 +87,22 @@ Variantes: `make setup ARGS="--skip-db"`, `ARGS="--skip-front"`, `ARGS="--no-see
 
 #### Credenciales de desarrollo
 
-> **En obras.** El seed está a medio migrar al catálogo neutro: los roles pasan a
-> `ADMIN` / `EDITOR` / `VIEWER` (#11) y `seed.py` se reescribe con una cuenta fija por rol (#12).
-> Hasta que eso entre, **no hay cuentas con las que entrar** y `make seed` siembra el dominio
-> viejo. Las credenciales concretas se documentan aquí en cuanto el #12 las fije.
+`make seed` (`backend/seed.py`) crea cuatro cuentas fijas, una por rol y una segunda `EDITOR`,
+todas con la contraseña `ChangeMe123!`:
 
-El resto de usuarios sembrados los genera Faker con semilla fija; las cuentas por rol son literales
-precisamente para que no cambien al actualizar la librería.
+| Email                   | Rol      |
+|-------------------------|----------|
+| `admin@example.com`     | `ADMIN`  |
+| `editor@example.com`    | `EDITOR` |
+| `editor2@example.com`   | `EDITOR` |
+| `viewer@example.com`    | `VIEWER` |
+
+El seed está partido en dos ficheros siguiendo la convención `example/` del repo:
+`backend/seed.py` siembra las cuentas (plantilla, sobrevive a `--no-example`) y
+`backend/seed_example.py` siembra el catálogo de ejemplo —items, colecciones y etiquetas—, con
+items propios para cada `EDITOR` (incluido el segundo, para poder probar que uno no edita los del
+otro). El resto de usuarios y el catálogo los genera Faker con semilla fija; las cuatro cuentas por
+rol son literales precisamente para que no cambien al actualizar la librería.
 
 > Son **datos de desarrollo**, nunca credenciales válidas fuera de una base de datos local. No las
 > reutilices en ningún entorno real.
