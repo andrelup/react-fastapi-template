@@ -3,38 +3,49 @@ name = "fastapi-template"
 version = "0.1.0"
 description = "fastapi-template API — plantilla FastAPI con arquitectura hexagonal"
 requires-python = ">=3.12"
+# Every dependency is pinned with `==`. There is no lockfile on this side of the
+# monorepo — the frontend has `package-lock.json` and CI installs it with
+# `npm ci`, but the backend is installed with `pip install -e ".[dev]"`, which
+# re-resolves on every run. With open ranges that made CI non-reproducible: a
+# release upstream changed the build without a single commit here. It happened
+# concretely with SQLAlchemy, whose 2.1 retyped `select(func.count())` from
+# `Select[tuple[int]]` to `Select[int]` and broke `mypy --strict` in
+# `item_repository.py` on a file nobody had touched.
+#
+# So these are exact versions, and bumping one is a deliberate, reviewable
+# change rather than a side effect of the clock. Dependabot proposes the bumps.
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
-    "sqlalchemy[asyncio]>=2.0",
-    "asyncpg",
-    "alembic",
-    "pydantic>=2",
-    "pydantic-settings",
-    "structlog",
-    "python-jose[cryptography]",
-    "passlib[bcrypt]",
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+    "sqlalchemy[asyncio]==2.0.52",
+    "asyncpg==0.31.0",
+    "alembic==1.19.1",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "structlog==26.1.0",
+    "python-jose[cryptography]==3.5.0",
+    "passlib[bcrypt]==1.7.4",
     # passlib 1.7.4's bcrypt backend detection breaks with bcrypt>=4.1
-    # (the `__about__` module was removed upstream). Pin until passlib
-    # ships a fix.
-    "bcrypt<4.1",
-    "email-validator",
+    # (the `__about__` module was removed upstream). Stay below it until passlib
+    # ships a fix — this pin outlives the blanket pinning above.
+    "bcrypt==4.0.1",
+    "email-validator==2.3.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "pytest-asyncio",
-    "httpx",
-    "ruff",
-    "mypy",
-    "pre-commit",
-    "pytest-cov",
-    "types-passlib",
-    "types-python-jose",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "httpx==0.28.1",
+    "ruff==0.16.5",
+    "mypy==2.3.1",
+    "pre-commit==4.6.2",
+    "pytest-cov==7.1.0",
+    "types-passlib==1.7.7.20260211",
+    "types-python-jose==3.5.0.20260408",
     # Only used by `seed.py` (dev fixtures, run on the host). The Docker image
     # copies `src/` alone, so faker must never ship to production.
-    "faker",
+    "faker==40.37.0",
 ]
 
 [build-system]
