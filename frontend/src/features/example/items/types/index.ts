@@ -29,3 +29,20 @@ export interface CollectionRef {
 export interface ItemDetail extends Item {
   collections: CollectionRef[];
 }
+
+/** The writable fields of an item, in the shape `POST /items` and
+ * `PUT /items/{id}` accept. `tags` are tag NAMES; collections are set
+ * through their own endpoint and are not part of this payload. */
+export interface ItemInput {
+  name: string;
+  slug: string;
+  description: string | null;
+  category: string | null;
+  tags: string[];
+}
+
+/** A tag from the shared catalogue of tags. */
+export interface Tag {
+  id: number;
+  name: string;
+}
