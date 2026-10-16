@@ -110,7 +110,10 @@ export const CollectionDetailScreen = () => {
       </section>
 
       {deleteError && (
-        <p role="alert" className="text-sm text-danger">
+        <p
+          role="alert"
+          className="rounded border border-warning-border bg-warning-bg p-3 text-sm text-warning"
+        >
           No se pudo eliminar la colección: {deleteError}
         </p>
       )}
