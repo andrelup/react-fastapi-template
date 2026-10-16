@@ -27,9 +27,9 @@ const NO_CATEGORY = 'none';
 const HTTP_CONFLICT = 409;
 
 const SLUG_HINT = 'Solo minúsculas, números y guiones, por ejemplo «camara-analogica».';
-const DUPLICATE_SLUG_MESSAGE = 'Ya existe un item con este slug';
+const DUPLICATE_SLUG_MESSAGE = 'Ya existe un artículo con este slug';
 const STALE_VERSION_MESSAGE =
-  'Alguien ha modificado este item mientras lo editabas. Carga la última versión para no pisar sus cambios.';
+  'Alguien ha modificado este artículo mientras lo editabas. Carga la última versión para no pisar sus cambios.';
 
 const validateName = (value: string): string | undefined => {
   if (!value.trim()) {
@@ -271,7 +271,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-serif text-3xl font-bold tracking-[-0.015em] text-ink md:text-[34px]">
-        {item ? 'Editar item' : 'Nuevo item'}
+        {item ? 'Editar artículo' : 'Nuevo artículo'}
       </h1>
 
       {notice && (
@@ -364,7 +364,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
 
         <div className="flex gap-3">
           <Button type="submit" isLoading={isSaving}>
-            {item ? 'Guardar cambios' : 'Crear item'}
+            {item ? 'Guardar cambios' : 'Crear artículo'}
           </Button>
           <Button asChild variant="outline">
             <Link to={item ? `/items/${item.id}` : '/items'}>Cancelar</Link>

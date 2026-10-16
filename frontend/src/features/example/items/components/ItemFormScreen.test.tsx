@@ -155,7 +155,7 @@ describe('ItemFormScreen', () => {
       renderAt('/items/nuevo');
       await fillBasics(user);
       await user.type(screen.getByLabelText('Descripción'), 'Con brazo de carbono');
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
       expect(await screen.findByRole('heading', { name: 'Detalle del item' })).toBeInTheDocument();
       expect(apiClient.post).toHaveBeenCalledWith('/items', {
@@ -178,7 +178,7 @@ describe('ItemFormScreen', () => {
       await fillBasics(user);
       await user.click(screen.getByRole('combobox', { name: 'Etiquetas' }));
       await user.click(await screen.findByRole('option', { name: 'vintage' }));
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
       await screen.findByRole('heading', { name: 'Detalle del item' });
       expect(apiClient.post).toHaveBeenCalledTimes(1);
@@ -200,7 +200,7 @@ describe('ItemFormScreen', () => {
       await user.type(screen.getByRole('combobox', { name: 'Etiquetas' }), 'retro');
       await user.click(await screen.findByRole('option', { name: /Crear «retro»/ }));
       await screen.findByRole('button', { name: 'Quitar retro' });
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
       await screen.findByRole('heading', { name: 'Detalle del item' });
       expect(apiClient.post).toHaveBeenCalledWith('/tags', { name: 'retro' });
@@ -226,7 +226,7 @@ describe('ItemFormScreen', () => {
       await user.type(screen.getByRole('combobox', { name: 'Etiquetas' }), 'rota');
       await user.click(await screen.findByRole('option', { name: /Crear «rota»/ }));
       expect(await screen.findByText('No se pudo crear «rota».')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
       await screen.findByRole('heading', { name: 'Detalle del item' });
       expect(apiClient.post).toHaveBeenCalledWith('/items', expect.objectContaining({ tags: [] }));
@@ -256,7 +256,7 @@ describe('ItemFormScreen', () => {
       await fillBasics(user);
       await user.click(screen.getByRole('combobox', { name: 'Colecciones' }));
       await user.click(await screen.findByRole('option', { name: 'Novedades' }));
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
       await screen.findByRole('heading', { name: 'Detalle del item' });
       expect(apiClient.put).toHaveBeenCalledWith('/items/5/collections', {
@@ -279,11 +279,11 @@ describe('ItemFormScreen', () => {
       await fillBasics(user);
       await user.click(screen.getByRole('combobox', { name: 'Colecciones' }));
       await user.click(await screen.findByRole('option', { name: 'Novedades' }));
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
-      expect(await screen.findByRole('heading', { name: 'Editar item' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Editar artículo' })).toBeInTheDocument();
       expect(
-        screen.getByText(/El item se creó, pero sus colecciones no se pudieron guardar/),
+        screen.getByText(/El artículo se creó, pero sus colecciones no se pudieron guardar/),
       ).toBeInTheDocument();
     });
 
@@ -297,9 +297,9 @@ describe('ItemFormScreen', () => {
 
       renderAt('/items/nuevo');
       await fillBasics(user);
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
-      expect(await screen.findByText('Ya existe un item con este slug')).toBeInTheDocument();
+      expect(await screen.findByText('Ya existe un artículo con este slug')).toBeInTheDocument();
       expect(screen.getByLabelText('Slug')).toHaveAttribute('aria-invalid', 'true');
     });
 
@@ -313,7 +313,7 @@ describe('ItemFormScreen', () => {
 
       renderAt('/items/nuevo');
       await fillBasics(user);
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent('Something broke');
     });
@@ -323,18 +323,18 @@ describe('ItemFormScreen', () => {
       const { apiClient } = await mockBackend(rawEditor);
 
       renderAt('/items/nuevo');
-      await user.click(await screen.findByRole('button', { name: 'Crear item' }));
+      await user.click(await screen.findByRole('button', { name: 'Crear artículo' }));
 
       expect(await screen.findByText('El nombre es obligatorio')).toBeInTheDocument();
       expect(screen.getByText('El slug es obligatorio')).toBeInTheDocument();
 
       await user.type(screen.getByLabelText('Slug'), 'Mal Slug');
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
       expect(await screen.findByText(/El slug no es válido/)).toBeInTheDocument();
 
       await user.click(screen.getByLabelText('Nombre'));
       await user.paste('n'.repeat(201));
-      await user.click(screen.getByRole('button', { name: 'Crear item' }));
+      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
       expect(
         await screen.findByText('El nombre no puede superar los 200 caracteres'),
       ).toBeInTheDocument();
@@ -415,7 +415,7 @@ describe('ItemFormScreen', () => {
       failing = false;
       await user.click(screen.getByRole('button', { name: 'Reintentar' }));
 
-      expect(await screen.findByRole('heading', { name: 'Editar item' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Editar artículo' })).toBeInTheDocument();
     });
   });
 
@@ -493,9 +493,9 @@ describe('ItemFormScreen', () => {
       await user.click(await screen.findByRole('button', { name: 'Guardar cambios' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Alguien ha modificado este item mientras lo editabas',
+        'Alguien ha modificado este artículo mientras lo editabas',
       );
-      expect(screen.queryByText('Ya existe un item con este slug')).not.toBeInTheDocument();
+      expect(screen.queryByText('Ya existe un artículo con este slug')).not.toBeInTheDocument();
 
       await user.click(screen.getByRole('button', { name: 'Cargar la última versión' }));
 
@@ -521,7 +521,7 @@ describe('ItemFormScreen', () => {
       renderAt('/items/1/editar');
       await user.click(await screen.findByRole('button', { name: 'Guardar cambios' }));
 
-      expect(await screen.findByText('Ya existe un item con este slug')).toBeInTheDocument();
+      expect(await screen.findByText('Ya existe un artículo con este slug')).toBeInTheDocument();
       expect(screen.queryByText(/Alguien ha modificado/)).not.toBeInTheDocument();
     });
 
@@ -543,7 +543,7 @@ describe('ItemFormScreen', () => {
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
-        'Alguien ha modificado este item mientras lo editabas',
+        'Alguien ha modificado este artículo mientras lo editabas',
       );
     });
 

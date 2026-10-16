@@ -225,7 +225,7 @@ describe('ItemsCatalog', () => {
 
     renderCatalog();
 
-    await user.click(await screen.findByRole('link', { name: 'Nuevo item' }));
+    await user.click(await screen.findByRole('link', { name: 'Nuevo artículo' }));
 
     expect(await screen.findByRole('heading', { name: 'Formulario de alta' })).toBeInTheDocument();
   });
@@ -238,6 +238,6 @@ describe('ItemsCatalog', () => {
     const { apiClient } = await import('@/lib/api-client');
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith('/auth/me'));
     await screen.findByRole('heading', { name: 'Catálogo' });
-    expect(screen.queryByRole('link', { name: 'Nuevo item' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Nuevo artículo' })).not.toBeInTheDocument();
   });
 });

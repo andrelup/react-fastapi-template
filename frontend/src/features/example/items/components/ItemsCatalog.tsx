@@ -64,7 +64,7 @@ export const ItemsCatalog = () => {
         </div>
         {hasRole('editor') && (
           <Button asChild className="self-start">
-            <Link to="/items/nuevo">Nuevo item</Link>
+            <Link to="/items/nuevo">Nuevo artículo</Link>
           </Button>
         )}
       </div>
