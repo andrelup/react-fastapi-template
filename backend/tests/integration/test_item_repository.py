@@ -31,7 +31,7 @@ async def test_save_inserts_a_new_item_and_assigns_an_id(db_session: AsyncSessio
     owner_id = await _an_owner(db_session)
 
     # Act
-    saved = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    saved = await sut.save(Item(name="Manual", owner_id=owner_id))
 
     # Assert
     assert saved.id is not None
@@ -48,7 +48,6 @@ async def test_save_creates_the_tags_it_does_not_find(db_session: AsyncSession) 
     saved = await sut.save(
         Item(
             name="Manual",
-            slug="manual-con-tags",
             owner_id=owner_id,
             tag_names=["onboarding", "interno"],
         )
@@ -65,10 +64,10 @@ async def test_save_reuses_an_existing_tag_across_items(db_session: AsyncSession
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    await sut.save(Item(name="Uno", slug="uno", owner_id=owner_id, tag_names=["comun"]))
+    await sut.save(Item(name="Uno", owner_id=owner_id, tag_names=["comun"]))
 
     # Act
-    second = await sut.save(Item(name="Dos", slug="dos", owner_id=owner_id, tag_names=["comun"]))
+    second = await sut.save(Item(name="Dos", owner_id=owner_id, tag_names=["comun"]))
 
     # Assert — the tag is resolved by natural key, not duplicated
     assert second.tag_names == ["comun"]
@@ -78,7 +77,7 @@ async def test_find_by_id_returns_the_matching_item(db_session: AsyncSession) ->
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    saved = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    saved = await sut.save(Item(name="Manual", owner_id=owner_id))
     assert saved.id is not None
 
     # Act
@@ -86,7 +85,8 @@ async def test_find_by_id_returns_the_matching_item(db_session: AsyncSession) ->
 
     # Assert
     assert found is not None
-    assert found.slug == "manual"
+    assert found.id == saved.id
+    assert found.name == "Manual"
 
 
 async def test_find_by_id_when_not_found_returns_none(db_session: AsyncSession) -> None:
@@ -100,64 +100,37 @@ async def test_find_by_id_when_not_found_returns_none(db_session: AsyncSession) 
     assert found is None
 
 
-async def test_find_by_slug_returns_the_matching_item(db_session: AsyncSession) -> None:
-    # Arrange
-    sut = SqlAlchemyItemRepository(db_session)
-    owner_id = await _an_owner(db_session)
-    await sut.save(Item(name="Manual", slug="manual-unico", owner_id=owner_id))
-
-    # Act
-    found = await sut.find_by_slug("manual-unico")
-
-    # Assert
-    assert found is not None
-    assert found.name == "Manual"
-
-
-async def test_find_by_slug_when_not_found_returns_none(db_session: AsyncSession) -> None:
-    # Arrange
-    sut = SqlAlchemyItemRepository(db_session)
-
-    # Act
-    found = await sut.find_by_slug("no-existe")
-
-    # Assert
-    assert found is None
-
-
 async def test_search_matches_the_query_against_name_and_description(
     db_session: AsyncSession,
 ) -> None:
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    await sut.save(Item(name="Manual de bienvenida", slug="s-uno", owner_id=owner_id))
-    await sut.save(
-        Item(name="Otra cosa", slug="s-dos", owner_id=owner_id, description="con bienvenida dentro")
-    )
-    await sut.save(Item(name="Sin relacion", slug="s-tres", owner_id=owner_id))
+    await sut.save(Item(name="Manual de bienvenida", owner_id=owner_id))
+    await sut.save(Item(name="Otra cosa", owner_id=owner_id, description="con bienvenida dentro"))
+    await sut.save(Item(name="Sin relacion", owner_id=owner_id))
 
     # Act — ILIKE, so the case does not matter
     items, total = await sut.search("BIENVENIDA", None, offset=0, limit=20)
 
     # Assert
     assert total == 2
-    assert {item.slug for item in items} == {"s-uno", "s-dos"}
+    assert {item.name for item in items} == {"Manual de bienvenida", "Otra cosa"}
 
 
 async def test_search_narrows_by_category(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    await sut.save(Item(name="Uno", slug="c-uno", owner_id=owner_id, category="documentacion"))
-    await sut.save(Item(name="Dos", slug="c-dos", owner_id=owner_id, category="plantilla"))
+    await sut.save(Item(name="Uno", owner_id=owner_id, category="documentacion"))
+    await sut.save(Item(name="Dos", owner_id=owner_id, category="plantilla"))
 
     # Act
     items, total = await sut.search(None, "plantilla", offset=0, limit=20)
 
     # Assert
     assert total == 1
-    assert items[0].slug == "c-dos"
+    assert items[0].name == "Dos"
 
 
 async def test_search_paginates_and_still_reports_the_full_total(db_session: AsyncSession) -> None:
@@ -165,7 +138,7 @@ async def test_search_paginates_and_still_reports_the_full_total(db_session: Asy
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
     for index in range(3):
-        await sut.save(Item(name=f"Pag {index}", slug=f"pag-{index}", owner_id=owner_id))
+        await sut.save(Item(name=f"Pag {index}", owner_id=owner_id))
 
     # Act
     items, total = await sut.search("Pag", None, offset=1, limit=1)
@@ -182,7 +155,7 @@ async def test_save_updates_the_scalar_fields_and_bumps_the_version(
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    saved = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    saved = await sut.save(Item(name="Manual", owner_id=owner_id))
     assert saved.id is not None
 
     # Act
@@ -202,9 +175,7 @@ async def test_save_advances_the_version_when_only_the_tags_change(
     # Arrange — no column on `items` changes here, only the link rows
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    saved = await sut.save(
-        Item(name="Manual", slug="manual", owner_id=owner_id, tag_names=["viejo"])
-    )
+    saved = await sut.save(Item(name="Manual", owner_id=owner_id, tag_names=["viejo"]))
 
     # Act
     saved.tag_names = ["nuevo"]
@@ -219,9 +190,7 @@ async def test_save_keeps_the_tags_that_stay(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    saved = await sut.save(
-        Item(name="Manual", slug="manual", owner_id=owner_id, tag_names=["queda", "se-va"])
-    )
+    saved = await sut.save(Item(name="Manual", owner_id=owner_id, tag_names=["queda", "se-va"]))
 
     # Act
     saved.tag_names = ["queda", "llega"]
@@ -240,14 +209,14 @@ async def test_save_an_item_whose_id_does_not_exist_raises_value_error(
 
     # Act & Assert
     with pytest.raises(ValueError, match="does not exist"):
-        await sut.save(Item(id=987654, name="Fantasma", slug="fantasma", owner_id=owner_id))
+        await sut.save(Item(id=987654, name="Fantasma", owner_id=owner_id))
 
 
 async def test_delete_removes_the_item(db_session: AsyncSession) -> None:
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    saved = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    saved = await sut.save(Item(name="Manual", owner_id=owner_id))
     assert saved.id is not None
 
     # Act

@@ -19,7 +19,6 @@ class Item:
     """
 
     name: str
-    slug: str
     owner_id: int
     description: str | None = None
     category: str | None = None

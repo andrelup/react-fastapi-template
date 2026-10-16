@@ -38,13 +38,6 @@ class ItemNotFoundError(DomainError):
     """
 
 
-class DuplicateSlugError(DomainError):
-    """Raised when trying to save an item whose slug is already taken.
-
-    Translated to HTTP 409 by the error_handler middleware.
-    """
-
-
 class CollectionNotFoundError(DomainError):
     """Raised when the requested catalogue collection does not exist.
 

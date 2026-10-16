@@ -59,7 +59,7 @@ backend/
 │   │       ├── persistence/       # Repository implementations
 │   │       │   ├── sqlalchemy_models.py       # Base + UserORM — the template's own tables
 │   │       │   ├── example/                   # Example catalogue, deletable as a unit
-│   │       │   │   ├── item.py                # ItemORM — name, slug, category, owner_id, version
+│   │       │   │   ├── item.py                # ItemORM — name, category, owner_id, version
 │   │       │   │   ├── item_repository.py     # Implements ItemRepository
 │   │       │   │   ├── collection.py          # CollectionORM + item_collections association table
 │   │       │   │   └── tag.py                 # TagORM + item_tags association table
@@ -84,7 +84,7 @@ backend/
 │
 ├── alembic/
 │   ├── env.py                     # Imports the `example` package so autogenerate sees its tables
-│   └── versions/                  # One revision today: d5d3e24a6992, the initial schema
+│   └── versions/                  # d5d3e24a6992 (initial schema) → a3f1c9b2d7e4 (drops items.slug)
 ├── alembic.ini
 ├── pyproject.toml
 ├── Dockerfile
@@ -124,7 +124,7 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
 
 4. **Dependency injection in `config/container.py`.** It wires the ports to their concrete implementations. Routers receive the domain services already injected via FastAPI Depends.
 
-5. **Domain exceptions are translated in the error_handler middleware.** `UnauthorizedError` and `InvalidCredentialsError` → HTTP 401, `ForbiddenError` → HTTP 403, `ItemNotFoundError` → HTTP 404, `DuplicateEmailError` and `DuplicateSlugError` → HTTP 409. A new exception must add its entry to `_STATUS_CODES`, or it falls through to the default 500.
+5. **Domain exceptions are translated in the error_handler middleware.** `UnauthorizedError` and `InvalidCredentialsError` → HTTP 401, `ForbiddenError` → HTTP 403, `ItemNotFoundError` → HTTP 404, `DuplicateEmailError` and `DuplicateCollectionNameError` → HTTP 409. A new exception must add its entry to `_STATUS_CODES`, or it falls through to the default 500.
 
 ## Code conventions
 

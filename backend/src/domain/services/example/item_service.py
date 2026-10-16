@@ -2,7 +2,6 @@
 
 from src.domain.exceptions import (
     CollectionNotFoundError,
-    DuplicateSlugError,
     ForbiddenError,
     ItemNotFoundError,
 )
@@ -48,10 +47,8 @@ class ItemService:
 
         Raises:
             ForbiddenError: if the user is below EDITOR.
-            DuplicateSlugError: if the slug is already taken.
         """
         self._ensure_at_least(current_user, UserRole.EDITOR)
-        await self._ensure_slug_is_free(item.slug)
         if current_user.id is None:
             raise ValueError("The authenticated user must be persisted")
         item.owner_id = current_user.id
@@ -67,15 +64,11 @@ class ItemService:
         Raises:
             ItemNotFoundError: if no item has that id.
             ForbiddenError: if the user is neither an ADMIN nor the item's owner.
-            DuplicateSlugError: if the new slug belongs to a different item.
         """
         existing = await self._get_or_raise(item_id)
         self._ensure_may_write(existing, current_user)
-        if changes.slug != existing.slug:
-            await self._ensure_slug_is_free(changes.slug)
 
         existing.name = changes.name
-        existing.slug = changes.slug
         existing.description = changes.description
         existing.category = changes.category
         existing.tag_names = changes.tag_names
@@ -143,10 +136,6 @@ class ItemService:
         if item is None:
             raise ItemNotFoundError(f"Item {item_id} not found")
         return item
-
-    async def _ensure_slug_is_free(self, slug: str) -> None:
-        if await self._item_repository.find_by_slug(slug) is not None:
-            raise DuplicateSlugError(f"Slug already in use: {slug}")
 
     @staticmethod
     def _ensure_at_least(user: User, minimum: UserRole) -> None:

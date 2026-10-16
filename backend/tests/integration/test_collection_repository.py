@@ -259,7 +259,6 @@ async def test_delete_a_collection_leaves_its_items_alive(db_session: AsyncSessi
     item = await item_sut.save(
         Item(
             name="Manual",
-            slug="manual-coleccion-borrada",
             owner_id=owner_id,
             collections=[CollectionRef(id=collection.id, name=collection.name)],
         )
@@ -296,7 +295,6 @@ async def test_save_a_new_item_with_collections_is_born_at_version_1(
     saved = await item_sut.save(
         Item(
             name="Manual",
-            slug="manual-nuevo-con-coleccion",
             owner_id=owner_id,
             collections=[CollectionRef(id=collection.id, name=collection.name)],
         )
@@ -316,9 +314,7 @@ async def test_save_advances_the_version_by_exactly_one_when_only_collections_ch
     owner_id = await _an_owner(db_session)
     collection = await collection_sut.save(Collection(name="Solitaria"))
     assert collection.id is not None
-    saved = await item_sut.save(
-        Item(name="Manual", slug="manual-un-cambio-membresia", owner_id=owner_id)
-    )
+    saved = await item_sut.save(Item(name="Manual", owner_id=owner_id))
     assert saved.id is not None
 
     # Act
@@ -345,7 +341,6 @@ async def test_save_reconciles_collections_keeping_the_link_that_stays(
     saved = await item_sut.save(
         Item(
             name="Manual",
-            slug="manual-reconciliacion",
             owner_id=owner_id,
             collections=[
                 CollectionRef(id=stays.id, name=stays.name),
@@ -375,9 +370,7 @@ async def test_save_advances_the_version_by_exactly_one_when_tags_and_collection
     owner_id = await _an_owner(db_session)
     collection = await collection_sut.save(Collection(name="Combinada"))
     assert collection.id is not None
-    saved = await item_sut.save(
-        Item(name="Manual", slug="manual-tags-y-colecciones", owner_id=owner_id)
-    )
+    saved = await item_sut.save(Item(name="Manual", owner_id=owner_id))
     assert saved.id is not None
 
     # Act
@@ -400,9 +393,7 @@ async def test_save_with_an_unknown_collection_id_raises_value_error(
     # for a caller that bypasses the service.
     item_sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    saved = await item_sut.save(
-        Item(name="Manual", slug="manual-coleccion-inexistente", owner_id=owner_id)
-    )
+    saved = await item_sut.save(Item(name="Manual", owner_id=owner_id))
     assert saved.id is not None
 
     # Act & Assert
@@ -422,12 +413,8 @@ async def test_find_by_id_maps_the_member_items_sorted_by_name(db_session: Async
     collection = await collection_sut.save(Collection(name=f"{_OWN}con-items"))
     assert collection.id is not None
     ref = CollectionRef(id=collection.id, name=collection.name)
-    zeta = await item_sut.save(
-        Item(name=f"{_OWN}Zeta", slug=f"{_OWN}zeta", owner_id=owner_id, collections=[ref])
-    )
-    alfa = await item_sut.save(
-        Item(name=f"{_OWN}Alfa", slug=f"{_OWN}alfa", owner_id=owner_id, collections=[ref])
-    )
+    zeta = await item_sut.save(Item(name=f"{_OWN}Zeta", owner_id=owner_id, collections=[ref]))
+    alfa = await item_sut.save(Item(name=f"{_OWN}Alfa", owner_id=owner_id, collections=[ref]))
     assert zeta.id is not None and alfa.id is not None
 
     # Act
@@ -463,9 +450,7 @@ async def test_saving_a_collection_never_writes_its_membership(db_session: Async
     collection = await sut.save(Collection(name=f"{_OWN}solo-lectura"))
     assert collection.id is not None
     ref = CollectionRef(id=collection.id, name=collection.name)
-    member = await item_sut.save(
-        Item(name=f"{_OWN}Miembro", slug=f"{_OWN}miembro", owner_id=owner_id, collections=[ref])
-    )
+    member = await item_sut.save(Item(name=f"{_OWN}Miembro", owner_id=owner_id, collections=[ref]))
     assert member.id is not None
     loaded = await sut.find_by_id(collection.id)
     assert loaded is not None
