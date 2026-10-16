@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { AuthProvider } from '@/features/auth';
 import { ItemsCatalog } from './ItemsCatalog';
 
 vi.mock('@/lib/api-client', () => ({
@@ -27,20 +28,38 @@ const rawItem = (overrides: Partial<Record<string, unknown>> = {}) => ({
   ...overrides,
 });
 
-// The catalogue now navigates to the item detail route on selection, so it
-// needs a router in its render tree — see docs/frontend-testing.md section 6.
+// The catalogue navigates and asks `useAuth` about the role, so it needs a
+// router and an `AuthProvider` in its render tree — see
+// docs/frontend-testing.md section 6. Without a stored token the provider
+// makes no request, so the chained one-shot mocks below stay valid.
 const renderCatalog = () =>
   render(
-    <MemoryRouter initialEntries={['/items']}>
-      <Routes>
-        <Route path="/items" element={<ItemsCatalog />} />
-        <Route path="/items/:id" element={<h1>Detalle del artículo</h1>} />
-      </Routes>
-    </MemoryRouter>,
+    <AuthProvider>
+      <MemoryRouter initialEntries={['/items']}>
+        <Routes>
+          <Route path="/items" element={<ItemsCatalog />} />
+          <Route path="/items/nuevo" element={<h1>Formulario de alta</h1>} />
+          <Route path="/items/:id" element={<h1>Detalle del artículo</h1>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
   );
+
+// Session helper: the provider (`/auth/me`) and the listing share one mock.
+const mockSession = async (role: string) => {
+  const { apiClient } = await import('@/lib/api-client');
+  vi.mocked(apiClient.get).mockImplementation(async (path: string) => {
+    if (path === '/auth/me') {
+      return { id: 7, email: 'ada@example.com', name: 'Ada', role };
+    }
+    return { items: [], total: 0, page: 1, page_size: 20 };
+  });
+  window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
+};
 
 describe('ItemsCatalog', () => {
   afterEach(() => {
+    window.localStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -198,5 +217,27 @@ describe('ItemsCatalog', () => {
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
 
     expect(await screen.findByRole('heading', { name: 'Cámara analógica' })).toBeInTheDocument();
+  });
+
+  it('offers the new-item link to an editor', async () => {
+    const user = userEvent.setup();
+    await mockSession('editor');
+
+    renderCatalog();
+
+    await user.click(await screen.findByRole('link', { name: 'Nuevo item' }));
+
+    expect(await screen.findByRole('heading', { name: 'Formulario de alta' })).toBeInTheDocument();
+  });
+
+  it('does not offer the new-item link to a viewer', async () => {
+    await mockSession('viewer');
+
+    renderCatalog();
+
+    const { apiClient } = await import('@/lib/api-client');
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith('/auth/me'));
+    await screen.findByRole('heading', { name: 'Catálogo' });
+    expect(screen.queryByRole('link', { name: 'Nuevo item' })).not.toBeInTheDocument();
   });
 });

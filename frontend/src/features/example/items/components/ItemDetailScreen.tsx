@@ -64,9 +64,6 @@ export const ItemDetailScreen = () => {
     }
   };
 
-  // The Edit button already points at `/items/:id/editar`, the route issue
-  // #41 ships. Until then it resolves to `NotFoundPage` — expected, and the
-  // tests below assert the button's visibility, not where it navigates.
   const actions = (
     <>
       {canEdit && (

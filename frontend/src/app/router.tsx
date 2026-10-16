@@ -1,12 +1,13 @@
 import { lazy } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
-import { ProtectedRoute } from '@/features/auth';
+import { ProtectedRoute, RoleRoute } from '@/features/auth';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ItemsPage = lazy(() => import('./pages/ItemsPage'));
+const ItemFormPage = lazy(() => import('./pages/ItemFormPage'));
 const ItemDetailPage = lazy(() => import('./pages/ItemDetailPage'));
 const UiComponentsPage = lazy(() => import('./pages/UiComponentsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
@@ -37,6 +38,22 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <ItemsPage />
           </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/items/nuevo',
+        element: (
+          <RoleRoute allow={['admin', 'editor']}>
+            <ItemFormPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: '/items/:id/editar',
+        element: (
+          <RoleRoute allow={['admin', 'editor']}>
+            <ItemFormPage />
+          </RoleRoute>
         ),
       },
       {
