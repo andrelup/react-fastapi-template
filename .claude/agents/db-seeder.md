@@ -56,7 +56,6 @@ How many rows of each, and which fixed accounts exist, is decided in issue #12: 
 Read them off the ORM, do not trust this list to stay current — but as of today:
 
 - `users.email` is **unique** (`String(255)`). Use Faker's `unique` proxy (`fake.unique.email()`), never bare `fake.email()`, which collides within 10 draws more often than you would think.
-- `items.slug` is **unique** and `String(200)`. Derive it from the name and then make it unique — a slugified name collides as soon as two items share a word pattern. Check the length after slugifying, not before.
 - `items.name` is `String(200)`; `items.category` is `String(50)` and **nullable**; `items.description` is `Text` and nullable. Leaving some of them null on purpose is good seed data: it exercises the optional path.
 - `items.owner_id` is a **non-null FK to `users.id`** with `ondelete="CASCADE"`. It must be an id you captured from a `save()`, never a guessed integer.
 - `collections.name` is unique through the named constraint `uq_collections_name` (`String(200)`).
@@ -108,7 +107,7 @@ psql -h localhost -U "$DB_USERNAME" -d "$DB_NAME" -c \
 - [ ] Users → tags/collections → items → links, in that order
 - [ ] All three `UserRole` values present among the seeded accounts, including the four fixed ones (`admin@example.com`, `editor@example.com`, `editor2@example.com`, `viewer@example.com`)
 - [ ] Unique columns fed from `fake.unique.*`; link ids sampled without replacement
-- [ ] Every string within its column length, slugs checked after slugifying
+- [ ] Every string within its column length
 - [ ] Nullable columns null on some rows, so the optional path gets exercised
 - [ ] Faker seed fixed, so the run is reproducible and the idempotency check can work
 - [ ] Second consecutive run exits cleanly

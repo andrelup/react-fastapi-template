@@ -51,7 +51,7 @@ FastAPI already generates a lot of the OpenAPI schema from the code. Rewriting t
 ### On the schemas (`schemas/*.py`)
 
 - `Field(description=...)` where the field name is not self-explanatory (`skip`, `limit`, `owner_id`, `role`).
-- `examples=[...]` where a sample value disambiguates the format (`slug`, `email`, `category`).
+- `examples=[...]` where a sample value disambiguates the format (`email`, `category`).
 - `model_config = ConfigDict(json_schema_extra={"example": {...}})` on request schemas (`RegisterRequest`, `LoginRequest`, an eventual `ItemCreate`, …) so Swagger's "Try it out" comes pre-filled with a valid body.
 - The example body MUST pass the schema's own validation. Build it, then re-read the constraints and check every field against them.
 - A response schema mapped from a domain object — `UserResponse` today — already declares `ConfigDict(from_attributes=True)`. **Add** your key to the existing `ConfigDict`; never replace it.

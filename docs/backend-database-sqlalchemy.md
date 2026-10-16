@@ -482,9 +482,11 @@ entities they link, and the table they all point at last.
 Adding a `NOT NULL` column to a populated table needs a `server_default` to backfill the existing
 rows in one step.
 
-Current history is a single initial revision, `d5d3e24a6992` (`down_revision = None`), which creates
-`users` together with the sample domain's tables. Removing the sample means editing that revision,
-not deleting a file; the procedure is in [the example domain](./the-example-domain.md).
+Current history is two revisions. The initial one, `d5d3e24a6992` (`down_revision = None`), creates
+`users` together with the sample domain's tables; `a3f1c9b2d7e4` then drops a column from the
+sample's `items` table. Removing the sample means deleting that second revision and editing the
+initial one, which is shared with `users` and so is never deleted; the procedure is in
+[the example domain](./the-example-domain.md).
 
 ---
 

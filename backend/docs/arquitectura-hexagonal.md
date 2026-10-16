@@ -113,7 +113,6 @@ Dataclass pura, sin SQLAlchemy ni Pydantic de API. `id: int | None = None` para 
 @dataclass
 class Item:
     name: str
-    slug: str
     owner_id: int  # referencia por id, no por objeto ORM
     description: str | None = None
     category: str | None = None
