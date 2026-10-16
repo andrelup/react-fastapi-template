@@ -7,7 +7,7 @@ import { useItem } from '../hooks/useItem';
 import { ItemForm } from './ItemForm';
 
 const COLLECTIONS_NOT_SAVED_MESSAGE =
-  'El item se creó, pero sus colecciones no se pudieron guardar. Vuelve a elegirlas y guarda.';
+  'El artículo se creó, pero sus colecciones no se pudieron guardar. Vuelve a elegirlas y guarda.';
 
 /**
  * The screen behind `/items/nuevo` (create) and `/items/:id/editar` (edit):
