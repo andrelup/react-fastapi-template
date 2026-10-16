@@ -27,7 +27,6 @@ class ItemORM(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    slug: Mapped[str] = mapped_column(String(200), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Plain `String`, never `sa.Enum`: any conversion to a domain enum belongs
     # in the repository's mapper, as `UserORM.role` already does.

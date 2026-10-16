@@ -30,7 +30,6 @@ def _to_response(item: Item) -> ItemResponse:
     return ItemResponse(
         id=item.id,
         name=item.name,
-        slug=item.slug,
         description=item.description,
         category=item.category,
         tags=item.tag_names,
@@ -50,7 +49,6 @@ def _to_detail_response(item: Item) -> ItemDetailResponse:
     return ItemDetailResponse(
         id=item.id,
         name=item.name,
-        slug=item.slug,
         description=item.description,
         category=item.category,
         tags=item.tag_names,
@@ -152,7 +150,6 @@ async def create_item(
     """Create an item owned by the authenticated user. Requires EDITOR or above."""
     item = Item(
         name=payload.name,
-        slug=payload.slug,
         owner_id=0,  # replaced by the service with the authenticated user's id
         description=payload.description,
         category=payload.category,
@@ -178,7 +175,6 @@ async def update_item(
     """Update an item. ADMIN may update any; EDITOR only its own."""
     changes = Item(
         name=payload.name,
-        slug=payload.slug,
         owner_id=0,  # ownership never changes through this endpoint
         description=payload.description,
         category=payload.category,

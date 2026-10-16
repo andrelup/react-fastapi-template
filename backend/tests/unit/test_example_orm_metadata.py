@@ -119,7 +119,7 @@ def test_every_foreign_key_column_is_indexed() -> None:
 def test_the_catalogue_declares_the_expected_indexes() -> None:
     # Arrange
     expected = {
-        "items": {"ix_items_slug", "ix_items_category", "ix_items_owner_id"},
+        "items": {"ix_items_category", "ix_items_owner_id"},
         "collections": set[str](),
         "tags": {"ix_tags_name"},
         # The leading key column rides the composite primary key index; only the
@@ -147,14 +147,14 @@ def test_association_tables_are_keyed_by_their_two_foreign_keys() -> None:
     assert item_collections_key == ["item_id", "collection_id"]
 
 
-def test_item_slug_and_tag_name_are_unique_indexes() -> None:
+def test_tag_name_is_the_only_unique_index() -> None:
     # Arrange / Act
     unique_indexes = {
         index.name for name in CATALOGUE_TABLES for index in _table(name).indexes if index.unique
     }
 
     # Assert
-    assert unique_indexes == {"ix_items_slug", "ix_tags_name"}
+    assert unique_indexes == {"ix_tags_name"}
 
 
 def test_collection_name_is_protected_by_a_named_unique_constraint() -> None:
