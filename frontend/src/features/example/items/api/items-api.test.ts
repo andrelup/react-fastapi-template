@@ -14,7 +14,6 @@ vi.mock('@/lib/api-client', () => ({
 const rawItem = {
   id: 1,
   name: 'Cámara analógica',
-  slug: 'camara-analogica',
   description: 'Una cámara de 35mm en buen estado.',
   category: 'electronica',
   tags: ['vintage', 'fotografia'],
@@ -46,7 +45,6 @@ describe('items-api', () => {
         {
           id: 1,
           name: 'Cámara analógica',
-          slug: 'camara-analogica',
           description: 'Una cámara de 35mm en buen estado.',
           category: 'electronica',
           tags: ['vintage', 'fotografia'],
@@ -107,7 +105,6 @@ describe('items-api', () => {
     expect(result).toEqual({
       id: 1,
       name: 'Cámara analógica',
-      slug: 'camara-analogica',
       description: 'Una cámara de 35mm en buen estado.',
       category: 'electronica',
       tags: ['vintage', 'fotografia'],
@@ -143,7 +140,6 @@ describe('items-api', () => {
   describe('writes', () => {
     const input = {
       name: 'Cámara analógica',
-      slug: 'camara-analogica',
       description: null,
       category: null,
       tags: ['vintage'],

@@ -25,9 +25,8 @@ sin adornos.
 
 **Cimientos puestos, vertical por construir:**
 
-- **Esquema del catálogo de ejemplo** — las tablas `items` (con `slug` único y dueño),
-  `collections`, `tags` y sus tablas de asociación existen, con bloqueo optimista y una única
-  migración de Alembic. Sus modelos ORM viven aislados en
+- **Esquema del catálogo de ejemplo** — las tablas `items` (con su dueño), `collections`,
+  `tags` y sus tablas de asociación existen, con bloqueo optimista y sus migraciones de Alembic. Sus modelos ORM viven aislados en
   `backend/src/adapters/outbound/persistence/example/`, para que borrar el dominio de ejemplo de un
   proyecto generado sea un `rm -rf` de ese directorio.
 

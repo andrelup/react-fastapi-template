@@ -41,7 +41,7 @@ async def test_save_with_a_stale_version_raises_stale_data_error(db_session: Asy
     # Arrange — two callers read the same item
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    stored = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    stored = await sut.save(Item(name="Manual", owner_id=owner_id))
     assert stored.id is not None
     first = await sut.find_by_id(stored.id)
     second = await sut.find_by_id(stored.id)
@@ -61,7 +61,7 @@ async def test_the_winning_write_is_the_one_that_survives(db_session: AsyncSessi
     # Arrange
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    stored = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    stored = await sut.save(Item(name="Manual", owner_id=owner_id))
     assert stored.id is not None
     first = await sut.find_by_id(stored.id)
     second = await sut.find_by_id(stored.id)
@@ -86,7 +86,7 @@ async def test_saving_again_with_the_refreshed_version_succeeds(db_session: Asyn
     # Arrange — the caller re-reads after losing the race
     sut = SqlAlchemyItemRepository(db_session)
     owner_id = await _an_owner(db_session)
-    stored = await sut.save(Item(name="Manual", slug="manual", owner_id=owner_id))
+    stored = await sut.save(Item(name="Manual", owner_id=owner_id))
     assert stored.id is not None
     stored.name = "Manual v2"
     await sut.save(stored)

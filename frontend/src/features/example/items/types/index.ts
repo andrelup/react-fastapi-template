@@ -3,7 +3,6 @@
 export interface Item {
   id: number;
   name: string;
-  slug: string;
   description: string | null;
   category: string | null;
   tags: string[];
@@ -35,7 +34,6 @@ export interface ItemDetail extends Item {
  * through their own endpoint and are not part of this payload. */
 export interface ItemInput {
   name: string;
-  slug: string;
   description: string | null;
   category: string | null;
   tags: string[];
