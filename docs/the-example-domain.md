@@ -81,16 +81,18 @@ hand, in this order:
 5. `backend/alembic/versions/d5d3e24a6992_create_initial_schema.py` — remove the `items`,
    `collections`, `tags`, `item_tags` and `item_collections` tables from `upgrade()` and their drops
    from `downgrade()`. The revision is shared with the template's `users` table, so it is edited,
-   never deleted.
+   never deleted. Delete `a3f1c9b2d7e4_drop_items_slug.py` beside it: it only alters the sample's
+   `items` table, so without that table it has nothing left to run against, and the initial revision
+   becomes the head again.
 6. `backend/src/main.py` — drop `include_router(item_router)`, `include_router(collection_router)`
    and `include_router(tag_router)`, and their imports.
 7. `backend/src/config/container.py` — drop the six providers: `get_item_repository`,
    `get_collection_repository`, `get_tag_repository`, `get_item_service`, `get_collection_service`
    and `get_tag_service`.
-8. `backend/src/domain/exceptions.py` — drop `ItemNotFoundError`, `DuplicateSlugError`,
-   `CollectionNotFoundError` and `DuplicateCollectionNameError`. `Tag` adds none of its own: `POST
-   /tags` is idempotent by construction, so it has no conflict path to raise one for.
-9. `backend/src/adapters/inbound/middleware/error_handler.py` — drop those four entries from
+8. `backend/src/domain/exceptions.py` — drop `ItemNotFoundError`, `CollectionNotFoundError` and
+   `DuplicateCollectionNameError`. `Tag` adds none of its own: `POST /tags` is idempotent by
+   construction, so it has no conflict path to raise one for.
+9. `backend/src/adapters/inbound/middleware/error_handler.py` — drop those three entries from
    `_STATUS_CODES`. Leaving them behind is an import error, not a silent one, so this step announces
    itself.
 
