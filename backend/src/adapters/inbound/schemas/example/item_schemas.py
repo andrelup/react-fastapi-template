@@ -15,7 +15,6 @@ class ItemCreate(BaseModel):
         json_schema_extra={
             "example": {
                 "name": "Manual de bienvenida",
-                "slug": "manual-de-bienvenida",
                 "description": "Guía de incorporación para el equipo.",
                 "category": "documentacion",
                 "tags": ["onboarding", "interno"],
@@ -24,12 +23,6 @@ class ItemCreate(BaseModel):
     )
 
     name: str = Field(min_length=1, max_length=200, description="Display name of the item.")
-    slug: str = Field(
-        min_length=1,
-        max_length=200,
-        pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$",
-        description="URL-safe unique identifier, lowercase and hyphen-separated.",
-    )
     description: str | None = Field(default=None, description="Free-text description.")
     category: str | None = Field(
         default=None, max_length=50, description="Category used to filter the catalogue."
@@ -55,7 +48,6 @@ class ItemResponse(BaseModel):
 
     id: int
     name: str
-    slug: str
     description: str | None
     category: str | None
     tags: list[str]

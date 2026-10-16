@@ -14,10 +14,6 @@ class ItemRepository(Protocol):
         """Return the item with the given id, or None if it does not exist."""
         ...
 
-    async def find_by_slug(self, slug: str) -> Item | None:
-        """Return the item with the given slug, or None if it does not exist."""
-        ...
-
     async def search(
         self, query: str | None, category: str | None, offset: int, limit: int
     ) -> tuple[list[Item], int]:

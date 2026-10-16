@@ -24,7 +24,6 @@ from src.domain.exceptions import (
     DomainError,
     DuplicateCollectionNameError,
     DuplicateEmailError,
-    DuplicateSlugError,
     ForbiddenError,
     InvalidCredentialsError,
     ItemNotFoundError,
@@ -40,7 +39,6 @@ _STATUS_CODES: dict[type[DomainError], int] = {
     ItemNotFoundError: 404,
     CollectionNotFoundError: 404,
     DuplicateEmailError: 409,
-    DuplicateSlugError: 409,
     DuplicateCollectionNameError: 409,
 }
 _DEFAULT_STATUS_CODE = 500

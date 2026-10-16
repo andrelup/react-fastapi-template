@@ -32,12 +32,11 @@ async def _a_user(db_session: AsyncSession, role: UserRole, email: str) -> User:
 async def _an_item(
     db_session: AsyncSession,
     owner_id: int,
-    slug: str = "manual",
     category: str = "documentacion",
 ) -> Item:
     """Insert an item owned by `owner_id`, bypassing the API."""
     return await SqlAlchemyItemRepository(db_session).save(
-        Item(name="Manual", slug=slug, owner_id=owner_id, category=category)
+        Item(name="Manual", owner_id=owner_id, category=category)
     )
 
 
@@ -46,10 +45,9 @@ async def _a_collection(db_session: AsyncSession, name: str = "Guias") -> Collec
     return await SqlAlchemyCollectionRepository(db_session).save(Collection(name=name))
 
 
-def _payload(slug: str = "nuevo-item", **overrides: object) -> dict[str, object]:
+def _payload(**overrides: object) -> dict[str, object]:
     payload: dict[str, object] = {
         "name": "Nuevo item",
-        "slug": slug,
         "description": "Creado desde el test",
         "category": "documentacion",
         "tags": ["onboarding"],
@@ -90,7 +88,7 @@ async def test_list_items_as_viewer_returns_200(
     # Narrowed to a category of its own: `make seed` populates the catalogue, so
     # an unfiltered first page of 20 no longer necessarily contains this item.
     # What the test is really about is that a VIEWER may read the listing at all.
-    await _an_item(db_session, viewer.id, "listado", category="solo-listado")
+    await _an_item(db_session, viewer.id, category="solo-listado")
     authenticated_as(viewer)
 
     # Act
@@ -102,7 +100,7 @@ async def test_list_items_as_viewer_returns_200(
     assert body["success"] is True
     assert body["data"]["page"] == 1
     assert body["data"]["page_size"] == 20
-    assert [item["slug"] for item in body["data"]["items"]] == ["listado"]
+    assert [item["name"] for item in body["data"]["items"]] == ["Manual"]
 
 
 async def test_list_items_narrows_by_category(
@@ -111,7 +109,7 @@ async def test_list_items_narrows_by_category(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "cat-viewer@example.com")
     assert viewer.id is not None
-    await _an_item(db_session, viewer.id, "con-categoria")
+    await _an_item(db_session, viewer.id)
     authenticated_as(viewer)
 
     # Act
@@ -129,7 +127,7 @@ async def test_search_items_is_not_swallowed_by_the_id_route(
     # and fail `int` coercion with a 422 if it were declared first
     viewer = await _a_user(db_session, UserRole.VIEWER, "search-viewer@example.com")
     assert viewer.id is not None
-    await _an_item(db_session, viewer.id, "buscable")
+    await _an_item(db_session, viewer.id)
     authenticated_as(viewer)
 
     # Act
@@ -146,7 +144,7 @@ async def test_get_item_returns_the_item(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "get-viewer@example.com")
     assert viewer.id is not None
-    item = await _an_item(db_session, viewer.id, "uno-solo")
+    item = await _an_item(db_session, viewer.id)
     authenticated_as(viewer)
 
     # Act
@@ -154,7 +152,8 @@ async def test_get_item_returns_the_item(
 
     # Assert
     assert response.status_code == 200
-    assert response.json()["data"]["slug"] == "uno-solo"
+    assert response.json()["data"]["id"] == item.id
+    assert "slug" not in response.json()["data"]
 
 
 async def test_get_an_unknown_item_returns_404(
@@ -198,7 +197,7 @@ async def test_create_item_as_editor_returns_201_and_assigns_ownership(
     authenticated_as(editor)
 
     # Act
-    response = await async_client.post("/items", json=_payload("creado-por-editor"))
+    response = await async_client.post("/items", json=_payload())
 
     # Assert
     body = response.json()
@@ -217,42 +216,11 @@ async def test_create_item_ignores_an_owner_id_sent_by_the_client(
     authenticated_as(editor)
 
     # Act
-    response = await async_client.post("/items", json=_payload("sin-suplantacion", owner_id=999))
+    response = await async_client.post("/items", json=_payload(owner_id=999))
 
     # Assert
     assert response.status_code == 201
     assert response.json()["data"]["owner_id"] == editor.id
-
-
-async def test_create_item_with_a_duplicate_slug_returns_409(
-    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
-) -> None:
-    # Arrange
-    editor = await _a_user(db_session, UserRole.EDITOR, "dup-editor@example.com")
-    assert editor.id is not None
-    await _an_item(db_session, editor.id, "ya-existe")
-    authenticated_as(editor)
-
-    # Act
-    response = await async_client.post("/items", json=_payload("ya-existe"))
-
-    # Assert
-    assert response.status_code == 409
-
-
-async def test_create_item_with_an_invalid_slug_returns_422(
-    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
-) -> None:
-    # Arrange
-    editor = await _a_user(db_session, UserRole.EDITOR, "slug-editor@example.com")
-    authenticated_as(editor)
-
-    # Act
-    response = await async_client.post("/items", json=_payload("Con Mayusculas Y Espacios"))
-
-    # Assert
-    assert response.status_code == 422
-    assert "slug" in response.json()["error"]
 
 
 # --- updating ---------------------------------------------------------------
@@ -264,13 +232,11 @@ async def test_update_item_as_viewer_returns_403(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "update-viewer@example.com")
     assert viewer.id is not None
-    item = await _an_item(db_session, viewer.id, "del-viewer")
+    item = await _an_item(db_session, viewer.id)
     authenticated_as(viewer)
 
     # Act — owning it does not help
-    response = await async_client.put(
-        f"/items/{item.id}", json=_payload("del-viewer", version=item.version)
-    )
+    response = await async_client.put(f"/items/{item.id}", json=_payload(version=item.version))
 
     # Assert
     assert response.status_code == 403
@@ -282,12 +248,12 @@ async def test_update_its_own_item_as_editor_returns_200(
     # Arrange
     editor = await _a_user(db_session, UserRole.EDITOR, "own-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "propio")
+    item = await _an_item(db_session, editor.id)
     authenticated_as(editor)
 
     # Act
     response = await async_client.put(
-        f"/items/{item.id}", json=_payload("propio", name="Renombrado", version=item.version)
+        f"/items/{item.id}", json=_payload(name="Renombrado", version=item.version)
     )
 
     # Assert
@@ -304,13 +270,11 @@ async def test_update_someone_elses_item_as_editor_returns_403(
     owner = await _a_user(db_session, UserRole.EDITOR, "owner-editor@example.com")
     intruder = await _a_user(db_session, UserRole.EDITOR, "intruder-editor@example.com")
     assert owner.id is not None
-    item = await _an_item(db_session, owner.id, "ajeno")
+    item = await _an_item(db_session, owner.id)
     authenticated_as(intruder)
 
     # Act
-    response = await async_client.put(
-        f"/items/{item.id}", json=_payload("ajeno", version=item.version)
-    )
+    response = await async_client.put(f"/items/{item.id}", json=_payload(version=item.version))
 
     # Assert
     assert response.status_code == 403
@@ -323,12 +287,12 @@ async def test_update_someone_elses_item_as_admin_returns_200(
     owner = await _a_user(db_session, UserRole.EDITOR, "admin-target@example.com")
     admin = await _a_user(db_session, UserRole.ADMIN, "admin-editor@example.com")
     assert owner.id is not None
-    item = await _an_item(db_session, owner.id, "intervenible")
+    item = await _an_item(db_session, owner.id)
     authenticated_as(admin)
 
     # Act
     response = await async_client.put(
-        f"/items/{item.id}", json=_payload("intervenible", name="Intervenido", version=item.version)
+        f"/items/{item.id}", json=_payload(name="Intervenido", version=item.version)
     )
 
     # Assert
@@ -342,16 +306,12 @@ async def test_update_with_a_stale_version_returns_409(
     # Arrange — somebody else already moved the item to version 2
     editor = await _a_user(db_session, UserRole.EDITOR, "stale-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "desactualizado")
+    item = await _an_item(db_session, editor.id)
     authenticated_as(editor)
-    await async_client.put(
-        f"/items/{item.id}", json=_payload("desactualizado", name="Primera", version=1)
-    )
+    await async_client.put(f"/items/{item.id}", json=_payload(name="Primera", version=1))
 
     # Act — this client still holds version 1
-    response = await async_client.put(
-        f"/items/{item.id}", json=_payload("desactualizado", name="Segunda", version=1)
-    )
+    response = await async_client.put(f"/items/{item.id}", json=_payload(name="Segunda", version=1))
 
     # Assert
     assert response.status_code == 409
@@ -364,11 +324,11 @@ async def test_update_without_a_version_returns_422(
     # Arrange — `version` is mandatory, so the lock is not opt-in
     editor = await _a_user(db_session, UserRole.EDITOR, "noversion-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "sin-version")
+    item = await _an_item(db_session, editor.id)
     authenticated_as(editor)
 
     # Act
-    response = await async_client.put(f"/items/{item.id}", json=_payload("sin-version"))
+    response = await async_client.put(f"/items/{item.id}", json=_payload())
 
     # Assert
     assert response.status_code == 422
@@ -383,7 +343,7 @@ async def test_update_an_unknown_item_returns_404(
     authenticated_as(admin)
 
     # Act
-    response = await async_client.put("/items/987654", json=_payload("fantasma", version=1))
+    response = await async_client.put("/items/987654", json=_payload(version=1))
 
     # Assert
     assert response.status_code == 404
@@ -398,7 +358,7 @@ async def test_delete_item_as_viewer_returns_403(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "delete-viewer@example.com")
     assert viewer.id is not None
-    item = await _an_item(db_session, viewer.id, "borrable-viewer")
+    item = await _an_item(db_session, viewer.id)
     authenticated_as(viewer)
 
     # Act
@@ -414,7 +374,7 @@ async def test_delete_its_own_item_as_editor_returns_403(
     # Arrange — deleting is an ADMIN privilege across the whole system
     editor = await _a_user(db_session, UserRole.EDITOR, "delete-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "borrable-editor")
+    item = await _an_item(db_session, editor.id)
     authenticated_as(editor)
 
     # Act
@@ -431,7 +391,7 @@ async def test_delete_someone_elses_item_as_admin_returns_200(
     owner = await _a_user(db_session, UserRole.EDITOR, "delete-target@example.com")
     admin = await _a_user(db_session, UserRole.ADMIN, "delete-admin@example.com")
     assert owner.id is not None
-    item = await _an_item(db_session, owner.id, "borrable-admin")
+    item = await _an_item(db_session, owner.id)
     authenticated_as(admin)
 
     # Act
@@ -467,7 +427,7 @@ async def test_get_item_includes_its_collections(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "detail-viewer@example.com")
     assert viewer.id is not None
-    item = await _an_item(db_session, viewer.id, "con-detalle")
+    item = await _an_item(db_session, viewer.id)
     authenticated_as(viewer)
 
     # Act
@@ -484,7 +444,7 @@ async def test_set_item_collections_as_viewer_returns_403(
     # Arrange
     viewer = await _a_user(db_session, UserRole.VIEWER, "membership-viewer@example.com")
     assert viewer.id is not None
-    item = await _an_item(db_session, viewer.id, "membresia-viewer")
+    item = await _an_item(db_session, viewer.id)
     collection = await _a_collection(db_session, "coleccion-viewer")
     authenticated_as(viewer)
 
@@ -505,7 +465,7 @@ async def test_set_item_collections_as_editor_on_its_own_item_returns_200(
     # own item with an existing collection
     editor = await _a_user(db_session, UserRole.EDITOR, "membership-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "membresia-editor")
+    item = await _an_item(db_session, editor.id)
     collection = await _a_collection(db_session, "coleccion-editor")
     authenticated_as(editor)
 
@@ -529,7 +489,7 @@ async def test_set_item_collections_as_editor_on_someone_elses_item_returns_403(
     owner = await _a_user(db_session, UserRole.EDITOR, "membership-owner@example.com")
     intruder = await _a_user(db_session, UserRole.EDITOR, "membership-intruder@example.com")
     assert owner.id is not None
-    item = await _an_item(db_session, owner.id, "membresia-ajena")
+    item = await _an_item(db_session, owner.id)
     collection = await _a_collection(db_session, "coleccion-ajena")
     authenticated_as(intruder)
 
@@ -550,7 +510,7 @@ async def test_set_item_collections_as_admin_on_someone_elses_item_returns_200(
     owner = await _a_user(db_session, UserRole.EDITOR, "membership-target@example.com")
     admin = await _a_user(db_session, UserRole.ADMIN, "membership-admin@example.com")
     assert owner.id is not None
-    item = await _an_item(db_session, owner.id, "membresia-admin")
+    item = await _an_item(db_session, owner.id)
     collection = await _a_collection(db_session, "coleccion-admin")
     authenticated_as(admin)
 
@@ -573,7 +533,7 @@ async def test_set_item_collections_with_an_unknown_collection_id_returns_404(
     # Arrange
     editor = await _a_user(db_session, UserRole.EDITOR, "membership-404-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "membresia-404")
+    item = await _an_item(db_session, editor.id)
     authenticated_as(editor)
 
     # Act
@@ -609,7 +569,7 @@ async def test_set_item_collections_with_a_stale_version_returns_409(
     # Arrange — somebody else already moved the item to version 2
     editor = await _a_user(db_session, UserRole.EDITOR, "membership-stale-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "membresia-desactualizada")
+    item = await _an_item(db_session, editor.id)
     collection = await _a_collection(db_session, "coleccion-desactualizada")
     authenticated_as(editor)
     await async_client.put(
@@ -634,7 +594,7 @@ async def test_set_item_collections_without_a_version_returns_422(
     # Arrange — `version` is mandatory, so membership takes part in the lock
     editor = await _a_user(db_session, UserRole.EDITOR, "membership-noversion-editor@example.com")
     assert editor.id is not None
-    item = await _an_item(db_session, editor.id, "membresia-sin-version")
+    item = await _an_item(db_session, editor.id)
     authenticated_as(editor)
 
     # Act
