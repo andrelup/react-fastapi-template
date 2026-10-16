@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import attributes
 
 from src.adapters.outbound.persistence.example.collection import CollectionORM
-from src.domain.models.example.collection import Collection
+from src.domain.models.example.collection import Collection, ItemRef
 
 
 def _to_domain(collection_orm: CollectionORM) -> Collection:
@@ -15,11 +15,19 @@ def _to_domain(collection_orm: CollectionORM) -> Collection:
         name=collection_orm.name,
         description=collection_orm.description,
         version=collection_orm.version,
+        items=sorted(
+            (ItemRef(id=item.id, name=item.name) for item in collection_orm.items),
+            key=lambda ref: (ref.name, ref.id),
+        ),
     )
 
 
 def _apply_fields(collection_orm: CollectionORM, collection: Collection) -> None:
-    """Copy the mutable scalar fields of `collection` onto `collection_orm`."""
+    """Copy the mutable scalar fields of `collection` onto `collection_orm`.
+
+    `items` is deliberately not copied: membership is written from the item
+    side (`SqlAlchemyItemRepository`), never from the collection's.
+    """
     collection_orm.name = collection.name
     collection_orm.description = collection.description
 
