@@ -16,12 +16,11 @@ import {
   setItemCollections,
   updateItem,
 } from '../api/items-api';
-import { CATEGORY_CHOICES } from '../category-options';
+import { CATEGORY_CHOICES } from './category-options';
 import type { ItemDetail, ItemInput } from '../types';
 
 const NAME_MAX_LENGTH = 200;
 const SLUG_MAX_LENGTH = 200;
-const CATEGORY_MAX_LENGTH = 50;
 const TAG_MAX_LENGTH = 50;
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const NO_CATEGORY = 'none';
@@ -55,11 +54,6 @@ const validateSlug = (value: string): string | undefined => {
   }
   return undefined;
 };
-
-const validateCategory = (value: string): string | undefined =>
-  value.length > CATEGORY_MAX_LENGTH
-    ? `La categoría no puede superar los ${CATEGORY_MAX_LENGTH} caracteres`
-    : undefined;
 
 const toCollectionOption = (ref: { id: number; name: string }): ComboboxOption => ({
   value: String(ref.id),
@@ -106,8 +100,11 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
 
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [slugError, setSlugError] = useState<string | undefined>(undefined);
-  const [categoryError, setCategoryError] = useState<string | undefined>(undefined);
   const [formError, setFormError] = useState<string | undefined>(undefined);
+  // Latest version known to the server for this item. It moves ahead of
+  // `item.version` once our own update succeeds, so a retry after a failed
+  // collections call does not look like someone else's edit.
+  const [knownVersion, setKnownVersion] = useState(item?.version ?? 0);
   const [isStale, setIsStale] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -192,7 +189,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
   const handleUpdate = async (current: ItemDetail, payload: ItemInput): Promise<void> => {
     let updated;
     try {
-      updated = await updateItem(current.id, payload, current.version);
+      updated = await updateItem(current.id, payload, knownVersion);
     } catch (error) {
       if (!isConflict(error)) {
         setFormError(messageOf(error));
@@ -202,7 +199,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
       // error is never parsed; the item's fresh version tells them apart.
       try {
         const fresh = await getItem(current.id);
-        if (fresh.version !== current.version) {
+        if (fresh.version !== knownVersion) {
           setIsStale(true);
         } else {
           setSlugError(DUPLICATE_SLUG_MESSAGE);
@@ -213,6 +210,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
       return;
     }
 
+    setKnownVersion(updated.version);
     const nextIds = toIds(collections);
     if (
       !haveSameIds(
@@ -242,16 +240,10 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
 
     const nextNameError = validateName(name);
     const nextSlugError = validateSlug(slug);
-    const nextCategoryError = validateCategory(category);
     setNameError(nextNameError);
     setSlugError(nextSlugError);
-    setCategoryError(nextCategoryError);
 
-    if (
-      nextNameError !== undefined ||
-      nextSlugError !== undefined ||
-      nextCategoryError !== undefined
-    ) {
+    if (nextNameError !== undefined || nextSlugError !== undefined) {
       return;
     }
 
@@ -283,7 +275,10 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
       </h1>
 
       {notice && (
-        <p role="status" className="text-sm text-body">
+        <p
+          role="status"
+          className="rounded border border-warning-border bg-warning-bg p-3 text-sm text-warning"
+        >
           {notice}
         </p>
       )}
@@ -324,7 +319,6 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
           options={categoryOptions}
           value={category}
           onValueChange={setCategory}
-          error={categoryError}
         />
         <Combobox
           label="Etiquetas"
@@ -350,7 +344,10 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
         />
 
         {isStale && (
-          <div role="alert" className="flex flex-col items-start gap-2 text-sm text-danger">
+          <div
+            role="alert"
+            className="flex flex-col items-start gap-2 rounded border border-warning-border bg-warning-bg p-3 text-sm text-warning"
+          >
             <p>{STALE_VERSION_MESSAGE}</p>
             {onReload && (
               <Button type="button" variant="outline" size="sm" onClick={onReload}>
@@ -360,7 +357,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
           </div>
         )}
         {formError && (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-sm text-warning">
             {formError}
           </p>
         )}

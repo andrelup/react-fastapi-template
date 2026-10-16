@@ -547,6 +547,38 @@ describe('ItemFormScreen', () => {
       );
     });
 
+    it('resubmits with the bumped version after the collections call failed', async () => {
+      const user = userEvent.setup();
+      let collectionsFail = true;
+      const { apiClient } = await mockBackend(rawEditor, {
+        onPut: (path) => {
+          if (path === '/items/1') {
+            return rawItem({ version: 2 });
+          }
+          if (collectionsFail) {
+            throw new ApiError('Server error', 500);
+          }
+          return rawItem({ version: 3 });
+        },
+      });
+
+      renderAt('/items/1/editar');
+      await screen.findByLabelText('Nombre');
+      await user.click(screen.getByRole('combobox', { name: 'Colecciones' }));
+      await user.click(await screen.findByRole('option', { name: 'Novedades' }));
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+      expect(await screen.findByRole('alert')).toHaveTextContent('Server error');
+
+      collectionsFail = false;
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      await screen.findByRole('heading', { name: 'Detalle del item' });
+      const itemPuts = putCalls(apiClient).filter(([path]) => path === '/items/1');
+      expect(itemPuts).toHaveLength(2);
+      expect(itemPuts[1][1]).toEqual(expect.objectContaining({ version: 2 }));
+      expect(screen.queryByText(/Alguien ha modificado/)).not.toBeInTheDocument();
+    });
+
     it('shows other update errors in a form-level alert', async () => {
       const user = userEvent.setup();
       await mockBackend(rawEditor, {

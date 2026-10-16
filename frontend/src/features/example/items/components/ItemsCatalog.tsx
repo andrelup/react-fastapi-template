@@ -11,7 +11,7 @@ import { Select } from '@/components/ui/Select';
 import { ServerErrorState } from '@/components/ui/ServerErrorState';
 import { Spinner } from '@/components/ui/Spinner';
 import { useAuth } from '@/features/auth';
-import { ALL_CATEGORIES, CATEGORY_OPTIONS } from '../category-options';
+import { ALL_CATEGORIES, CATEGORY_OPTIONS } from './category-options';
 import { useItems } from '../hooks/useItems';
 
 const PAGE_SIZE = 20;
