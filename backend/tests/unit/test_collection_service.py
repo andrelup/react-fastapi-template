@@ -16,7 +16,7 @@ from src.domain.exceptions import (
     DuplicateCollectionNameError,
     ForbiddenError,
 )
-from src.domain.models.example.collection import Collection
+from src.domain.models.example.collection import Collection, ItemRef
 from src.domain.models.user import User, UserRole
 from src.domain.services.example.collection_service import CollectionService
 
@@ -67,6 +67,19 @@ async def test_get_collection_returns_the_collection() -> None:
 
     # Assert
     assert found.name == "manual"
+
+
+async def test_get_collection_carries_the_item_references() -> None:
+    # Arrange
+    stored = _collection(10, "manual")
+    stored.items = [ItemRef(id=1, name="Alfa"), ItemRef(id=2, name="Beta")]
+    sut = CollectionService(FakeCollectionRepository([stored]))
+
+    # Act
+    found = await sut.get_collection(10)
+
+    # Assert
+    assert found.items == [ItemRef(id=1, name="Alfa"), ItemRef(id=2, name="Beta")]
 
 
 async def test_get_collection_when_it_does_not_exist_raises_collection_not_found_error() -> None:
