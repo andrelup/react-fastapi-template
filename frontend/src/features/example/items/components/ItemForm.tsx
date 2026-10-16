@@ -11,7 +11,6 @@ import {
   createItem,
   createTag,
   getCollectionRefs,
-  getItem,
   searchTags,
   setItemCollections,
   updateItem,
@@ -20,14 +19,10 @@ import { CATEGORY_CHOICES } from './category-options';
 import type { ItemDetail, ItemInput } from '../types';
 
 const NAME_MAX_LENGTH = 200;
-const SLUG_MAX_LENGTH = 200;
 const TAG_MAX_LENGTH = 50;
-const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const NO_CATEGORY = 'none';
 const HTTP_CONFLICT = 409;
 
-const SLUG_HINT = 'Solo minúsculas, números y guiones, por ejemplo «camara-analogica».';
-const DUPLICATE_SLUG_MESSAGE = 'Ya existe un artículo con este slug';
 const STALE_VERSION_MESSAGE =
   'Alguien ha modificado este artículo mientras lo editabas. Carga la última versión para no pisar sus cambios.';
 
@@ -37,20 +32,6 @@ const validateName = (value: string): string | undefined => {
   }
   if (value.trim().length > NAME_MAX_LENGTH) {
     return `El nombre no puede superar los ${NAME_MAX_LENGTH} caracteres`;
-  }
-  return undefined;
-};
-
-const validateSlug = (value: string): string | undefined => {
-  const slug = value.trim();
-  if (!slug) {
-    return 'El slug es obligatorio';
-  }
-  if (slug.length > SLUG_MAX_LENGTH) {
-    return `El slug no puede superar los ${SLUG_MAX_LENGTH} caracteres`;
-  }
-  if (!SLUG_REGEX.test(slug)) {
-    return `El slug no es válido. ${SLUG_HINT}`;
   }
   return undefined;
 };
@@ -86,7 +67,6 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
   const navigate = useNavigate();
 
   const [name, setName] = useState(item?.name ?? '');
-  const [slug, setSlug] = useState(item?.slug ?? '');
   const [description, setDescription] = useState(item?.description ?? '');
   const [category, setCategory] = useState(item?.category ?? NO_CATEGORY);
   // Tags are keyed by NAME: the payload carries names, and the names of the
@@ -99,7 +79,6 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
   );
 
   const [nameError, setNameError] = useState<string | undefined>(undefined);
-  const [slugError, setSlugError] = useState<string | undefined>(undefined);
   const [formError, setFormError] = useState<string | undefined>(undefined);
   // Latest version known to the server for this item. It moves ahead of
   // `item.version` once our own update succeeds, so a retry after a failed
@@ -165,12 +144,7 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
     try {
       created = await createItem(payload);
     } catch (error) {
-      // On create a 409 can only be a duplicate slug.
-      if (isConflict(error)) {
-        setSlugError(DUPLICATE_SLUG_MESSAGE);
-      } else {
-        setFormError(messageOf(error));
-      }
+      setFormError(messageOf(error));
       return;
     }
 
@@ -191,21 +165,12 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
     try {
       updated = await updateItem(current.id, payload, knownVersion);
     } catch (error) {
-      if (!isConflict(error)) {
+      // Nothing else on an item is unique, so a 409 here is always a stale
+      // version: someone saved the item after this form loaded it.
+      if (isConflict(error)) {
+        setIsStale(true);
+      } else {
         setFormError(messageOf(error));
-        return;
-      }
-      // A 409 is either a stale version or a duplicate slug. The text of the
-      // error is never parsed; the item's fresh version tells them apart.
-      try {
-        const fresh = await getItem(current.id);
-        if (fresh.version !== knownVersion) {
-          setIsStale(true);
-        } else {
-          setSlugError(DUPLICATE_SLUG_MESSAGE);
-        }
-      } catch (refetchError) {
-        setFormError(messageOf(refetchError));
       }
       return;
     }
@@ -239,18 +204,15 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
     setIsStale(false);
 
     const nextNameError = validateName(name);
-    const nextSlugError = validateSlug(slug);
     setNameError(nextNameError);
-    setSlugError(nextSlugError);
 
-    if (nextNameError !== undefined || nextSlugError !== undefined) {
+    if (nextNameError !== undefined) {
       return;
     }
 
     // Only confirmed tags are in `tags`: one whose creation failed never is.
     const payload: ItemInput = {
       name: name.trim(),
-      slug: slug.trim(),
       description: description.trim() === '' ? null : description.trim(),
       category: category === NO_CATEGORY ? null : category,
       tags: tags.map((option) => option.label),
@@ -296,17 +258,6 @@ export const ItemForm = ({ item, notice, onReload }: ItemFormProps) => {
           error={nameError}
           required
         />
-        <div className="flex flex-col gap-1">
-          <Input
-            id="slug"
-            label="Slug"
-            value={slug}
-            onChange={(event) => setSlug(event.target.value)}
-            error={slugError}
-            required
-          />
-          <p className="text-sm text-muted">{SLUG_HINT}</p>
-        </div>
         <Textarea
           id="description"
           label="Descripción"

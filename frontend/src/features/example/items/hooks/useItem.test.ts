@@ -16,7 +16,6 @@ vi.mock('@/lib/api-client', () => ({
 const rawItemDetail = {
   id: 1,
   name: 'Cámara analógica',
-  slug: 'camara-analogica',
   description: null,
   category: 'electronica',
   tags: [],

@@ -8,7 +8,6 @@ const DEFAULT_PAGE_SIZE = 20;
 interface RawItem {
   id: number;
   name: string;
-  slug: string;
   description: string | null;
   category: string | null;
   tags: string[];
@@ -34,7 +33,6 @@ interface RawItemDetail extends RawItem {
 const toItem = (raw: RawItem): Item => ({
   id: raw.id,
   name: raw.name,
-  slug: raw.slug,
   description: raw.description,
   category: raw.category,
   tags: raw.tags,
@@ -110,7 +108,7 @@ interface RawCollectionPage {
 /** The collections endpoint has no "all" mode; this is its page-size cap. */
 const COLLECTIONS_PAGE_SIZE = 100;
 
-/** `POST /items` — the owner comes from the token. 409 means duplicate slug. */
+/** `POST /items` — the owner comes from the token. */
 export const createItem = async (input: ItemInput): Promise<Item> =>
   toItem(await apiClient.post<RawItem>('/items', input));
 
