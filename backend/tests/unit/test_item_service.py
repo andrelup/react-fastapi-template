@@ -11,7 +11,6 @@ import pytest
 from sqlalchemy.orm.exc import StaleDataError
 from src.domain.exceptions import (
     CollectionNotFoundError,
-    DuplicateSlugError,
     ForbiddenError,
     ItemNotFoundError,
 )
@@ -44,10 +43,6 @@ class FakeItemRepository:
 
     async def find_by_id(self, item_id: int) -> Item | None:
         stored = self._items.get(item_id)
-        return _copy(stored) if stored is not None else None
-
-    async def find_by_slug(self, slug: str) -> Item | None:
-        stored = next((item for item in self._items.values() if item.slug == slug), None)
         return _copy(stored) if stored is not None else None
 
     async def search(
@@ -89,11 +84,10 @@ def _user(user_id: int, role: UserRole) -> User:
     )
 
 
-def _item(item_id: int | None, owner_id: int, slug: str = "manual", version: int = 1) -> Item:
+def _item(item_id: int | None, owner_id: int, version: int = 1) -> Item:
     return Item(
         id=item_id,
         name="Manual de bienvenida",
-        slug=slug,
         owner_id=owner_id,
         description="Guia de incorporacion",
         category="documentacion",
@@ -111,7 +105,7 @@ def _collection(collection_id: int, name: str = "Guias") -> Collection:
 async def test_search_returns_the_page_and_the_total() -> None:
     # Arrange
     sut = ItemService(
-        FakeItemRepository([_item(1, 1, "a"), _item(2, 1, "b"), _item(3, 1, "c")]),
+        FakeItemRepository([_item(1, 1), _item(2, 1), _item(3, 1)]),
         FakeCollectionRepository(),
     )
 
@@ -125,15 +119,15 @@ async def test_search_returns_the_page_and_the_total() -> None:
 
 async def test_search_narrows_by_category() -> None:
     # Arrange
-    other = replace(_item(2, 1, "b"), category="otra")
-    sut = ItemService(FakeItemRepository([_item(1, 1, "a"), other]), FakeCollectionRepository())
+    other = replace(_item(2, 1), category="otra")
+    sut = ItemService(FakeItemRepository([_item(1, 1), other]), FakeCollectionRepository())
 
     # Act
     items, total = await sut.search(None, "otra", offset=0, limit=20)
 
     # Assert
     assert total == 1
-    assert items[0].slug == "b"
+    assert items[0].id == 2
 
 
 async def test_get_returns_the_item() -> None:
@@ -144,7 +138,7 @@ async def test_get_returns_the_item() -> None:
     found = await sut.get(10)
 
     # Assert
-    assert found.slug == "manual"
+    assert found.id == 10
 
 
 async def test_get_when_the_item_does_not_exist_raises_item_not_found_error() -> None:
@@ -193,16 +187,6 @@ async def test_create_as_admin_is_allowed() -> None:
 
     # Assert
     assert created.owner_id == 1
-
-
-async def test_create_with_a_taken_slug_raises_duplicate_slug_error() -> None:
-    # Arrange
-    editor = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(1, 2, "manual")]), FakeCollectionRepository())
-
-    # Act & Assert
-    with pytest.raises(DuplicateSlugError):
-        await sut.create(_item(None, 0, "manual"), editor)
 
 
 async def test_create_with_an_unpersisted_user_raises_value_error() -> None:
@@ -285,31 +269,6 @@ async def test_update_with_a_stale_version_raises_stale_data_error() -> None:
     # Act & Assert — the client still holds version 1
     with pytest.raises(StaleDataError):
         await sut.update(10, _item(10, 1, version=1), owner)
-
-
-async def test_update_to_a_slug_owned_by_another_item_raises_duplicate_slug_error() -> None:
-    # Arrange
-    owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(
-        FakeItemRepository([_item(10, 1, "manual"), _item(11, 1, "otro")]),
-        FakeCollectionRepository(),
-    )
-
-    # Act & Assert
-    with pytest.raises(DuplicateSlugError):
-        await sut.update(10, _item(10, 1, "otro"), owner)
-
-
-async def test_update_keeping_its_own_slug_does_not_check_for_duplicates() -> None:
-    # Arrange
-    owner = _user(1, UserRole.EDITOR)
-    sut = ItemService(FakeItemRepository([_item(10, 1, "manual")]), FakeCollectionRepository())
-
-    # Act
-    updated = await sut.update(10, replace(_item(10, 1, "manual"), name="Otro nombre"), owner)
-
-    # Assert
-    assert updated.slug == "manual"
 
 
 # --- delete ---------------------------------------------------------------

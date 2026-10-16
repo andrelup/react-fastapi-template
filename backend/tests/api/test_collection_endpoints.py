@@ -137,7 +137,6 @@ async def _a_collection_with_items(db_session: AsyncSession) -> Collection:
         await item_repository.save(
             Item(
                 name=f"zzz-test-{name}",
-                slug=f"zzz-test-{name.lower()}",
                 owner_id=owner.id,
                 collections=[ref],
             )

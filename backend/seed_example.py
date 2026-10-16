@@ -22,7 +22,6 @@ below), reproducible (a fixed Faker seed), and persists exclusively through
 to `tags` rows as part of `save()`.
 """
 
-import re
 from dataclasses import dataclass
 
 import structlog
@@ -56,10 +55,6 @@ MAX_COLLECTIONS_PER_ITEM = 2
 # `items.name` is `String(200)`; Faker's `catch_phrase()` never comes close,
 # but it is truncated anyway rather than trusted.
 MAX_NAME_LENGTH = 200
-# `items.slug` is `String(200)` and UNIQUE — checked after slugifying, not
-# before, since the slugified form is what actually goes in the column.
-MAX_SLUG_LENGTH = 200
-_SLUG_INVALID_CHARS = re.compile(r"[^a-z0-9]+")
 
 # `items.category` is `String(50)` and nullable. A fixed, generic vocabulary
 # instead of Faker free text, so `category=` filtering has real repeats to
@@ -118,25 +113,6 @@ FIXED_COLLECTION_SPECS: tuple[_CollectionSpec, ...] = (
 )
 
 
-def _slugify(text: str) -> str:
-    """Turn `text` into a URL-safe slug, falling back to a fixed value if that empties it out."""
-    slug = _SLUG_INVALID_CHARS.sub("-", text.lower()).strip("-")
-    return slug[:MAX_SLUG_LENGTH] or "item"
-
-
-def _unique_slug(name: str, used: set[str]) -> str:
-    """Slugify `name` and disambiguate against `used`, checking the length after each attempt."""
-    base = _slugify(name)
-    slug = base
-    suffix = 2
-    while slug in used:
-        marker = f"-{suffix}"
-        slug = f"{base[: MAX_SLUG_LENGTH - len(marker)]}{marker}"
-        suffix += 1
-    used.add(slug)
-    return slug
-
-
 def _require_id(user: User) -> int:
     """Return `user.id`, or raise if it was never persisted — a seed bug, not a domain one."""
     if user.id is None:
@@ -159,9 +135,7 @@ async def _create_collections(collection_repository: CollectionRepository) -> li
     return collections
 
 
-def _build_item(
-    fake: Faker, owner: User, collection_refs: list[CollectionRef], used_slugs: set[str]
-) -> Item:
+def _build_item(fake: Faker, owner: User, collection_refs: list[CollectionRef]) -> Item:
     """Draw one item: a name, an optional category/description, tags and collections.
 
     `category` and `description` are left `None` on roughly a fifth of the
@@ -169,7 +143,6 @@ def _build_item(
     the seed data rather than only by hand-written tests.
     """
     name = fake.catch_phrase()[:MAX_NAME_LENGTH]
-    slug = _unique_slug(name, used_slugs)
     has_description = fake.boolean(chance_of_getting_true=80)
     description = fake.paragraph(nb_sentences=3) if has_description else None
     has_category = fake.boolean(chance_of_getting_true=80)
@@ -189,7 +162,6 @@ def _build_item(
 
     return Item(
         name=name,
-        slug=slug,
         owner_id=_require_id(owner),
         description=description,
         category=category,
@@ -207,11 +179,10 @@ async def _create_items(
         for collection in collections
         if collection.id is not None
     ]
-    used_slugs: set[str] = set()
     items: list[Item] = []
     for index in range(ITEM_COUNT):
         owner = editors[index % len(editors)]
-        item = _build_item(fake, owner, collection_refs, used_slugs)
+        item = _build_item(fake, owner, collection_refs)
         items.append(await item_repository.save(item))
     return items
 
