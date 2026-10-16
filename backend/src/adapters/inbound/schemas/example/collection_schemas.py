@@ -44,6 +44,23 @@ class CollectionResponse(BaseModel):
     version: int = Field(description="Round-trip this on update to keep the lock honest.")
 
 
+class ItemRefResponse(BaseModel):
+    """Lightweight reference to an item that belongs to a collection."""
+
+    id: int
+    name: str
+
+
+class CollectionDetailResponse(CollectionResponse):
+    """`CollectionResponse` plus the items in the collection, sorted by name.
+
+    Only `GET /collections/{collection_id}` returns this shape; the list and
+    the write endpoints keep returning plain `CollectionResponse`.
+    """
+
+    items: list[ItemRefResponse]
+
+
 class PaginatedCollections(BaseModel):
     """One page of collections, matching the SPA's `PaginatedResponse<T>`."""
 
