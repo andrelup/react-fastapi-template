@@ -1,36 +1,27 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ListingCard } from '@/components/ui/ListingCard';
 import { NoResultsState } from '@/components/ui/NoResultsState';
 import { Pagination } from '@/components/ui/Pagination';
 import { SearchInput } from '@/components/ui/SearchInput';
-import { Select, type SelectOption } from '@/components/ui/Select';
+import { Select } from '@/components/ui/Select';
 import { ServerErrorState } from '@/components/ui/ServerErrorState';
 import { Spinner } from '@/components/ui/Spinner';
+import { useAuth } from '@/features/auth';
+import { ALL_CATEGORIES, CATEGORY_OPTIONS } from './category-options';
 import { useItems } from '../hooks/useItems';
 
 const PAGE_SIZE = 20;
-const ALL_CATEGORIES = 'all';
-
-// The `/items` endpoint (issue #36) has no categories endpoint of its own, so
-// this is a static curated list for the example domain rather than a fetched
-// one — swap it for a real source once the backend exposes it.
-const CATEGORY_OPTIONS: SelectOption[] = [
-  { value: ALL_CATEGORIES, label: 'Todas las categorías' },
-  { value: 'libros', label: 'Libros' },
-  { value: 'musica', label: 'Música' },
-  { value: 'videojuegos', label: 'Videojuegos' },
-  { value: 'electronica', label: 'Electrónica' },
-  { value: 'hogar', label: 'Hogar' },
-];
 
 /** The catalogue screen: paginated listing, free-text search and a category
  * filter. Visible to all three roles — the example domain has no owner-only
  * view yet. */
 export const ItemsCatalog = () => {
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string | undefined>(undefined);
@@ -62,13 +53,20 @@ export const ItemsCatalog = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="font-serif text-3xl font-bold tracking-[-0.015em] text-ink md:text-[34px]">
-          Catálogo
-        </h1>
-        <p className="mt-2 max-w-[460px] text-[15px] text-body md:text-base">
-          Explora los artículos publicados en el catálogo.
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="font-serif text-3xl font-bold tracking-[-0.015em] text-ink md:text-[34px]">
+            Catálogo
+          </h1>
+          <p className="mt-2 max-w-[460px] text-[15px] text-body md:text-base">
+            Explora los artículos publicados en el catálogo.
+          </p>
+        </div>
+        {hasRole('editor') && (
+          <Button asChild className="self-start">
+            <Link to="/items/nuevo">Nuevo artículo</Link>
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-end">

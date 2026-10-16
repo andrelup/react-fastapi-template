@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/api';
-import type { CollectionRef, Item, ItemDetail, ItemFilters } from '../types';
+import type { CollectionRef, Item, ItemDetail, ItemFilters, ItemInput, Tag } from '../types';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -95,4 +95,61 @@ export const getItem = async (id: number): Promise<ItemDetail> => {
 /** `DELETE /items/{id}` — ADMIN only; the backend enforces the role. */
 export const deleteItem = async (id: number): Promise<void> => {
   await apiClient.delete<null>(`/items/${id}`);
+};
+
+/** Raw shape of `GET /tags` — the tags come wrapped, not as a bare list. */
+interface RawTagList {
+  tags: Tag[];
+}
+
+/** Raw shape of `GET /collections` — only the fields the picker needs. */
+interface RawCollectionPage {
+  items: { id: number; name: string }[];
+}
+
+/** The collections endpoint has no "all" mode; this is its page-size cap. */
+const COLLECTIONS_PAGE_SIZE = 100;
+
+/** `POST /items` — the owner comes from the token. 409 means duplicate slug. */
+export const createItem = async (input: ItemInput): Promise<Item> =>
+  toItem(await apiClient.post<RawItem>('/items', input));
+
+/** `PUT /items/{id}` — a FULL replace, so the whole payload is always sent.
+ * `version` is the optimistic-lock token the item was loaded with. */
+export const updateItem = async (id: number, input: ItemInput, version: number): Promise<Item> =>
+  toItem(await apiClient.put<RawItem>(`/items/${id}`, { ...input, version }));
+
+/** `PUT /items/{id}/collections` — replaces the set of collections the item
+ * is filed in. Needs the item's CURRENT version; a 409 means it is stale. */
+export const setItemCollections = async (
+  id: number,
+  collectionIds: number[],
+  version: number,
+): Promise<ItemDetail> =>
+  toItemDetail(
+    await apiClient.put<RawItemDetail>(`/items/${id}/collections`, {
+      collection_ids: collectionIds,
+      version,
+    }),
+  );
+
+/** `GET /tags?q=` — at most 50 tags whose name matches the query. */
+export const searchTags = async (query: string): Promise<Tag[]> => {
+  const raw = await apiClient.get<RawTagList>(`/tags${buildQueryString({ q: query })}`);
+  return raw.tags.map(({ id, name }) => ({ id, name }));
+};
+
+/** `POST /tags` — idempotent: returns the existing tag when the name is taken. */
+export const createTag = async (name: string): Promise<Tag> => {
+  const raw = await apiClient.post<Tag>('/tags', { name });
+  return { id: raw.id, name: raw.name };
+};
+
+/** `GET /collections` — every collection as an `{id, name}` reference, for
+ * the picker. Lives here and not in a collections feature so `items` never
+ * imports from it. */
+export const getCollectionRefs = async (): Promise<CollectionRef[]> => {
+  const query = buildQueryString({ page: 1, page_size: COLLECTIONS_PAGE_SIZE });
+  const raw = await apiClient.get<RawCollectionPage>(`/collections${query}`);
+  return raw.items.map(({ id, name }) => ({ id, name }));
 };
