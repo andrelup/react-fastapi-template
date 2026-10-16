@@ -14,8 +14,10 @@ from src.adapters.inbound.middleware.auth import get_current_user
 from src.adapters.inbound.schemas.common import ApiResponse, error_responses
 from src.adapters.inbound.schemas.example.collection_schemas import (
     CollectionCreate,
+    CollectionDetailResponse,
     CollectionResponse,
     CollectionUpdate,
+    ItemRefResponse,
     PaginatedCollections,
 )
 from src.config.container import get_collection_service
@@ -35,6 +37,19 @@ def _to_response(collection: Collection) -> CollectionResponse:
         name=collection.name,
         description=collection.description,
         version=collection.version,
+    )
+
+
+def _to_detail_response(collection: Collection) -> CollectionDetailResponse:
+    """Map a persisted domain `Collection` to its detail representation, items included."""
+    if collection.id is None:
+        raise ValueError("Persisted collections must have an id")
+    return CollectionDetailResponse(
+        id=collection.id,
+        name=collection.name,
+        description=collection.description,
+        version=collection.version,
+        items=[ItemRefResponse(id=ref.id, name=ref.name) for ref in collection.items],
     )
 
 
@@ -64,19 +79,19 @@ async def list_collections(
 
 @router.get(
     "/{collection_id}",
-    response_model=ApiResponse[CollectionResponse],
+    response_model=ApiResponse[CollectionDetailResponse],
     summary="Get one collection",
-    response_description="The requested collection.",
+    response_description="The requested collection, with the items it contains.",
     responses=error_responses(401, 404),
 )
 async def get_collection(
     collection_id: int,
     collection_service: Annotated[CollectionService, Depends(get_collection_service)],
     _current_user: Annotated[User, Depends(get_current_user)],
-) -> ApiResponse[CollectionResponse]:
-    """Return a single collection by id."""
+) -> ApiResponse[CollectionDetailResponse]:
+    """Return a single collection by id, including the items that belong to it."""
     collection = await collection_service.get_collection(collection_id)
-    return ApiResponse(success=True, data=_to_response(collection), error=None)
+    return ApiResponse(success=True, data=_to_detail_response(collection), error=None)
 
 
 @router.post(

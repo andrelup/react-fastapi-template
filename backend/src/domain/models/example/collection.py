@@ -3,7 +3,7 @@
 Plain dataclasses, independent of any persistence or web framework.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -16,12 +16,17 @@ class Collection:
     rolls `version` forward before handing the collection to the repository,
     so it has to be mutable. `id` is `None` until persisted — that is what
     the repository reads to decide between an INSERT and an UPDATE.
+
+    `items` mirrors `Item.collections`: read-only references, populated by the
+    repository on reads. It is never written from this side — membership
+    belongs to `ItemService.set_collections` — so `save` ignores it.
     """
 
     name: str
     description: str | None = None
     id: int | None = None
     version: int = 1
+    items: list["ItemRef"] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -32,6 +37,18 @@ class CollectionRef:
     whole aggregate — mirrors why `Item.tag_names` is `list[str]` rather than
     `list[Tag]`, except a collection needs its id too since it is addressed
     by id, not by a natural key.
+    """
+
+    id: int
+    name: str
+
+
+@dataclass(frozen=True)
+class ItemRef:
+    """Lightweight reference to an item, carried by a `Collection`.
+
+    The mirror image of `CollectionRef`: enough to render a link to the item
+    without loading the whole aggregate.
     """
 
     id: int
