@@ -57,9 +57,6 @@ En el esquema actual conviven la segunda y la tercera forma, repartidas entre [`
 # sqlalchemy_models.py — unique + index → índice único
 email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
 
-# example/item.py — igual, porque el slug además se busca por valor
-slug: Mapped[str] = mapped_column(String(200), unique=True, index=True, nullable=False)
-
 # example/collection.py — constraint explícita y nombrada
 __table_args__ = (UniqueConstraint("name", name="uq_collections_name"),)
 ```

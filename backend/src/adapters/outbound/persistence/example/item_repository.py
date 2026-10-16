@@ -18,7 +18,6 @@ def _to_domain(item_orm: ItemORM) -> Item:
     return Item(
         id=item_orm.id,
         name=item_orm.name,
-        slug=item_orm.slug,
         description=item_orm.description,
         category=item_orm.category,
         owner_id=item_orm.owner_id,
@@ -31,7 +30,6 @@ def _to_domain(item_orm: ItemORM) -> Item:
 def _apply_fields(item_orm: ItemORM, item: Item) -> None:
     """Copy the mutable scalar fields of `item` onto `item_orm`."""
     item_orm.name = item.name
-    item_orm.slug = item.slug
     item_orm.description = item.description
     item_orm.category = item.category
     item_orm.owner_id = item.owner_id
@@ -51,11 +49,6 @@ class SqlAlchemyItemRepository:
         item_orm = await self._session.get(ItemORM, item_id)
         return _to_domain(item_orm) if item_orm is not None else None
 
-    async def find_by_slug(self, slug: str) -> Item | None:
-        result = await self._session.execute(select(ItemORM).where(ItemORM.slug == slug))
-        item_orm = result.scalar_one_or_none()
-        return _to_domain(item_orm) if item_orm is not None else None
-
     async def search(
         self, query: str | None, category: str | None, offset: int, limit: int
     ) -> tuple[list[Item], int]:
@@ -72,7 +65,6 @@ class SqlAlchemyItemRepository:
         if item.id is None:
             item_orm = ItemORM(
                 name=item.name,
-                slug=item.slug,
                 description=item.description,
                 category=item.category,
                 owner_id=item.owner_id,

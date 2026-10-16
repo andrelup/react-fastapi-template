@@ -18,7 +18,6 @@ const rawPage = {
     {
       id: 1,
       name: 'Cámara analógica',
-      slug: 'camara-analogica',
       description: null,
       category: 'electronica',
       tags: [],
