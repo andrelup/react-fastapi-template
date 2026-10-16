@@ -9,12 +9,16 @@ none of these tests need a real user row, unlike `test_item_endpoints.py`.
 
 from collections.abc import Callable
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.adapters.outbound.persistence.example.collection_repository import (
     SqlAlchemyCollectionRepository,
 )
-from src.domain.models.example.collection import Collection
+from src.adapters.outbound.persistence.example.item_repository import SqlAlchemyItemRepository
+from src.adapters.outbound.persistence.user_repository import SqlAlchemyUserRepository
+from src.domain.models.example.collection import Collection, CollectionRef
+from src.domain.models.example.item import Item
 from src.domain.models.user import User, UserRole
 
 
@@ -111,6 +115,65 @@ async def test_get_collection_returns_the_collection(
     # Assert
     assert response.status_code == 200
     assert response.json()["data"]["name"] == "uno-solo"
+    assert response.json()["data"]["items"] == []
+
+
+async def _a_collection_with_items(db_session: AsyncSession) -> Collection:
+    """Insert a collection holding two items, created out of name order."""
+    owner = await SqlAlchemyUserRepository(db_session).save(
+        User(
+            email="collection-detail-owner@example.com",
+            name="Owner",
+            role=UserRole.EDITOR,
+            hashed_password="hashed:pw",
+        )
+    )
+    assert owner.id is not None
+    collection = await _a_collection(db_session, "zzz-test-detalle")
+    assert collection.id is not None
+    ref = CollectionRef(id=collection.id, name=collection.name)
+    item_repository = SqlAlchemyItemRepository(db_session)
+    for name in ("Zeta", "Alfa"):
+        await item_repository.save(
+            Item(
+                name=f"zzz-test-{name}",
+                slug=f"zzz-test-{name.lower()}",
+                owner_id=owner.id,
+                collections=[ref],
+            )
+        )
+    return collection
+
+
+@pytest.mark.parametrize("role", [UserRole.VIEWER, UserRole.EDITOR, UserRole.ADMIN])
+async def test_get_collection_returns_its_items_sorted_by_name_for_every_role(
+    role: UserRole,
+    async_client: AsyncClient,
+    db_session: AsyncSession,
+    authenticated_as: Callable[[User], None],
+) -> None:
+    # Arrange
+    collection = await _a_collection_with_items(db_session)
+    authenticated_as(_user(1, role))
+
+    # Act
+    response = await async_client.get(f"/collections/{collection.id}")
+
+    # Assert
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["id"] == collection.id
+    assert data["version"] == 1
+    assert [item["name"] for item in data["items"]] == ["zzz-test-Alfa", "zzz-test-Zeta"]
+    assert all(set(item) == {"id", "name"} for item in data["items"])
+
+
+async def test_get_collection_without_credentials_returns_401(async_client: AsyncClient) -> None:
+    # Act
+    response = await async_client.get("/collections/1")
+
+    # Assert
+    assert response.status_code == 401
 
 
 async def test_get_an_unknown_collection_returns_404(
