@@ -9,6 +9,8 @@ const RegisterPage = lazy(() => import('./pages/RegisterPage'));
 const ItemsPage = lazy(() => import('./pages/ItemsPage'));
 const ItemFormPage = lazy(() => import('./pages/ItemFormPage'));
 const ItemDetailPage = lazy(() => import('./pages/ItemDetailPage'));
+const CollectionsPage = lazy(() => import('./pages/CollectionsPage'));
+const CollectionDetailPage = lazy(() => import('./pages/CollectionDetailPage'));
 const UiComponentsPage = lazy(() => import('./pages/UiComponentsPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
@@ -61,6 +63,22 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ItemDetailPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/colecciones',
+        element: (
+          <ProtectedRoute>
+            <CollectionsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/colecciones/:id',
+        element: (
+          <ProtectedRoute>
+            <CollectionDetailPage />
           </ProtectedRoute>
         ),
       },
