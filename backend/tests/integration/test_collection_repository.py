@@ -20,7 +20,7 @@ from src.adapters.outbound.persistence.example.collection_repository import (
 )
 from src.adapters.outbound.persistence.example.item_repository import SqlAlchemyItemRepository
 from src.adapters.outbound.persistence.user_repository import SqlAlchemyUserRepository
-from src.domain.models.example.collection import Collection, CollectionRef
+from src.domain.models.example.collection import Collection, CollectionRef, ItemRef
 from src.domain.models.example.item import Item
 from src.domain.models.user import User, UserRole
 
@@ -409,3 +409,72 @@ async def test_save_with_an_unknown_collection_id_raises_value_error(
     saved.collections = [CollectionRef(id=987654, name="Fantasma")]
     with pytest.raises(ValueError, match="does not exist"):
         await item_sut.save(saved)
+
+
+# --- items carried on the read path -----------------------------------------
+
+
+async def test_find_by_id_maps_the_member_items_sorted_by_name(db_session: AsyncSession) -> None:
+    # Arrange
+    collection_sut = SqlAlchemyCollectionRepository(db_session)
+    item_sut = SqlAlchemyItemRepository(db_session)
+    owner_id = await _an_owner(db_session)
+    collection = await collection_sut.save(Collection(name=f"{_OWN}con-items"))
+    assert collection.id is not None
+    ref = CollectionRef(id=collection.id, name=collection.name)
+    zeta = await item_sut.save(
+        Item(name=f"{_OWN}Zeta", slug=f"{_OWN}zeta", owner_id=owner_id, collections=[ref])
+    )
+    alfa = await item_sut.save(
+        Item(name=f"{_OWN}Alfa", slug=f"{_OWN}alfa", owner_id=owner_id, collections=[ref])
+    )
+    assert zeta.id is not None and alfa.id is not None
+
+    # Act
+    found = await collection_sut.find_by_id(collection.id)
+
+    # Assert
+    assert found is not None
+    assert found.items == [
+        ItemRef(id=alfa.id, name=f"{_OWN}Alfa"),
+        ItemRef(id=zeta.id, name=f"{_OWN}Zeta"),
+    ]
+
+
+async def test_find_by_id_of_an_empty_collection_has_no_items(db_session: AsyncSession) -> None:
+    # Arrange
+    sut = SqlAlchemyCollectionRepository(db_session)
+    collection = await sut.save(Collection(name=f"{_OWN}vacia"))
+    assert collection.id is not None
+
+    # Act
+    found = await sut.find_by_id(collection.id)
+
+    # Assert
+    assert found is not None
+    assert found.items == []
+
+
+async def test_saving_a_collection_never_writes_its_membership(db_session: AsyncSession) -> None:
+    # Arrange
+    sut = SqlAlchemyCollectionRepository(db_session)
+    item_sut = SqlAlchemyItemRepository(db_session)
+    owner_id = await _an_owner(db_session)
+    collection = await sut.save(Collection(name=f"{_OWN}solo-lectura"))
+    assert collection.id is not None
+    ref = CollectionRef(id=collection.id, name=collection.name)
+    member = await item_sut.save(
+        Item(name=f"{_OWN}Miembro", slug=f"{_OWN}miembro", owner_id=owner_id, collections=[ref])
+    )
+    assert member.id is not None
+    loaded = await sut.find_by_id(collection.id)
+    assert loaded is not None
+
+    # Act
+    loaded.items = []
+    loaded.description = "cambiada"
+    saved = await sut.save(loaded)
+
+    # Assert
+    assert saved.description == "cambiada"
+    assert saved.items == [ItemRef(id=member.id, name=f"{_OWN}Miembro")]
