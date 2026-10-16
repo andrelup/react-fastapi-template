@@ -82,7 +82,10 @@ describe('Sidebar', () => {
 
     expect(screen.getByRole('link', { name: 'Inicio' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Explorar catálogo' })).toBeInTheDocument();
-    expect(screen.getByText('Mis colecciones')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver colecciones' })).toHaveAttribute(
+      'href',
+      '/colecciones',
+    );
     expect(screen.getByText('Colecciones destacadas')).toBeInTheDocument();
   });
 
