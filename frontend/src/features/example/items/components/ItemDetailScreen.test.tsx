@@ -23,7 +23,6 @@ const rawViewerUser = { id: 3, email: 'bob@example.com', name: 'Bob Smith', role
 const rawItem = (overrides: Partial<Record<string, unknown>> = {}) => ({
   id: 1,
   name: 'Cámara analógica',
-  slug: 'camara-analogica',
   description: 'Una cámara de 35mm en buen estado.',
   category: 'electronica',
   tags: ['vintage'],

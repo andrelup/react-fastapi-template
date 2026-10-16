@@ -26,7 +26,6 @@ const rawViewer = { id: 3, email: 'bob@example.com', name: 'Bob', role: 'viewer'
 const rawItem = (overrides: RawRecord = {}): RawRecord => ({
   id: 1,
   name: 'Cámara analógica',
-  slug: 'camara-analogica',
   description: 'Una cámara de 35mm.',
   category: 'electronica',
   tags: ['vintage'],
@@ -133,7 +132,6 @@ const renderAt = (path: string) =>
 
 const fillBasics = async (user: ReturnType<typeof userEvent.setup>) => {
   await user.type(await screen.findByLabelText('Nombre'), 'Tocadiscos');
-  await user.type(screen.getByLabelText('Slug'), 'tocadiscos');
 };
 
 const putCalls = (apiClient: { put: unknown }) =>
@@ -160,7 +158,6 @@ describe('ItemFormScreen', () => {
       expect(await screen.findByRole('heading', { name: 'Detalle del item' })).toBeInTheDocument();
       expect(apiClient.post).toHaveBeenCalledWith('/items', {
         name: 'Tocadiscos',
-        slug: 'tocadiscos',
         description: 'Con brazo de carbono',
         category: null,
         tags: [],
@@ -287,22 +284,6 @@ describe('ItemFormScreen', () => {
       ).toBeInTheDocument();
     });
 
-    it('shows a duplicate-slug error on the slug field when the create answers 409', async () => {
-      const user = userEvent.setup();
-      await mockBackend(rawEditor, {
-        onPost: () => {
-          throw new ApiError('Slug already exists', 409);
-        },
-      });
-
-      renderAt('/items/nuevo');
-      await fillBasics(user);
-      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
-
-      expect(await screen.findByText('Ya existe un artículo con este slug')).toBeInTheDocument();
-      expect(screen.getByLabelText('Slug')).toHaveAttribute('aria-invalid', 'true');
-    });
-
     it('shows other API errors in a form-level alert', async () => {
       const user = userEvent.setup();
       await mockBackend(rawEditor, {
@@ -326,11 +307,6 @@ describe('ItemFormScreen', () => {
       await user.click(await screen.findByRole('button', { name: 'Crear artículo' }));
 
       expect(await screen.findByText('El nombre es obligatorio')).toBeInTheDocument();
-      expect(screen.getByText('El slug es obligatorio')).toBeInTheDocument();
-
-      await user.type(screen.getByLabelText('Slug'), 'Mal Slug');
-      await user.click(screen.getByRole('button', { name: 'Crear artículo' }));
-      expect(await screen.findByText(/El slug no es válido/)).toBeInTheDocument();
 
       await user.click(screen.getByLabelText('Nombre'));
       await user.paste('n'.repeat(201));
@@ -429,7 +405,6 @@ describe('ItemFormScreen', () => {
       renderAt('/items/1/editar');
       const name = await screen.findByLabelText('Nombre');
       expect(name).toHaveValue('Cámara analógica');
-      expect(screen.getByLabelText('Slug')).toHaveValue('camara-analogica');
 
       await user.clear(name);
       await user.type(name, 'Cámara réflex');
@@ -439,7 +414,6 @@ describe('ItemFormScreen', () => {
       expect(apiClient.put).toHaveBeenCalledTimes(1);
       expect(apiClient.put).toHaveBeenCalledWith('/items/1', {
         name: 'Cámara réflex',
-        slug: 'camara-analogica',
         description: 'Una cámara de 35mm.',
         category: 'electronica',
         tags: ['vintage'],
@@ -495,7 +469,10 @@ describe('ItemFormScreen', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(
         'Alguien ha modificado este artículo mientras lo editabas',
       );
-      expect(screen.queryByText('Ya existe un artículo con este slug')).not.toBeInTheDocument();
+      // A 409 on update is always a stale version: the item is not fetched again to tell.
+      const itemGets = () =>
+        vi.mocked(apiClient.get).mock.calls.filter(([path]) => path === '/items/1');
+      expect(itemGets()).toHaveLength(1);
 
       await user.click(screen.getByRole('button', { name: 'Cargar la última versión' }));
 
@@ -508,21 +485,6 @@ describe('ItemFormScreen', () => {
         '/items/1',
         expect.objectContaining({ version: 2 }),
       );
-    });
-
-    it('shows a duplicate-slug error when the 409 is not a stale version', async () => {
-      const user = userEvent.setup();
-      await mockBackend(rawEditor, {
-        onPut: () => {
-          throw new ApiError('Slug already exists', 409);
-        },
-      });
-
-      renderAt('/items/1/editar');
-      await user.click(await screen.findByRole('button', { name: 'Guardar cambios' }));
-
-      expect(await screen.findByText('Ya existe un artículo con este slug')).toBeInTheDocument();
-      expect(screen.queryByText(/Alguien ha modificado/)).not.toBeInTheDocument();
     });
 
     it('treats a 409 from the collections call as a stale version', async () => {

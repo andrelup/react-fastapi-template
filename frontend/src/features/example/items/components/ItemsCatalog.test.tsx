@@ -19,7 +19,6 @@ vi.mock('@/lib/api-client', () => ({
 const rawItem = (overrides: Partial<Record<string, unknown>> = {}) => ({
   id: 1,
   name: 'Cámara analógica',
-  slug: 'camara-analogica',
   description: 'Una cámara de 35mm en buen estado.',
   category: 'electronica',
   tags: ['vintage'],
@@ -66,7 +65,7 @@ describe('ItemsCatalog', () => {
   it('lists the items returned by the raw paginated response', async () => {
     const { apiClient } = await import('@/lib/api-client');
     vi.mocked(apiClient.get).mockResolvedValueOnce({
-      items: [rawItem(), rawItem({ id: 2, name: 'Tocadiscos vintage', slug: 'tocadiscos' })],
+      items: [rawItem(), rawItem({ id: 2, name: 'Tocadiscos vintage' })],
       total: 2,
       page: 1,
       page_size: 20,
@@ -109,7 +108,7 @@ describe('ItemsCatalog', () => {
     await screen.findByRole('heading', { name: 'Cámara analógica' });
 
     vi.mocked(apiClient.get).mockResolvedValueOnce({
-      items: [rawItem({ id: 3, name: 'Máquina de escribir', slug: 'maquina-escribir' })],
+      items: [rawItem({ id: 3, name: 'Máquina de escribir' })],
       total: 1,
       page: 1,
       page_size: 20,
@@ -139,7 +138,7 @@ describe('ItemsCatalog', () => {
     await screen.findByRole('heading', { name: 'Cámara analógica' });
 
     vi.mocked(apiClient.get).mockResolvedValueOnce({
-      items: [rawItem({ id: 9, name: 'Radio de válvulas', slug: 'radio-valvulas' })],
+      items: [rawItem({ id: 9, name: 'Radio de válvulas' })],
       total: 45,
       page: 2,
       page_size: 20,
