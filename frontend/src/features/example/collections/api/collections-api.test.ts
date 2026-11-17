@@ -89,4 +89,38 @@ describe('collections-api', () => {
 
     expect(apiClient.delete).toHaveBeenCalledWith('/collections/1');
   });
+
+  it('createCollection posts the input and maps the response', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.post).mockResolvedValueOnce(rawCollection);
+
+    const { createCollection } = await import('./collections-api');
+    const created = await createCollection({ name: 'Clásicos', description: null });
+
+    expect(apiClient.post).toHaveBeenCalledWith('/collections', {
+      name: 'Clásicos',
+      description: null,
+    });
+    expect(created).toEqual({
+      id: 1,
+      name: 'Clásicos',
+      description: 'Los imprescindibles.',
+      version: 2,
+    });
+  });
+
+  it('updateCollection puts the input with the version', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.put).mockResolvedValueOnce({ ...rawCollection, version: 3 });
+
+    const { updateCollection } = await import('./collections-api');
+    const updated = await updateCollection(1, { name: 'Clásicos', description: null }, 2);
+
+    expect(apiClient.put).toHaveBeenCalledWith('/collections/1', {
+      name: 'Clásicos',
+      description: null,
+      version: 2,
+    });
+    expect(updated.version).toBe(3);
+  });
 });

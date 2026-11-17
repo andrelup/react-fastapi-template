@@ -1,6 +1,12 @@
 import { apiClient } from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/api';
-import type { Collection, CollectionDetail, CollectionFilters, ItemRef } from '../types';
+import type {
+  Collection,
+  CollectionDetail,
+  CollectionFilters,
+  CollectionInput,
+  ItemRef,
+} from '../types';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -64,3 +70,17 @@ export const getCollection = async (id: number): Promise<CollectionDetail> => {
 export const deleteCollection = async (id: number): Promise<void> => {
   await apiClient.delete<null>(`/collections/${id}`);
 };
+
+/** `POST /collections` — ADMIN only; a 409 means the name is taken. */
+export const createCollection = async (input: CollectionInput): Promise<Collection> =>
+  toCollection(await apiClient.post<RawCollection>('/collections', input));
+
+/** `PUT /collections/{id}` — a FULL replace. `version` is the optimistic-lock
+ * token the collection was loaded with. A 409 is either a stale version or a
+ * duplicate name: re-fetch the collection to tell them apart. */
+export const updateCollection = async (
+  id: number,
+  input: CollectionInput,
+  version: number,
+): Promise<Collection> =>
+  toCollection(await apiClient.put<RawCollection>(`/collections/${id}`, { ...input, version }));

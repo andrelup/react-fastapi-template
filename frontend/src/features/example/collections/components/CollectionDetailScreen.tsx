@@ -62,8 +62,6 @@ export const CollectionDetailScreen = () => {
     }
   };
 
-  // The Edit link points at `/colecciones/:id/editar`, the route issue #43
-  // ships. Until then it resolves to `NotFoundPage` — expected.
   const actions = (
     <>
       <Button asChild variant="outline" className="flex-1 md:flex-none">
