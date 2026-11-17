@@ -149,6 +149,87 @@ async def test_search_paginates_and_still_reports_the_full_total(db_session: Asy
     assert items[0].name == "Pag 1"
 
 
+_OWN = "zzz-test-"
+
+
+async def _two_owners_with_items(
+    db_session: AsyncSession,
+) -> tuple[SqlAlchemyItemRepository, int, int]:
+    """Seed owner A with three items and owner B with one; return the repo and both ids."""
+    sut = SqlAlchemyItemRepository(db_session)
+    owner_a = await _an_owner(db_session, "owner-a@example.com")
+    owner_b = await _an_owner(db_session, "owner-b@example.com")
+    await sut.save(Item(name=f"{_OWN}Alfa", owner_id=owner_a, category="doc"))
+    await sut.save(Item(name=f"{_OWN}Beta", owner_id=owner_a, category="plantilla"))
+    await sut.save(Item(name=f"{_OWN}Gamma", owner_id=owner_a, category="doc"))
+    await sut.save(Item(name=f"{_OWN}Alfa ajeno", owner_id=owner_b, category="doc"))
+    return sut, owner_a, owner_b
+
+
+async def test_search_filtered_by_owner_returns_only_that_owners_items(
+    db_session: AsyncSession,
+) -> None:
+    # Arrange
+    sut, owner_a, _ = await _two_owners_with_items(db_session)
+
+    # Act
+    items, total = await sut.search(None, None, offset=0, limit=20, owner_id=owner_a)
+
+    # Assert
+    assert total == 3
+    assert {item.owner_id for item in items} == {owner_a}
+
+
+async def test_search_filtered_by_owner_and_query(db_session: AsyncSession) -> None:
+    # Arrange
+    sut, owner_a, _ = await _two_owners_with_items(db_session)
+
+    # Act
+    items, total = await sut.search("alfa", None, offset=0, limit=20, owner_id=owner_a)
+
+    # Assert
+    assert total == 1
+    assert [item.name for item in items] == [f"{_OWN}Alfa"]
+
+
+async def test_search_filtered_by_owner_and_category(db_session: AsyncSession) -> None:
+    # Arrange
+    sut, owner_a, _ = await _two_owners_with_items(db_session)
+
+    # Act
+    items, total = await sut.search(None, "doc", offset=0, limit=20, owner_id=owner_a)
+
+    # Assert
+    assert total == 2
+    assert [item.name for item in items] == [f"{_OWN}Alfa", f"{_OWN}Gamma"]
+
+
+async def test_search_filtered_by_owner_paginates_with_the_filtered_total(
+    db_session: AsyncSession,
+) -> None:
+    # Arrange
+    sut, owner_a, _ = await _two_owners_with_items(db_session)
+
+    # Act
+    items, total = await sut.search(None, None, offset=1, limit=1, owner_id=owner_a)
+
+    # Assert - the total is owner A's three, not the whole table
+    assert total == 3
+    assert [item.name for item in items] == [f"{_OWN}Beta"]
+
+
+async def test_search_without_owner_id_includes_every_owner(db_session: AsyncSession) -> None:
+    # Arrange
+    sut, _, _ = await _two_owners_with_items(db_session)
+
+    # Act
+    items, total = await sut.search(_OWN, None, offset=0, limit=100)
+
+    # Assert
+    assert total == 4
+    assert len(items) == 4
+
+
 async def test_save_updates_the_scalar_fields_and_bumps_the_version(
     db_session: AsyncSession,
 ) -> None:
