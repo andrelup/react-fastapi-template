@@ -108,9 +108,10 @@ hand, in this order:
 12. `frontend/src/app/router.tsx` — drop the `/items*` and `/colecciones*` route objects (list,
     detail, `/items/nuevo`, `/items/:id/editar`, `/colecciones/nueva`, `/colecciones/:id/editar`)
     and their `lazy()` imports.
-13. `frontend/src/components/layout/Sidebar.tsx` — drop the catalogue `NavLink`, and
+13. `frontend/src/components/layout/Sidebar.tsx` — drop the catalogue `NavLink` and the whole
+    `Colecciones` `NavGroup` («Ver colecciones», «Colecciones destacadas»), and
     `frontend/src/app/pages/HomePage.tsx` — drop the link to the catalogue. Update
-    `Sidebar.test.tsx` and `HomePage.test.tsx`, which assert on both.
+    `Sidebar.test.tsx` and `HomePage.test.tsx`, which assert on them.
 
 Then `make lint && make test` must pass, and the backend must still start with auth and health
 alone.
