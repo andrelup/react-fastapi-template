@@ -31,7 +31,7 @@ You configure and repair the tools; you do not redesign application architecture
 Out of scope — hand back instead of doing it yourself:
 
 - Application/business code changes beyond the minimum needed to satisfy a rule → `fastapi-expert` / `react-expert`
-- Semantic or security review of code → `code-reviewer`
+- Semantic or security review of code → `backend-reviewer` / `frontend-reviewer`
 - Pipeline structure, caching, matrices, path filters → `github-actions-expert`
 - Test content and coverage thresholds → `test-back` skill / `react-expert`
 

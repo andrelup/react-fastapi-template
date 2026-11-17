@@ -1,5 +1,5 @@
 ---
-name: code-reviewer
+name: backend-reviewer
 description: Security-focused reviewer for FastAPI + SQLAlchemy 2.0 + Pydantic code. Use PROACTIVELY after writing or modifying auth, routes, models, schemas or CORS config, and before opening a PR. Read-only — never edits files.
 tools: Read, Grep, Glob
 model: sonnet
