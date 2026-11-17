@@ -18,8 +18,11 @@ export const CollectionFormScreen = () => {
 
   const { data: collection, isLoading, error, status, refetch } = useCollection(Number(id), isEdit);
 
+  // The form seeds its state from `collection` once, so every key change —
+  // create vs edit, another collection, a newer version after a reload —
+  // must remount it rather than leave the old values on screen.
   if (!isEdit) {
-    return <CollectionForm />;
+    return <CollectionForm key="new" />;
   }
 
   if (isLoading) {
@@ -43,5 +46,11 @@ export const CollectionFormScreen = () => {
     return null;
   }
 
-  return <CollectionForm collection={collection} onReload={() => void refetch()} />;
+  return (
+    <CollectionForm
+      key={`${collection.id}-${collection.version}`}
+      collection={collection}
+      onReload={() => void refetch()}
+    />
+  );
 };
