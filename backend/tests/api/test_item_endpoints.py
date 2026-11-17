@@ -33,10 +33,11 @@ async def _an_item(
     db_session: AsyncSession,
     owner_id: int,
     category: str = "documentacion",
+    name: str = "Manual",
 ) -> Item:
     """Insert an item owned by `owner_id`, bypassing the API."""
     return await SqlAlchemyItemRepository(db_session).save(
-        Item(name="Manual", owner_id=owner_id, category=category)
+        Item(name=name, owner_id=owner_id, category=category)
     )
 
 
@@ -136,6 +137,149 @@ async def test_search_items_is_not_swallowed_by_the_id_route(
     # Assert
     assert response.status_code == 200
     assert response.json()["data"]["total"] >= 1
+
+
+async def _owner_filter_fixture(db_session: AsyncSession) -> tuple[User, User]:
+    """Two owners: the first has three items, the second one."""
+    owner = await _a_user(db_session, UserRole.EDITOR, "owner-filter-a@example.com")
+    other = await _a_user(db_session, UserRole.EDITOR, "owner-filter-b@example.com")
+    assert owner.id is not None
+    assert other.id is not None
+    await _an_item(db_session, owner.id, "doc", "zzz-test-Alfa")
+    await _an_item(db_session, owner.id, "plantilla", "zzz-test-Beta")
+    await _an_item(db_session, owner.id, "doc", "zzz-test-Gamma")
+    await _an_item(db_session, other.id, "doc", "zzz-test-Alfa ajeno")
+    return owner, other
+
+
+async def test_search_items_filtered_by_owner_returns_only_its_items(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    owner, _ = await _owner_filter_fixture(db_session)
+    authenticated_as(owner)
+
+    # Act
+    response = await async_client.get("/items/search", params={"owner_id": owner.id})
+
+    # Assert
+    data = response.json()["data"]
+    assert response.status_code == 200
+    assert data["total"] == 3
+    assert {item["owner_id"] for item in data["items"]} == {owner.id}
+
+
+async def test_search_items_filtered_by_owner_and_query(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    owner, _ = await _owner_filter_fixture(db_session)
+    authenticated_as(owner)
+
+    # Act
+    response = await async_client.get("/items/search", params={"owner_id": owner.id, "q": "alfa"})
+
+    # Assert
+    data = response.json()["data"]
+    assert data["total"] == 1
+    assert [item["name"] for item in data["items"]] == ["zzz-test-Alfa"]
+
+
+async def test_search_items_filtered_by_owner_and_category(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    owner, _ = await _owner_filter_fixture(db_session)
+    authenticated_as(owner)
+
+    # Act
+    response = await async_client.get(
+        "/items/search", params={"owner_id": owner.id, "category": "doc"}
+    )
+
+    # Assert
+    assert response.json()["data"]["total"] == 2
+
+
+async def test_search_items_filtered_by_owner_reports_the_filtered_total(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    owner, _ = await _owner_filter_fixture(db_session)
+    authenticated_as(owner)
+
+    # Act
+    response = await async_client.get(
+        "/items/search", params={"owner_id": owner.id, "page_size": 1}
+    )
+
+    # Assert
+    data = response.json()["data"]
+    assert data["total"] == 3
+    assert len(data["items"]) == 1
+
+
+async def test_search_items_with_a_non_positive_owner_id_returns_422(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    viewer = await _a_user(db_session, UserRole.VIEWER, "owner-zero-viewer@example.com")
+    authenticated_as(viewer)
+
+    # Act
+    response = await async_client.get("/items/search", params={"owner_id": 0})
+
+    # Assert
+    assert response.status_code == 422
+
+
+async def test_search_items_as_viewer_filtered_by_another_owner_returns_200(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    _, other = await _owner_filter_fixture(db_session)
+    viewer = await _a_user(db_session, UserRole.VIEWER, "owner-filter-viewer@example.com")
+    authenticated_as(viewer)
+
+    # Act
+    response = await async_client.get("/items/search", params={"owner_id": other.id})
+
+    # Assert
+    data = response.json()["data"]
+    assert response.status_code == 200
+    assert data["total"] == 1
+    assert {item["owner_id"] for item in data["items"]} == {other.id}
+
+
+async def test_search_items_with_an_owner_id_beyond_int4_returns_422(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    viewer = await _a_user(db_session, UserRole.VIEWER, "owner-huge-viewer@example.com")
+    authenticated_as(viewer)
+
+    # Act
+    response = await async_client.get("/items/search", params={"owner_id": 2_147_483_648})
+
+    # Assert
+    assert response.status_code == 422
+
+
+async def test_search_items_with_an_owner_id_matching_no_user_returns_an_empty_page(
+    async_client: AsyncClient, db_session: AsyncSession, authenticated_as: Callable[[User], None]
+) -> None:
+    # Arrange
+    viewer = await _a_user(db_session, UserRole.VIEWER, "owner-unknown-viewer@example.com")
+    authenticated_as(viewer)
+
+    # Act
+    response = await async_client.get("/items/search", params={"owner_id": 2_147_483_647})
+
+    # Assert
+    data = response.json()["data"]
+    assert response.status_code == 200
+    assert data["total"] == 0
+    assert data["items"] == []
 
 
 async def test_get_item_returns_the_item(

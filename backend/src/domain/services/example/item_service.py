@@ -29,10 +29,21 @@ class ItemService:
         self._collection_repository = collection_repository
 
     async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
+        self,
+        query: str | None,
+        category: str | None,
+        offset: int,
+        limit: int,
+        *,
+        owner_id: int | None = None,
     ) -> tuple[list[Item], int]:
-        """Return a page of items. Every authenticated role may read the catalogue."""
-        return await self._item_repository.search(query, category, offset, limit)
+        """Return a page of items. Every authenticated role may read the catalogue.
+
+        `owner_id`, when given, narrows the page and the total to that user's
+        items. It is a read filter, not an authorization: ownership only
+        restricts writes, so no role check applies here.
+        """
+        return await self._item_repository.search(query, category, offset, limit, owner_id=owner_id)
 
     async def get(self, item_id: int) -> Item:
         """Return one item.
