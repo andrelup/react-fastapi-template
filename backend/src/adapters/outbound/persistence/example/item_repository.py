@@ -50,10 +50,18 @@ class SqlAlchemyItemRepository:
         return _to_domain(item_orm) if item_orm is not None else None
 
     async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
+        self,
+        query: str | None,
+        category: str | None,
+        offset: int,
+        limit: int,
+        *,
+        owner_id: int | None = None,
     ) -> tuple[list[Item], int]:
-        statement = self._filtered(select(ItemORM), query, category)
-        total_statement = self._filtered(select(func.count()).select_from(ItemORM), query, category)
+        statement = self._filtered(select(ItemORM), query, category, owner_id)
+        total_statement = self._filtered(
+            select(func.count()).select_from(ItemORM), query, category, owner_id
+        )
 
         total = (await self._session.execute(total_statement)).scalar_one()
         result = await self._session.execute(
@@ -120,7 +128,10 @@ class SqlAlchemyItemRepository:
     # Narrowing it to `tuple[ItemORM]` would break the count call site.
     @staticmethod
     def _filtered(
-        statement: Select[tuple[Any, ...]], query: str | None, category: str | None
+        statement: Select[tuple[Any, ...]],
+        query: str | None,
+        category: str | None,
+        owner_id: int | None,
     ) -> Select[tuple[Any, ...]]:
         if query:
             pattern = f"%{query}%"
@@ -129,6 +140,8 @@ class SqlAlchemyItemRepository:
             )
         if category:
             statement = statement.where(ItemORM.category == category)
+        if owner_id is not None:
+            statement = statement.where(ItemORM.owner_id == owner_id)
         return statement
 
     async def _reconcile_tags(self, item_orm: ItemORM, tag_names: list[str]) -> bool:
