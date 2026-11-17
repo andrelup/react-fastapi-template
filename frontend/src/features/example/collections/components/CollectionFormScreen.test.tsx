@@ -294,16 +294,24 @@ describe('CollectionFormScreen', () => {
       );
     });
 
-    it('shows the name-taken error when a 409 comes with the same version', async () => {
+    it('shows the name-taken error when a rename 409s with the same version', async () => {
       const user = userEvent.setup();
+      // The backend only checks the name when it changes, so the 409 needs a
+      // rename onto another collection's name.
       await mockBackend(rawAdmin, {
-        onPut: () => {
-          throw new ApiError('Conflict', 409);
+        collections: { 1: rawCollection(), 2: rawCollection({ id: 2, name: 'Favoritos' }) },
+        onPut: (_path, body) => {
+          if (body.name === 'Favoritos') {
+            throw new ApiError('Conflict', 409);
+          }
+          return { ...rawCollection(), ...body, version: 2 };
         },
       });
 
       renderAt('/colecciones/1/editar');
-      await user.type(await screen.findByLabelText('Descripción'), ' Extra');
+      const name = await screen.findByLabelText('Nombre');
+      await user.clear(name);
+      await user.type(name, 'Favoritos');
       await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
 
       expect(await screen.findByText('Ya existe una colección con ese nombre')).toBeInTheDocument();
