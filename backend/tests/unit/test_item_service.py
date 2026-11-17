@@ -54,10 +54,15 @@ class FakeItemRepository:
         *,
         owner_id: int | None = None,
     ) -> tuple[list[Item], int]:
+        term = query.lower() if query else None
         matches = [
             item
             for item in self._items.values()
-            if (query is None or query.lower() in item.name.lower())
+            if (
+                term is None
+                or term in item.name.lower()
+                or term in (item.description or "").lower()
+            )
             and (category is None or item.category == category)
             and (owner_id is None or item.owner_id == owner_id)
         ]
@@ -211,6 +216,23 @@ async def test_search_narrows_by_category() -> None:
     # Assert
     assert total == 1
     assert items[0].id == 2
+
+
+async def test_search_matches_the_query_against_name_and_description() -> None:
+    # Arrange
+    in_name = replace(_item(1, 1), name="Tornillo grande", description=None)
+    in_description = replace(_item(2, 1), name="Caja", description="Contiene un tornillo")
+    no_match = replace(_item(3, 1), name="Martillo", description=None)
+    sut = ItemService(
+        FakeItemRepository([in_name, in_description, no_match]), FakeCollectionRepository()
+    )
+
+    # Act
+    items, total = await sut.search("TORNILLO", None, offset=0, limit=20)
+
+    # Assert
+    assert total == 2
+    assert {item.id for item in items} == {1, 2}
 
 
 async def test_get_returns_the_item() -> None:
