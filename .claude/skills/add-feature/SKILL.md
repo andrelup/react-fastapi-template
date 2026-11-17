@@ -13,8 +13,8 @@ from the document, never from a summary of it.
 
 1. Read `docs/adding-a-feature.md` §0–§1: how the branch is set up, and whether the two halves are
    built one after the other or in parallel.
-2. Decide the authorization shape with §2, and write the permission matrix down.
-3. Settle what crosses the wire with §3, and write it into the issue before building either half.
+2. Decide the authorization shape with §2.
+3. Settle what crosses the wire with §3.
 
 ## 2. While building — read only the stack you are in
 
@@ -34,7 +34,7 @@ from the document, never from a summary of it.
 
 ## 4. Gates
 
-The same set CI runs, from the repository root. Fix what they report before moving on:
+From the repository root. Fix what they report before moving on:
 
 ```
 make lint                                 # ruff check + mypy, eslint
@@ -43,8 +43,6 @@ npm --prefix frontend run format:check    # prettier
 npm --prefix frontend run typecheck       # tsc --noEmit
 npm --prefix frontend run test:coverage   # vitest, with the frontend's 80 % thresholds
 ```
-
-`ruff format` is not in `make lint`; the pre-commit hook applies it on commit.
 
 ## 5. Before the PR
 
