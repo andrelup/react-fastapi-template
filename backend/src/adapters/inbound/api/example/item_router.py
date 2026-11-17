@@ -22,6 +22,8 @@ from src.domain.services.example.item_service import ItemService
 
 router = APIRouter(prefix="/items", tags=["items"])
 
+_MAX_INT4 = 2_147_483_647  # items.owner_id is a PostgreSQL INTEGER
+
 
 def _to_response(item: Item) -> ItemResponse:
     """Map a persisted domain `Item` to its public API representation."""
@@ -64,9 +66,12 @@ async def _page(
     category: str | None,
     page: int,
     page_size: int,
+    owner_id: int | None = None,
 ) -> ApiResponse[ItemPageResponse]:
     """Run the search use case and wrap its page in the response envelope."""
-    items, total = await item_service.search(query, category, (page - 1) * page_size, page_size)
+    items, total = await item_service.search(
+        query, category, (page - 1) * page_size, page_size, owner_id=owner_id
+    )
     page_response = ItemPageResponse(
         items=[_to_response(item) for item in items],
         total=total,
@@ -110,11 +115,23 @@ async def search_items(
     _current_user: Annotated[User, Depends(get_current_user)],
     q: Annotated[str | None, Query(max_length=200)] = None,
     category: Annotated[str | None, Query(max_length=50)] = None,
+    owner_id: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            le=_MAX_INT4,
+            description=(
+                "Only items owned by this user id. Narrows `total` as well as the page, "
+                "and combines with `q` and `category`. Any authenticated role may filter "
+                "by any id."
+            ),
+        ),
+    ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> ApiResponse[ItemPageResponse]:
     """Return a page of items whose name or description matches `q`."""
-    return await _page(item_service, q, category, page, page_size)
+    return await _page(item_service, q, category, page, page_size, owner_id)
 
 
 @router.get(
