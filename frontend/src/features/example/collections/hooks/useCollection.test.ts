@@ -63,4 +63,12 @@ describe('useCollection', () => {
     await waitFor(() => expect(result.current.data?.name).toBe('Otra'));
     expect(apiClient.get).toHaveBeenCalledWith('/collections/2');
   });
+
+  it('does not fetch when disabled', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+
+    renderHook(() => useCollection(1, false));
+
+    expect(apiClient.get).not.toHaveBeenCalled();
+  });
 });
