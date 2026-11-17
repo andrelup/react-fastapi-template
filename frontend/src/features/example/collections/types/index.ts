@@ -26,3 +26,9 @@ export interface CollectionFilters {
   page?: number;
   pageSize?: number;
 }
+
+/** The writable fields of a collection, as sent on create and update. */
+export interface CollectionInput {
+  name: string;
+  description: string | null;
+}

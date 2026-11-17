@@ -99,15 +99,19 @@ hand, in this order:
 **Frontend — delete**
 
 10. `rm -rf frontend/src/features/example/`.
-11. Delete `frontend/src/app/pages/ItemsPage.tsx` and `frontend/src/app/pages/ItemDetailPage.tsx`.
+11. Delete the example pages under `frontend/src/app/pages/`: `ItemsPage.tsx`, `ItemDetailPage.tsx`,
+    `ItemFormPage.tsx`, `CollectionsPage.tsx`, `CollectionDetailPage.tsx` and
+    `CollectionFormPage.tsx`.
 
 **Frontend — edit**
 
-12. `frontend/src/app/router.tsx` — drop the `/items` and `/items/:id` route objects and their
-    `lazy()` imports.
-13. `frontend/src/components/layout/Sidebar.tsx` — drop the catalogue `NavLink`, and
+12. `frontend/src/app/router.tsx` — drop the `/items*` and `/colecciones*` route objects (list,
+    detail, `/items/nuevo`, `/items/:id/editar`, `/colecciones/nueva`, `/colecciones/:id/editar`)
+    and their `lazy()` imports.
+13. `frontend/src/components/layout/Sidebar.tsx` — drop the catalogue `NavLink` and the whole
+    `Colecciones` `NavGroup` («Ver colecciones», «Colecciones destacadas»), and
     `frontend/src/app/pages/HomePage.tsx` — drop the link to the catalogue. Update
-    `Sidebar.test.tsx` and `HomePage.test.tsx`, which assert on both.
+    `Sidebar.test.tsx` and `HomePage.test.tsx`, which assert on them.
 
 Then `make lint && make test` must pass, and the backend must still start with auth and health
 alone.
