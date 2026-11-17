@@ -32,8 +32,6 @@ export const CollectionsList = () => {
           </p>
         </div>
         {hasRole('admin') && (
-          // The create route is built by issue #43; until then this link
-          // resolves to `NotFoundPage` — expected.
           <Button asChild>
             <Link to="/colecciones/nueva">Nueva colección</Link>
           </Button>
