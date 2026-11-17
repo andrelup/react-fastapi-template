@@ -15,9 +15,18 @@ class ItemRepository(Protocol):
         ...
 
     async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
+        self,
+        query: str | None,
+        category: str | None,
+        offset: int,
+        limit: int,
+        *,
+        owner_id: int | None = None,
     ) -> tuple[list[Item], int]:
         """Return a page of matching items and the total number of matches.
+
+        `owner_id`, when given, narrows the match to the items that user owns;
+        the total counts only that filtered set.
 
         The total travels back with the page because the caller needs it to
         build the paginated response, and a second call would count a table

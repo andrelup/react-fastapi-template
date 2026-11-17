@@ -46,13 +46,20 @@ class FakeItemRepository:
         return _copy(stored) if stored is not None else None
 
     async def search(
-        self, query: str | None, category: str | None, offset: int, limit: int
+        self,
+        query: str | None,
+        category: str | None,
+        offset: int,
+        limit: int,
+        *,
+        owner_id: int | None = None,
     ) -> tuple[list[Item], int]:
         matches = [
             item
             for item in self._items.values()
             if (query is None or query.lower() in item.name.lower())
             and (category is None or item.category == category)
+            and (owner_id is None or item.owner_id == owner_id)
         ]
         return [_copy(item) for item in matches[offset : offset + limit]], len(matches)
 
@@ -100,6 +107,82 @@ def _collection(collection_id: int, name: str = "Guias") -> Collection:
 
 
 # --- search and get -------------------------------------------------------
+
+
+def _owned(item_id: int, owner_id: int, name: str, category: str) -> Item:
+    return Item(id=item_id, name=name, owner_id=owner_id, category=category)
+
+
+def _two_owners_catalogue() -> ItemService:
+    return ItemService(
+        FakeItemRepository(
+            [
+                _owned(1, 1, "Alfa uno", "doc"),
+                _owned(2, 1, "Alfa dos", "plantilla"),
+                _owned(3, 1, "Beta", "doc"),
+                _owned(4, 2, "Alfa ajeno", "doc"),
+            ]
+        ),
+        FakeCollectionRepository(),
+    )
+
+
+async def test_search_filtered_by_owner_returns_only_that_owners_items() -> None:
+    # Arrange
+    sut = _two_owners_catalogue()
+
+    # Act
+    items, _ = await sut.search(None, None, 0, 20, owner_id=1)
+
+    # Assert
+    assert {item.id for item in items} == {1, 2, 3}
+
+
+async def test_search_filtered_by_owner_and_query() -> None:
+    # Arrange
+    sut = _two_owners_catalogue()
+
+    # Act
+    items, total = await sut.search("alfa", None, 0, 20, owner_id=1)
+
+    # Assert
+    assert total == 2
+    assert {item.id for item in items} == {1, 2}
+
+
+async def test_search_filtered_by_owner_and_category() -> None:
+    # Arrange
+    sut = _two_owners_catalogue()
+
+    # Act
+    items, total = await sut.search(None, "doc", 0, 20, owner_id=1)
+
+    # Assert
+    assert total == 2
+    assert {item.id for item in items} == {1, 3}
+
+
+async def test_search_filtered_by_owner_reports_the_filtered_total() -> None:
+    # Arrange
+    sut = _two_owners_catalogue()
+
+    # Act
+    items, total = await sut.search(None, None, 0, 1, owner_id=1)
+
+    # Assert
+    assert total == 3
+    assert len(items) == 1
+
+
+async def test_search_without_owner_id_is_not_filtered() -> None:
+    # Arrange
+    sut = _two_owners_catalogue()
+
+    # Act
+    _, total = await sut.search(None, None, 0, 20)
+
+    # Assert
+    assert total == 4
 
 
 async def test_search_returns_the_page_and_the_total() -> None:
