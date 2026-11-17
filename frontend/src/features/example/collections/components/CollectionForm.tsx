@@ -8,11 +8,15 @@ import { createCollection, getCollection, updateCollection } from '../api/collec
 import type { Collection, CollectionInput } from '../types';
 
 const NAME_MAX_LENGTH = 200;
+const HTTP_FORBIDDEN = 403;
+const HTTP_NOT_FOUND = 404;
 const HTTP_CONFLICT = 409;
 
 const DUPLICATE_NAME_MESSAGE = 'Ya existe una colección con ese nombre';
 const STALE_VERSION_MESSAGE =
   'Alguien ha modificado esta colección mientras la editabas. Carga la última versión para no pisar sus cambios.';
+const GONE_MESSAGE = 'Esta colección ya no existe: alguien la ha borrado mientras la editabas.';
+const FORBIDDEN_MESSAGE = 'No tienes permiso para crear ni editar colecciones.';
 
 const validateName = (value: string): string | undefined => {
   if (!value.trim()) {
@@ -24,11 +28,18 @@ const validateName = (value: string): string | undefined => {
   return undefined;
 };
 
-const messageOf = (error: unknown): string =>
-  error instanceof ApiError ? error.message : 'Error inesperado. Inténtalo de nuevo.';
+const statusOf = (error: unknown): number | undefined =>
+  error instanceof ApiError ? error.status : undefined;
 
-const isConflict = (error: unknown): boolean =>
-  error instanceof ApiError && error.status === HTTP_CONFLICT;
+const messageOf = (error: unknown): string => {
+  if (!(error instanceof ApiError)) {
+    return 'Error inesperado. Inténtalo de nuevo.';
+  }
+  // The role was revoked after the page loaded: RoleRoute let the user in.
+  return error.status === HTTP_FORBIDDEN ? FORBIDDEN_MESSAGE : error.message;
+};
+
+const isConflict = (error: unknown): boolean => statusOf(error) === HTTP_CONFLICT;
 
 interface CollectionFormProps {
   /** The collection being edited; absent when creating. */
@@ -46,7 +57,17 @@ export const CollectionForm = ({ collection, onReload }: CollectionFormProps) =>
   const [nameError, setNameError] = useState<string | undefined>(undefined);
   const [formError, setFormError] = useState<string | undefined>(undefined);
   const [isStale, setIsStale] = useState(false);
+  const [isGone, setIsGone] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  /** A failed update or re-fetch: a 404 means the collection was deleted. */
+  const showUpdateFailure = (error: unknown): void => {
+    if (statusOf(error) === HTTP_NOT_FOUND) {
+      setIsGone(true);
+    } else {
+      setFormError(messageOf(error));
+    }
+  };
 
   const handleCreate = async (payload: CollectionInput): Promise<void> => {
     try {
@@ -68,7 +89,7 @@ export const CollectionForm = ({ collection, onReload }: CollectionFormProps) =>
       navigate(`/colecciones/${current.id}`);
     } catch (error) {
       if (!isConflict(error)) {
-        setFormError(messageOf(error));
+        showUpdateFailure(error);
         return;
       }
       // A 409 is either a stale version or a duplicate name. The text of the
@@ -81,7 +102,7 @@ export const CollectionForm = ({ collection, onReload }: CollectionFormProps) =>
           setNameError(DUPLICATE_NAME_MESSAGE);
         }
       } catch (refetchError) {
-        setFormError(messageOf(refetchError));
+        showUpdateFailure(refetchError);
       }
     }
   };
@@ -153,6 +174,17 @@ export const CollectionForm = ({ collection, onReload }: CollectionFormProps) =>
             )}
           </div>
         )}
+        {isGone && (
+          <div
+            role="alert"
+            className="flex flex-col items-start gap-2 rounded border border-warning-border bg-warning-bg p-3 text-sm text-warning"
+          >
+            <p>{GONE_MESSAGE}</p>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/colecciones">Volver a las colecciones</Link>
+            </Button>
+          </div>
+        )}
         {formError && (
           <p role="alert" className="text-sm text-warning">
             {formError}
@@ -160,7 +192,9 @@ export const CollectionForm = ({ collection, onReload }: CollectionFormProps) =>
         )}
 
         <div className="flex gap-3">
-          <Button type="submit" isLoading={isSaving}>
+          {/* Once the collection is gone every save would 404 again. `disabled`
+              overrides `isLoading`'s own disabling, so both are passed. */}
+          <Button type="submit" isLoading={isSaving} disabled={isGone || isSaving}>
             {collection ? 'Guardar cambios' : 'Crear colección'}
           </Button>
           <Button asChild variant="outline">

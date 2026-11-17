@@ -318,6 +318,62 @@ describe('CollectionFormScreen', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
 
+    it('says the collection is gone when the save 404s, and blocks saving again', async () => {
+      const user = userEvent.setup();
+      await mockBackend(rawAdmin, {
+        onPut: () => {
+          throw new ApiError('Collection 1 not found', 404);
+        },
+      });
+
+      renderAt('/colecciones/1/editar');
+      await user.type(await screen.findByLabelText('Descripción'), ' Extra');
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Esta colección ya no existe');
+      expect(screen.queryByText('Collection 1 not found')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+
+      await user.click(screen.getByRole('link', { name: 'Volver a las colecciones' }));
+      expect(await screen.findByRole('heading', { name: 'Colecciones' })).toBeInTheDocument();
+    });
+
+    it('says the collection is gone when the re-fetch after a 409 finds it deleted', async () => {
+      const user = userEvent.setup();
+      const { backend } = await mockBackend(rawAdmin, {
+        onPut: () => {
+          throw new ApiError('Conflict', 409);
+        },
+      });
+
+      renderAt('/colecciones/1/editar');
+      await user.type(await screen.findByLabelText('Descripción'), ' Extra');
+      // Someone deletes it after the form loaded.
+      delete backend.collections[1];
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('Esta colección ya no existe');
+      expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled();
+    });
+
+    it('shows a Spanish permission error when the save 403s', async () => {
+      const user = userEvent.setup();
+      await mockBackend(rawAdmin, {
+        onPut: () => {
+          throw new ApiError('You do not have permission to perform this action', 403);
+        },
+      });
+
+      renderAt('/colecciones/1/editar');
+      await user.type(await screen.findByLabelText('Descripción'), ' Extra');
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'No tienes permiso para crear ni editar colecciones.',
+      );
+      expect(screen.queryByText(/permission/)).not.toBeInTheDocument();
+    });
+
     it('shows other errors in a form-level alert', async () => {
       const user = userEvent.setup();
       await mockBackend(rawAdmin, {
