@@ -300,38 +300,38 @@ describe('ItemsCatalog', () => {
       );
     });
 
-    it('shows its own empty state, with no create action, to a viewer', async () => {
+    it('shows its own empty state to a viewer', async () => {
       await mockOwnerSession('viewer');
 
       renderCatalog(true);
 
       expect(
-        await screen.findByRole('heading', { name: 'Todavía no tienes items' }),
+        await screen.findByRole('heading', { name: 'Todavía no has creado ningún artículo' }),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole('heading', { name: 'Todavía no hay artículos' }),
       ).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Crear item' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Nuevo artículo' })).not.toBeInTheDocument();
     });
 
-    it.each(['editor', 'admin'])('offers to create an item to an %s', async (role) => {
-      const user = userEvent.setup();
-      await mockOwnerSession(role);
+    it.each(['editor', 'admin'])(
+      'offers only the header link, no duplicate create action, to an %s',
+      async (role) => {
+        await mockOwnerSession(role);
 
-      renderCatalog(true);
+        renderCatalog(true);
 
-      await user.click(await screen.findByRole('button', { name: 'Crear item' }));
-
-      expect(
-        await screen.findByRole('heading', { name: 'Formulario de alta' }),
-      ).toBeInTheDocument();
-    });
+        await screen.findByRole('heading', { name: 'Todavía no has creado ningún artículo' });
+        expect(screen.getByRole('link', { name: 'Nuevo artículo' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Crear/ })).not.toBeInTheDocument();
+      },
+    );
 
     it('shows the no-results state, not the empty one, when a filter matches nothing', async () => {
       await mockOwnerSession('editor');
 
       renderCatalog(true);
-      await screen.findByRole('heading', { name: 'Todavía no tienes items' });
+      await screen.findByRole('heading', { name: 'Todavía no has creado ningún artículo' });
 
       const user = userEvent.setup();
       await user.type(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' }), 'nada');
@@ -339,7 +339,9 @@ describe('ItemsCatalog', () => {
       await waitFor(() =>
         expect(screen.getByRole('heading', { name: 'Sin resultados' })).toBeInTheDocument(),
       );
-      expect(screen.queryByRole('heading', { name: 'Todavía no tienes items' })).toBeNull();
+      expect(
+        screen.queryByRole('heading', { name: 'Todavía no has creado ningún artículo' }),
+      ).toBeNull();
     });
   });
 });

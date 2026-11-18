@@ -114,10 +114,8 @@ export const ItemsCatalog = ({ mine = false }: ItemsCatalogProps) => {
 
       {!isLoading && !error && data && data.items.length === 0 && !hasActiveFilters && mine && (
         <EmptyState
-          title="Todavía no tienes items"
+          title="Todavía no has creado ningún artículo"
           description="Los artículos que crees aparecerán aquí."
-          actionLabel={hasRole('editor') ? 'Crear item' : undefined}
-          onAction={() => navigate('/items/nuevo')}
         />
       )}
 

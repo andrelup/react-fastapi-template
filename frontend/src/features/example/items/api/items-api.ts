@@ -1,6 +1,14 @@
 import { apiClient } from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/api';
-import type { CollectionRef, Item, ItemDetail, ItemFilters, ItemInput, Tag } from '../types';
+import type {
+  CollectionRef,
+  Item,
+  ItemDetail,
+  ItemFilters,
+  ItemInput,
+  ItemSearchFilters,
+  Tag,
+} from '../types';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -78,7 +86,7 @@ export const getItems = async (filters: ItemFilters = {}): Promise<PaginatedResp
  * `category` and `ownerId` combine with the text and with each other. */
 export const searchItems = async (
   search: string,
-  filters: ItemFilters = {},
+  filters: ItemSearchFilters = {},
 ): Promise<PaginatedResponse<Item>> => {
   const { page = 1, pageSize = DEFAULT_PAGE_SIZE, category, ownerId } = filters;
   const query = buildQueryString({
