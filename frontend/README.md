@@ -2,7 +2,7 @@
 
 Aplicación de página única (SPA) de la plantilla react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**.
 
-Está deliberadamente a medio construir: el feature de autenticación está completo de punta a punta y hoy es el único que existe. El dominio de ejemplo —`Item`, el recurso publicable del catálogo, y `Collection`, la agrupación editorial que lo ordena— lo levantan las issues #39 a #43 en `features/example/items/` y `features/example/collections/`. Es una plantilla, no un producto.
+Está deliberadamente a medio construir: el feature de autenticación (`features/auth/`) está completo de punta a punta y es la referencia de cómo se construye un feature; forma parte del núcleo de la plantilla. El catálogo de ejemplo —`Item`, el recurso publicable, y `Collection`, la agrupación editorial que lo ordena— vive en `features/example/items/` y `features/example/collections/` como muestra sustituible: quien adopte la plantilla la reemplaza por su propio dominio (véase [`docs/the-example-domain.md`](../docs/the-example-domain.md)). Es una plantilla, no un producto.
 
 ## Stack
 
@@ -26,16 +26,17 @@ frontend/
 │   ├── app/           # Entrypoint, providers globales y router
 │   │
 │   ├── features/      # MÓDULOS DE DOMINIO — cada feature es autónomo
-│   │   └── auth/      # El único que existe: login, registro, ProtectedRoute, useAuth
-│   │       ├── api/       # Llamadas al backend
-│   │       ├── components/# Componentes exclusivos del feature
-│   │       ├── hooks/     # Hooks del feature
-│   │       ├── types/     # Tipos TypeScript del feature
-│   │       └── index.ts   # Public API (re-exports)
+│   │   ├── auth/      # Núcleo de la plantilla: login, registro, ProtectedRoute, useAuth
+│   │   │   ├── api/       # Llamadas al backend
+│   │   │   ├── components/# Componentes exclusivos del feature
+│   │   │   ├── hooks/     # Hooks del feature
+│   │   │   ├── types/     # Tipos TypeScript del feature
+│   │   │   └── index.ts   # Public API (re-exports)
+│   │   └── example/   # Catálogo de ejemplo, sustituible: items/ y collections/
 │   │
 │   ├── components/    # COMPARTIDOS — UI genérica (ui/, shadcn/ui) y layout (layout/)
 │   ├── hooks/         # Hooks genéricos: useApi, useDebounce, useLocalStorage
-│   ├── lib/           # api-client.ts (fetch con baseURL e interceptors) y utils.ts (`cn`)
+│   ├── lib/           # api-client.ts (fetch con baseURL e interceptors), utils.ts (`cn`) y paths.ts (rutas del ejemplo)
 │   ├── types/         # Tipos globales: ApiResponse<T>, PaginatedResponse<T>
 │   └── utils/         # Helpers puros: get-initials
 │
@@ -48,8 +49,9 @@ frontend/
 └── Dockerfile
 ```
 
-Lo que no aparece en el árbol todavía no existe: `features/` solo contiene `auth/`, y los features
-del catálogo de ejemplo (`items/` y `collections/`) los añaden las issues #39 a #43.
+`features/auth/` es el feature de referencia y parte del núcleo de la plantilla. `features/example/`
+contiene el catálogo de ejemplo (`items/` y `collections/`, con la misma estructura interna que
+`auth/`): es una muestra que quien adopte la plantilla sustituye por su propio dominio.
 
 ### Reglas de la arquitectura
 
@@ -136,8 +138,10 @@ usarlo. Los detalles están en
 - Lazy loading para las páginas principales.
 - Rutas protegidas con el componente `ProtectedRoute` de `features/auth`.
 - Rutas restringidas por rol con `RoleRoute`, que exige sesión **y** rol (`allow={['admin']}`).
-  Ninguna ruta lo usa todavía: `router.tsx` solo protege `/`, con `ProtectedRoute`. Hay un único
-  `Layout`: el rol condiciona el acceso a una ruta, no le da un layout propio.
+  Lo usan las rutas de crear y editar del catálogo de ejemplo (`admin` y `editor` para items,
+  solo `admin` para colecciones); las demás rutas con sesión usan `ProtectedRoute`, y `/login`,
+  `/register` y `/components-ui` son públicas. Hay un único `Layout`: el rol condiciona el acceso
+  a una ruta, no le da un layout propio.
 
 ## Path Aliases
 
