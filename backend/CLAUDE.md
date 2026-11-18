@@ -183,7 +183,9 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
 
 - Ruff as the single linter and formatter
 - mypy in strict mode
-- Pre-commit hooks: ruff check, ruff format, mypy
+- Pre-commit hooks: ruff check, ruff format, mypy (same scope and config as the CI `lint` job) and
+  `check-pin-drift`. The hook versions are copies of the pins in `pyproject.toml`; when you bump a
+  tool or a dependency there, bump `.pre-commit-config.yaml` in the same commit
 
 ## What NOT to do
 
