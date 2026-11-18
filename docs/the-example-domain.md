@@ -56,8 +56,10 @@ backend/tests/fakes/fake_collection_repository.py
 ```
 
 **The template files that reference the sample.** A handful of template modules name the example on
-purpose — a router registration, a couple of providers, a nav link. They are edited, not deleted,
-and they are enumerated in the procedure.
+purpose — router registrations, a couple of providers, the navigation entries in `navigation.ts`.
+They are edited, not deleted, and they are enumerated in the procedure. `frontend/src/lib/paths.ts`,
+with the `catalog` / `mine` rules of `useNavEntryActive.ts`, is sample code that lives outside any
+`example/` folder.
 
 ## Deleting it
 
@@ -108,10 +110,26 @@ hand, in this order:
 12. `frontend/src/app/router.tsx` — drop the `/items*` and `/colecciones*` route objects (list,
     detail, `/items/nuevo`, `/items/:id/editar`, `/colecciones/nueva`, `/colecciones/:id/editar`)
     and their `lazy()` imports.
-13. `frontend/src/components/layout/Sidebar.tsx` — drop the catalogue `NavLink` and the whole
-    `Colecciones` `NavGroup` («Ver colecciones», «Colecciones destacadas»), and
-    `frontend/src/app/pages/HomePage.tsx` — drop the link to the catalogue. Update
-    `Sidebar.test.tsx` and `HomePage.test.tsx`, which assert on them.
+13. `frontend/src/components/layout/navigation.ts` — the one navigation config that the `Sidebar`,
+    the `MobileTabBar` and the account panel render from. Drop the `catalog` entry (which is also
+    the mobile «Catálogo» tab), the whole `collections` group («Ver colecciones», «Colecciones
+    destacadas») and the `my-items` entry of the `account` group, plus the imports and icons they
+    leave unused. The `Sidebar` and the mobile surfaces need no edit of their own.
+14. `frontend/src/components/layout/useNavEntryActive.ts` — remove the `catalog` and `mine` rules,
+    which only exist for the two entries that share `/items`. They are the only values of the
+    `active` union (`NavActiveRule`) in `navigation.ts`, so the type and the `active` field go with
+    them and the hook is left with its final `matchPath` line.
+15. `frontend/src/app/pages/HomePage.tsx` — drop the link to the catalogue.
+16. Update the tests that assert on what was removed: `navigation.test.ts` (which also imports
+    `MY_ITEMS_PATH`), `Sidebar.test.tsx`, `MobileTabBar.test.tsx`, `MobileAccountDrawer.test.tsx`,
+    `useNavEntryActive.test.tsx` and `HomePage.test.tsx`. In `navigation-parity.test.tsx` lower the
+    two sanity thresholds (`toBeGreaterThanOrEqual(5)` links and `(3)` inactive entries in the
+    `Sidebar`): without the sample the `Sidebar` keeps 2 links (Inicio, Componentes UI) and 2
+    inactive entries (Mensajes, Ajustes; «Editar perfil» is panel-only).
+17. Delete `frontend/src/lib/paths.ts` and `paths.test.ts` (`ITEMS_PATH`, `MY_ITEMS_PATH`,
+    `isMineView`), last, because four files import it: `ItemsPage.tsx` (deleted in step 11),
+    `navigation.ts` (step 13), `useNavEntryActive.ts` (step 14) and `navigation.test.ts`
+    (step 16).
 
 Then `make lint && make test` must pass, and the backend must still start with auth and health
 alone.
