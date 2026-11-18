@@ -134,6 +134,16 @@ The radius scale is fixed px, not the `calc()` off a single `--radius` that shad
 components get their radius classes rewritten to this scale; `rounded-xl` and friends do not exist
 here.
 
+### Layout
+
+| Token | Value | Tailwind |
+|---|---|---|
+| `--header-height` | 62px | `h-header`, `top-header`, `theme(spacing.header)` |
+
+The desktop `Header` height. The `Header` (`md:h-header`) and the sticky `Sidebar` (`md:top-header`,
+`md:h-[calc(100dvh-theme(spacing.header))]`) read it, so the two cannot drift. The mobile header
+stays `h-14`.
+
 ---
 
 ## 2. UI primitives — `components/ui/`
@@ -497,12 +507,12 @@ You normally do **not** touch these; you render inside them.
 | Component | Responsibility |
 |---|---|
 | `Layout` | Root route element. Composes Header, Sidebar (desktop, authenticated), `PageContainer` with the Suspense boundary, Footer and `MobileTabBar`. Decides the authenticated vs. anonymous shell from the token. From `md` up the window still scrolls, while Header and Sidebar are `sticky`: the shell is never an inner scroll container. |
-| `Header` | Top bar: wordmark and, once there is a session, the desktop search field. From `md` it is `sticky top-0` above the content (`z-30`); below `md` it scrolls away. No role-specific action yet. |
-| `Sidebar` | Desktop navigation, 248px: profile block, groups Principal, Colecciones, Cuenta (Mis items first) and Desarrollo, logout at the bottom. Hidden below `md`. From `md` it is `sticky` under the Header and as tall as the window minus the Header (`md:h-[calc(100dvh-62px)]`), so the nav scrolls internally and «Cerrar sesión» is always visible. Keep the 62px in step with the Header height. «Explorar catálogo» and «Mis items» share `/items`, so their active state comes from `useCatalogNavState` (not `NavLink`, which ignores the query string). |
+| `Header` | Top bar: wordmark and, once there is a session, the desktop search field. From `md` it is `md:h-header` and `sticky top-0` above the content (`z-30`); below `md` it is `h-14` and scrolls away. No role-specific action yet. |
+| `Sidebar` | Desktop navigation, 248px: profile block, groups Principal, Colecciones, Cuenta (Mis items first) and Desarrollo, logout at the bottom. Hidden below `md`. From `md` it is `sticky` under the Header and as tall as the window minus the Header (`--header-height`), so the nav scrolls internally and «Cerrar sesión» is always visible. It renders from `SIDEBAR_GROUPS` (see below). «Explorar catálogo» and «Mis items» share `/items`, so every surface marks the active entry with `useNavEntryActive` (not `NavLink`, which ignores the query string; paths match as the router does, case-insensitively and ignoring a trailing slash). |
 | `PageContainer` | The `<main>` wrapper: max width, padding, and the bottom padding that clears the mobile tab bar. |
 | `Footer` | Slim legal bar. Hidden on mobile when authenticated. |
-| `MobileTabBar` | Mobile-only bottom navigation: Inicio, Catálogo and a Cuenta tab that opens the account drawer. Catálogo shares its active rule with the Sidebar (`useCatalogNavState`). Hidden from `md` up, and rendered only with a session. |
-| `MobileAccountDrawer` | Mobile-only slide-over menu opened from the tab bar. Carries every Sidebar entry the bar has no room for, under the same group headings (Cuenta, Colecciones, Desarrollo), plus the profile block and logout. It is a Radix dialog (via the `ui/Dialog` pieces): focus enters on open, Tab stays inside, Escape closes, focus returns to the Cuenta tab (`returnFocusRef`), and `MobileTabBar` also closes it on any location change (browser Back). Built from `MobileAccountPanel` (the presentational panel, no session or router state), `DrawerGroup` and `DrawerItem` (`soon` variant for inactive entries), which `/components-ui` reuses for its inline mock. |
+| `MobileTabBar` | Mobile-only bottom navigation: Inicio, Catálogo and a Cuenta tab that opens the account drawer. The tabs that navigate render from `TAB_ENTRIES`, with the Sidebar's active rule (`useNavEntryActive`). It closes the drawer whenever the location changes (browser Back or Forward), by adjusting state while rendering, with no effect. Hidden from `md` up, and rendered only with a session. |
+| `MobileAccountDrawer` | Mobile-only slide-over menu opened from the tab bar. Carries every Sidebar entry the bar has no room for, under the same group headings (Cuenta, Colecciones, Desarrollo; `DRAWER_GROUPS`), plus the profile block and logout. It is a Radix dialog (via the `ui/Dialog` pieces) that stays mounted, so it slides and fades both in and out. Focus enters on open, Tab stays inside, Escape closes. Focus returns to the Cuenta tab only when the user dismisses it (Escape, close button, overlay), never after following a link or logging out (`returnFocusRef`). Widening the viewport to `md` closes it (a `matchMedia` listener), because it is hidden there and an invisible modal would keep the scroll lock and `aria-hidden` on the app. Built from `MobileAccountPanel` (presentational: no session or router state), `NavGroup`, `DrawerLinkItem` and `NavSoonItem`, which `/components-ui` reuses for its inline mock. |
 | `MobileActionBar` | Mobile-only sticky action bar that stacks above the tab bar. Scaffolding for detail/confirmation screens; no consumers yet. |
 
 ### Responsive rules
@@ -517,15 +527,27 @@ Mobile-first Tailwind; **`md:` (768px) means desktop**.
 ### Placeholders for unbuilt routes
 
 Navigation entries whose route does not exist yet are rendered as **visual-only** items
-(`InactiveNavItem` in `Sidebar`, the `soon` variant of `DrawerItem` in the account panel), never as
-links that would 404. Both carry `aria-disabled="true"` and show the same `SoonPill`
-(«Próximamente»): `aria-disabled` on a role-less `div` is not announced, so the visible text is what
-tells everyone the entry is not available yet. Follow that convention, and convert the
-item into a real link (the `to` variant of `DrawerItem`) in the same PR that adds the route.
+(`NavSoonItem`, used by both the `Sidebar` and the account panel), never as links that would 404.
+It carries `aria-disabled="true"` and the «Próximamente» pill: `aria-disabled` on a role-less `div`
+is not announced, so the visible text is what tells everyone the entry is not available yet. To
+activate one, replace `soon: true` with a `to` in `navigation.ts`, in the same PR that adds the route.
 
-**Desktop and mobile navigation must offer the same sections.** Adding an entry to `Sidebar` means
-adding it to `MobileTabBar` or the account panel, with the same kind (link or inactive):
-`components/layout/navigation-parity.test.tsx` fails otherwise.
+### One navigation config
+
+`components/layout/navigation.ts` (`NAV_GROUPS`) is the single description of the navigation:
+groups, then entries with a `label`, an `icon` (lucide), and either `to` (a link) or `soon: true`
+(inactive). Each entry also says where it goes on mobile: `mobile: 'tab'` (a `MobileTabBar` tab,
+with an optional shorter `tabLabel`: «Explorar catálogo» is the «Catálogo» tab) or
+`mobile: 'drawer'` (the account panel, under the same group heading). `sidebar: false` marks a
+panel-only entry («Editar perfil»). The `Sidebar`, the tab bar and the drawer render from
+`SIDEBAR_GROUPS`, `TAB_ENTRIES` and `DRAWER_GROUPS`, all derived from it, and the Sidebar and the
+panel share `NavGroup` (`role="group"` labelled by its heading). The `/items?mine=true` contract
+lives in `lib/paths.ts` (`MY_ITEMS_PATH`, `isMineView`).
+
+**Desktop and mobile navigation must offer the same sections.** To add one, add an entry to
+`navigation.ts`. `components/layout/navigation-parity.test.tsx` still asserts that every Sidebar link
+exists on mobile with the same href, every inactive Sidebar entry is inactive on mobile, and no mobile
+entry is both.
 
 ---
 

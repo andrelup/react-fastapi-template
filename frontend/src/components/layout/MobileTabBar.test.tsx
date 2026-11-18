@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useNavigate } from 'react-router-dom';
+import { MemoryRouter, RouterProvider, createMemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
 import { MobileTabBar } from './MobileTabBar';
 
@@ -18,16 +18,10 @@ vi.mock('@/lib/api-client', () => ({
   setAuthToken: vi.fn(),
 }));
 
-const BackButton = () => {
-  const navigate = useNavigate();
-  return <button onClick={() => navigate(-1)}>Atrás</button>;
-};
-
-const renderTabBar = (initialEntries: string[] = ['/'], initialIndex?: number) =>
+const renderTabBar = (initialEntries: string[] = ['/']) =>
   render(
     <AuthProvider>
-      <MemoryRouter initialEntries={initialEntries} initialIndex={initialIndex}>
-        <BackButton />
+      <MemoryRouter initialEntries={initialEntries}>
         <MobileTabBar />
       </MemoryRouter>
     </AuthProvider>,
@@ -39,6 +33,10 @@ const login = async () => {
   window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
 };
 
+// The tests below that open the panel and press keys use `userEvent`, which
+// honours the modal's `pointer-events: none` like a real user would. The
+// older ones keep `fireEvent`, the documented exception in
+// docs/frontend-testing.md.
 describe('MobileTabBar', () => {
   afterEach(() => {
     window.localStorage.clear();
@@ -48,7 +46,7 @@ describe('MobileTabBar', () => {
   it('renders nothing when there is no session', () => {
     const { container } = renderTabBar();
 
-    expect(container.querySelector('nav')).toBeNull();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('shows the Inicio, Catálogo and Cuenta tabs once logged in', async () => {
@@ -144,6 +142,27 @@ describe('MobileTabBar', () => {
     await waitFor(() => expect(accountTab).toHaveFocus());
   });
 
+  it('returns focus to the tab after the close button, but not after following a link', async () => {
+    const user = userEvent.setup();
+    await login();
+    renderTabBar();
+
+    const accountTab = await screen.findByRole('button', { name: /Cuenta/ });
+    await user.click(accountTab);
+    await user.click(screen.getByRole('button', { name: 'Cerrar' }));
+    await waitFor(() => expect(accountTab).toHaveFocus());
+
+    await user.click(accountTab);
+    await user.click(screen.getByRole('link', { name: /Ver colecciones/ }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Radix restores focus on a timer: give it the chance to (wrongly) fire.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(accountTab).not.toHaveFocus();
+  });
+
   it('keeps Tab inside the open panel', async () => {
     const user = userEvent.setup();
     await login();
@@ -159,14 +178,31 @@ describe('MobileTabBar', () => {
   });
 
   it('closes the panel when the location changes, as with the browser Back button', async () => {
+    const user = userEvent.setup();
     await login();
-    renderTabBar(['/', '/items'], 1);
+    const router = createMemoryRouter([{ path: '*', element: <MobileTabBar /> }], {
+      initialEntries: ['/', '/items'],
+      initialIndex: 1,
+    });
+    render(
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>,
+    );
 
-    fireEvent.click(await screen.findByRole('button', { name: /Cuenta/ }));
+    await user.click(await screen.findByRole('button', { name: /Cuenta/ }));
     expect(screen.getByRole('dialog', { name: 'Cuenta' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Atrás', hidden: true }));
+    await act(async () => {
+      await router.navigate(-1);
+    });
 
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // Going Forward must not bring the panel back.
+    await act(async () => {
+      await router.navigate(1);
+    });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

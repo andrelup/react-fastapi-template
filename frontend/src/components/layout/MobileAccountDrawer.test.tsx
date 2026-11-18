@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
@@ -35,8 +35,11 @@ const renderDrawer = (onClose = vi.fn(), open = true) => {
   return onClose;
 };
 
+const originalMatchMedia = window.matchMedia;
+
 describe('MobileAccountDrawer', () => {
   afterEach(() => {
+    window.matchMedia = originalMatchMedia;
     window.localStorage.clear();
     vi.clearAllMocks();
   });
@@ -101,6 +104,46 @@ describe('MobileAccountDrawer', () => {
     await user.keyboard('{Escape}');
 
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('closes when the viewport widens to the desktop breakpoint, and stops listening after', async () => {
+    const listeners = new Set<() => void>();
+    const query = {
+      matches: false,
+      addEventListener: vi.fn((_type: string, listener: () => void) => listeners.add(listener)),
+      removeEventListener: vi.fn((_type: string, listener: () => void) =>
+        listeners.delete(listener),
+      ),
+    };
+    window.matchMedia = vi.fn(() => query as unknown as MediaQueryList);
+
+    const onClose = renderDrawer();
+    await screen.findByRole('dialog', { name: 'Cuenta' });
+    expect(window.matchMedia).toHaveBeenCalledWith('(min-width: 768px)');
+    expect(onClose).not.toHaveBeenCalled();
+
+    query.matches = true;
+    act(() => listeners.forEach((listener) => listener()));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes the breakpoint listener when it unmounts', async () => {
+    const removeEventListener = vi.fn();
+    window.matchMedia = vi.fn(
+      () =>
+        ({
+          matches: false,
+          addEventListener: vi.fn(),
+          removeEventListener,
+        }) as unknown as MediaQueryList,
+    );
+
+    renderDrawer();
+    await screen.findByRole('dialog', { name: 'Cuenta' });
+    cleanup();
+
+    expect(removeEventListener).toHaveBeenCalledWith('change', expect.any(Function));
   });
 
   it('logs out, closes the panel and redirects to /login', async () => {

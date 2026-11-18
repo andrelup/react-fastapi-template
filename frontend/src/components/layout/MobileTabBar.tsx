@@ -1,14 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { Home, Store, User } from 'lucide-react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `Sidebar`/`Header` already
 // rely on), so the tab bar reads it directly via `useAuth()` instead of
 // receiving `user` as a prop.
 import { useAuth } from '@/features/auth';
 import { MobileAccountDrawer } from '@/components/layout/MobileAccountDrawer';
-import { useCatalogNavState } from '@/components/layout/useCatalogNavState';
+import { TAB_ENTRIES } from '@/components/layout/navigation';
+import { useNavEntryActive } from '@/components/layout/useNavEntryActive';
 import { cn } from '@/lib/utils';
 
 const tabClassName = (isActive: boolean) =>
@@ -16,8 +17,6 @@ const tabClassName = (isActive: boolean) =>
     'flex flex-1 flex-col items-center justify-center gap-[3px] text-[10px]',
     isActive ? 'text-primary-dark font-bold' : 'text-muted',
   );
-
-const navLinkClassName = ({ isActive }: { isActive: boolean }) => tabClassName(isActive);
 
 interface AccountTabProps {
   buttonRef: RefObject<HTMLButtonElement>;
@@ -47,23 +46,30 @@ const barClassName =
 
 /**
  * Bottom tab bar shown on mobile (`max-width: 768px`) instead of the
- * `Sidebar`: the two primary destinations, Inicio and Catálogo, plus a Cuenta
- * tab that opens the `MobileAccountDrawer` with everything else the `Sidebar`
- * offers (Mis items, Colecciones, Desarrollo, logout). The mobile navigation
- * must reach every section the `Sidebar` does; `navigation-parity.test.tsx`
- * enforces it.
+ * `Sidebar`. The tabs that navigate (Inicio, Catálogo) come from the
+ * navigation config (`TAB_ENTRIES`); the Cuenta tab opens the
+ * `MobileAccountDrawer` with everything else the `Sidebar` offers. The mobile
+ * navigation must reach every section the `Sidebar` does;
+ * `navigation-parity.test.tsx` enforces it.
  */
 export const MobileTabBar = () => {
   const { user } = useAuth();
-  const { catalogActive } = useCatalogNavState();
+  const isActive = useNavEntryActive();
   const location = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [seenLocationKey, setSeenLocationKey] = useState(location.key);
   const accountTabRef = useRef<HTMLButtonElement>(null);
 
-  // Browser Back/Forward changes the page without a click on the panel.
-  useEffect(() => {
+  // Browser Back/Forward changes the page without a click on the panel, so the
+  // panel closes whenever the location does. Adjusting state while rendering
+  // (instead of an effect that copies the location into state) re-renders
+  // before anything is committed: no extra commit, no frame with a stale modal.
+  if (seenLocationKey !== location.key) {
+    setSeenLocationKey(location.key);
     setAccountOpen(false);
-  }, [location]);
+  }
+
+  const closeAccount = useCallback(() => setAccountOpen(false), []);
 
   // Avoid a flash of the tab bar before the session is known.
   if (!user) {
@@ -76,25 +82,24 @@ export const MobileTabBar = () => {
     <>
       <nav aria-label="Navegación móvil" className={barClassName}>
         <div className="flex h-full items-stretch">
-          <NavLink to="/" end className={navLinkClassName}>
-            <Home className="h-5 w-5" aria-hidden="true" />
-            <span>Inicio</span>
-          </NavLink>
-          {/* `Link`, not `NavLink`: it must not light up on the "Mis items" view. */}
-          <Link
-            to="/items"
-            aria-current={catalogActive ? 'page' : undefined}
-            className={tabClassName(catalogActive)}
-          >
-            <Store className="h-5 w-5" aria-hidden="true" />
-            <span>Catálogo</span>
-          </Link>
+          {TAB_ENTRIES.map((entry) => (
+            // `Link`, not `NavLink`: see `useNavEntryActive`.
+            <Link
+              key={entry.id}
+              to={entry.to}
+              aria-current={isActive(entry) ? 'page' : undefined}
+              className={tabClassName(isActive(entry))}
+            >
+              <entry.icon className="h-5 w-5" aria-hidden="true" />
+              <span>{entry.tabLabel ?? entry.label}</span>
+            </Link>
+          ))}
           <AccountTab buttonRef={accountTabRef} open={accountOpen} onClick={toggleAccount} />
         </div>
       </nav>
       <MobileAccountDrawer
         open={accountOpen}
-        onClose={() => setAccountOpen(false)}
+        onClose={closeAccount}
         returnFocusRef={accountTabRef}
       />
     </>

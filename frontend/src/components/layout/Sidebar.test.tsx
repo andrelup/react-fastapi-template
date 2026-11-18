@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
@@ -136,6 +136,28 @@ describe('Sidebar', () => {
     expect(screen.getByText('Mensajes').closest('[aria-disabled="true"]')).toHaveTextContent(
       'MensajesPróximamente',
     );
+  });
+
+  it('matches paths case-insensitively, as the router does', async () => {
+    await renderAt('/Items');
+
+    expect(screen.getByRole('link', { name: 'Explorar catálogo' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('groups the entries under accessible headings', async () => {
+    await renderAt('/');
+
+    ['Principal', 'Colecciones', 'Cuenta', 'Desarrollo'].forEach((name) =>
+      expect(screen.getByRole('group', { name })).toBeInTheDocument(),
+    );
+    expect(
+      within(screen.getByRole('group', { name: 'Cuenta' })).getByRole('link', {
+        name: 'Mis items',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('treats a trailing slash like the plain path', async () => {

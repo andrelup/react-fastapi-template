@@ -12,9 +12,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/Card';
-import { DrawerGroup } from '@/components/layout/DrawerGroup';
-import { DrawerItem } from '@/components/layout/DrawerItem';
+import { DrawerLinkItem } from '@/components/layout/DrawerLinkItem';
 import { MobileAccountPanel } from '@/components/layout/MobileAccountPanel';
+import { NavGroup } from '@/components/layout/NavGroup';
+import { NavSoonItem } from '@/components/layout/NavSoonItem';
 import { Combobox } from '@/components/ui/Combobox';
 import type { ComboboxOption } from '@/components/ui/Combobox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -449,15 +450,19 @@ const UiComponentsPage = () => {
           onLogout={() => setLastAction('cerrar-sesion')}
           className="w-full max-w-[360px] rounded-lg border border-border shadow-none"
         >
-          <DrawerGroup label="Cuenta">
-            <DrawerItem
+          <NavGroup label="Cuenta" className="mb-3">
+            <DrawerLinkItem
               icon={<Package className="h-5 w-5" />}
               label="Mis items"
               to="#"
               onNavigate={(event) => event.preventDefault()}
             />
-            <DrawerItem icon={<MessageCircle className="h-5 w-5" />} label="Mensajes" soon />
-          </DrawerGroup>
+            <NavSoonItem
+              icon={<MessageCircle className="h-5 w-5" />}
+              label="Mensajes"
+              className="rounded-md px-3 py-3 text-[15px]"
+            />
+          </NavGroup>
         </MobileAccountPanel>
       </Section>
     </>
