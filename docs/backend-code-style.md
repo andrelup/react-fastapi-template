@@ -130,21 +130,31 @@ mistakes (validators, `model_config`) are not caught automatically — be carefu
 
 ## 4. Pre-commit gate
 
-Three backend hooks are configured in the root `.pre-commit-config.yaml`, all scoped to
-`^backend/`:
+Four backend hooks are configured in the root `.pre-commit-config.yaml`:
 
 | Hook | Action |
 |---|---|
 | `ruff-check` | `ruff check --fix` — auto-fixes what it can |
 | `ruff-format` | reformats the code in place |
-| `mypy` | strict type check, `--config-file backend/pyproject.toml` |
+| `mypy` | `mypy --strict` over the whole `backend/` tree, `--config-file backend/pyproject.toml` |
+| `check-pin-drift` | fails if the hook versions no longer match `backend/pyproject.toml` |
 
-The mypy hook is scoped to **`^backend/src/` only**, so a type error in `backend/tests/` will not
-block your commit — but `make lint` type-checks the whole `backend/` tree, tests included, and the
-rule is that tests are held to the same standard. Run `make lint` before opening a PR.
+The mypy hook checks the same scope and config as the CI `lint` job (`cd backend && mypy --strict .`):
+`src/`, `tests/`, `alembic/` and `seed.py`, with `pass_filenames: false`. The hook and CI give the
+same verdict on the same tree.
 
-The hooks need the virtualenv and dependencies installed; `make setup` (or `make install-hooks`)
-does that once.
+The ruff and mypy hooks are remote repos, so their versions are **copied** from
+`backend/pyproject.toml`: the `rev` of each hook, and every entry of the mypy hook's
+`additional_dependencies`, pinned with `==`. `scripts/check_pin_drift.py` runs as a hook and in
+the CI `lint` job and names every mismatch. To bump a tool or a dependency, change
+`backend/pyproject.toml` **and** `.pre-commit-config.yaml` in the same commit (the first run after
+a bump rebuilds the hook environment, which takes a minute or two). Do not run
+`pre-commit autoupdate`: it would move the revs away from `pyproject.toml`. See
+`docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
+
+The ruff and mypy hooks build their own isolated environments (pinned, see above), so they do not
+use the project virtualenv; the frontend hooks do need `npm ci`. `make setup` (or
+`make install-hooks`) installs the git hook and the npm dependencies once.
 
 ---
 

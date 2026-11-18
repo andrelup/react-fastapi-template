@@ -146,7 +146,7 @@ Revisa siempre el SQL generado antes de aplicarlo.
 ## Logging y linting
 
 - **structlog:** JSON salvo en desarrollo, donde la salida es legible en consola. Cada peticion emite un evento con `timestamp`, `request_id`, `method`, `path`, `status_code` y `duration_ms`, y el `request_id` vuelve en la cabecera `X-Request-ID`. No hay campo `user_id`: lo resuelve la dependencia `get_current_user`, invisible para un middleware externo. Nunca se usa `print()`. Detalle en `docs/backend-logging.md`.
-- **Ruff** como linter y formatter único; **mypy** en strict mode. Pre-commit hooks: `ruff check`, `ruff format`, `mypy`.
+- **Ruff** como linter y formatter único; **mypy** en strict mode. Pre-commit hooks: `ruff check`, `ruff format`, `mypy` (mismo alcance que el job `lint` de CI) y `check-pin-drift`, que falla si las versiones de los hooks no coinciden con las de `pyproject.toml` (ADR 0007).
 
 ## Qué NO hacer
 

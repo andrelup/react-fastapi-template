@@ -50,7 +50,11 @@ Out of scope — hand back instead of doing it yourself:
 
 **Backend — mypy**: `strict = true`, `python_version = "3.12"`. New third-party
 dependencies must be mirrored into the mypy hook's `additional_dependencies` in
-`.pre-commit-config.yaml`, otherwise the hook and the local run diverge.
+`.pre-commit-config.yaml`, pinned with `==` to the pyproject version, otherwise the hook and
+the local run diverge. The ruff/mypy hook `rev`s are copies of the pyproject pins too, and
+`scripts/check_pin_drift.py` (hook `check-pin-drift` + CI `lint` step) fails on any mismatch. The
+mypy hook runs `--strict` over all of `backend/` with `--config-file=backend/pyproject.toml`, the
+same scope as CI. See `docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
 
 **Frontend — ESLint 9 flat config**
 
@@ -90,7 +94,7 @@ cd backend && python -m mypy .              # strict type check
 npm --prefix frontend run typecheck         # tsc --noEmit
 npm --prefix frontend run format:check      # prettier in check mode
 pre-commit run --all-files                  # full hook sweep
-pre-commit autoupdate                       # bump hook revs
+python scripts/check_pin_drift.py          # hooks vs pyproject pins
 ```
 
 ## Approach
@@ -106,9 +110,10 @@ pre-commit autoupdate                       # bump hook revs
   `pyproject.toml`. An unexplained ignore is a defect.
 - **One source of truth per concern.** Formatting → Prettier / `ruff format`.
   Import order → Ruff `I`. Types → mypy / tsc. Never duplicate a concern across tools.
-- **Pin versions.** pre-commit hook `rev`s are pinned; bump them deliberately with
-  `pre-commit autoupdate` and run `--all-files` afterwards to absorb the fallout in
-  a single commit.
+- **Pin versions.** pre-commit hook `rev`s and mypy `additional_dependencies` are copies of the
+  `backend/pyproject.toml` pins; bump them by hand in the same commit as `pyproject.toml` and run
+  `--all-files` afterwards to absorb the fallout. Do not use `pre-commit autoupdate` for the
+  ruff/mypy hooks: it would drift from `pyproject.toml`.
 - **Keep the three entry points in sync**: local (`make lint`), hooks
   (`.pre-commit-config.yaml`) and CI must run the same checks with the same settings.
   A rule that only fires in one of them is a bug.

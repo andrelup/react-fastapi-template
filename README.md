@@ -199,9 +199,14 @@ A partir de ahí, cada `git commit` ejecuta automáticamente:
 | ------------------- | ------------------------- | ---------------------------------------------- |
 | `ruff-check`        | `backend/`                | Lint de Python con autofix                     |
 | `ruff-format`       | `backend/`                | Formato de Python                              |
-| `mypy`              | `backend/src/`            | Tipado estricto                                |
+| `mypy`              | `backend/`                | Tipado estricto, igual que el job `lint` de CI |
+| `check-pin-drift`   | `.pre-commit-config.yaml`, `backend/pyproject.toml` | Falla si las versiones de los hooks no coinciden con `pyproject.toml` |
 | `eslint (frontend)` | `frontend/src/*.ts(x)`    | `npm run lint` — falla con cualquier warning   |
 | `prettier (frontend)` | `frontend/`             | `npm run format:check`                         |
+
+Las versiones de `ruff` y `mypy` (y las dependencias del hook de mypy) se copian de
+`backend/pyproject.toml`; al subir una, hay que subirla también en `.pre-commit-config.yaml`
+en el mismo commit. Ver `docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
 
 Si Prettier se queja, `make format-front` lo arregla. Los hooks del frontend usan el ESLint y
 el Prettier de `frontend/node_modules`, así que las dependencias tienen que estar instaladas.
