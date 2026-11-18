@@ -79,6 +79,11 @@ export default {
         md: 'var(--radius-md)',
         lg: 'var(--radius-lg)',
       },
+      // `h-header`, `top-header` and `theme(spacing.header)`: the sticky
+      // sidebar sits under the header and is as tall as the window minus it.
+      spacing: {
+        header: 'var(--header-height)',
+      },
       boxShadow: {
         card: 'var(--shadow-card)',
         float: 'var(--shadow-float)',

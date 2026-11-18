@@ -55,6 +55,39 @@ describe('useItems', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/items/search?q=c%C3%A1mara&page=1&page_size=20');
   });
 
+  it('uses the search endpoint with owner_id and no q when only an owner is given', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.get).mockResolvedValueOnce(rawPage);
+
+    const { result } = renderHook(() => useItems({ page: 1, ownerId: 7 }));
+
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(1));
+    expect(apiClient.get).toHaveBeenCalledWith('/items/search?owner_id=7&page=1&page_size=20');
+  });
+
+  it('sends the category along with a search term', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.get).mockResolvedValueOnce(rawPage);
+
+    const { result } = renderHook(() =>
+      useItems({ page: 1, search: 'cámara', category: 'electronica' }),
+    );
+
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(1));
+    expect(apiClient.get).toHaveBeenCalledWith(
+      '/items/search?q=c%C3%A1mara&category=electronica&page=1&page_size=20',
+    );
+  });
+
+  it('makes no request while disabled', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+
+    renderHook(() => useItems({ page: 1, ownerId: 7, enabled: false }));
+
+    await Promise.resolve();
+    expect(apiClient.get).not.toHaveBeenCalled();
+  });
+
   it('exposes the error message when the request fails', async () => {
     const { apiClient } = await import('@/lib/api-client');
     const { ApiError } = await import('@/types/api');

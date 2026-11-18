@@ -1,6 +1,14 @@
 import { apiClient } from '@/lib/api-client';
 import type { PaginatedResponse } from '@/types/api';
-import type { CollectionRef, Item, ItemDetail, ItemFilters, ItemInput, Tag } from '../types';
+import type {
+  CollectionRef,
+  Item,
+  ItemDetail,
+  ItemFilters,
+  ItemInput,
+  ItemSearchFilters,
+  Tag,
+} from '../types';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -73,13 +81,21 @@ export const getItems = async (filters: ItemFilters = {}): Promise<PaginatedResp
   return toPaginatedItems(raw);
 };
 
-/** `GET /items/search` — free-text search over the catalogue. */
+/** `GET /items/search` — free-text search over the catalogue. `search` is
+ * optional on the backend, so an owner-only listing sends no `q` at all.
+ * `category` and `ownerId` combine with the text and with each other. */
 export const searchItems = async (
   search: string,
-  page = 1,
-  pageSize = DEFAULT_PAGE_SIZE,
+  filters: ItemSearchFilters = {},
 ): Promise<PaginatedResponse<Item>> => {
-  const query = buildQueryString({ q: search, page, page_size: pageSize });
+  const { page = 1, pageSize = DEFAULT_PAGE_SIZE, category, ownerId } = filters;
+  const query = buildQueryString({
+    q: search,
+    owner_id: ownerId,
+    category,
+    page,
+    page_size: pageSize,
+  });
   const raw = await apiClient.get<RawPaginatedItems>(`/items/search${query}`);
   return toPaginatedItems(raw);
 };
