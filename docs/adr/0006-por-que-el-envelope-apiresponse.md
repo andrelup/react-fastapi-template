@@ -73,5 +73,5 @@ existe.**
 - El envoltorio y `error_responses()`: `backend/src/adapters/inbound/schemas/common.py`
 - La traducción de errores: `backend/src/adapters/inbound/middleware/error_handler.py`
 - El desempaquetado en el cliente: `frontend/src/lib/api-client.ts`
-- [`roles-y-registro-abierto.md`](./roles-y-registro-abierto.md) — la otra decisión deliberada del
+- [`0003-roles-y-registro-abierto.md`](./0003-roles-y-registro-abierto.md) — la otra decisión deliberada del
   borde HTTP

@@ -167,7 +167,7 @@ keys.
 Important when auditing the schema: in PostgreSQL a unique index protects the column exactly as
 strongly as a UNIQUE constraint — it just does not show up in
 `information_schema.table_constraints`. Use `\d <table>` or `pg_index.indisunique`. (This once
-produced a false bug report; see `backend/docs/restricciones-unicidad-sqlalchemy.md`.)
+produced a false bug report; see `docs/adr/0002-restricciones-unicidad-sqlalchemy.md`.)
 
 ### Optimistic locking
 

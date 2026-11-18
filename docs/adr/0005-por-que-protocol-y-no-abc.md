@@ -46,7 +46,7 @@ dominio define la forma; nadie hereda de ella.
 `async` y un diccionario dentro satisface el puerto sin heredar de nada ni importar el dominio para
 otra cosa que los tipos. Con ABC, o hereda —y entonces tiene que implementar todos los
 `@abstractmethod`, incluidos los que ese test no usa— o no es un `UserRepository` a ojos de mypy.
-Esto es lo que hace viable la regla de [fakes, no mocks](../../docs/backend-testing.md).
+Esto es lo que hace viable la regla de [fakes, no mocks](../backend-testing.md).
 
 **Porque un `Protocol` no puede traer implementación por la puerta de atrás.** Una ABC admite
 métodos concretos, y en cuanto admite uno empieza a acumularlos: un helper aquí, un `save()` genérico
@@ -80,5 +80,5 @@ puerto que cumple, porque es lo único que queda como pista para quien lee.
 ## Ver también
 
 - Los puertos actuales: `backend/src/domain/ports/`
-- [`por-que-hexagonal.md`](./por-que-hexagonal.md)
-- [`docs/backend-testing.md`](../../docs/backend-testing.md) — fakes, no mocks
+- [`0004-por-que-hexagonal.md`](./0004-por-que-hexagonal.md)
+- [`docs/backend-testing.md`](../backend-testing.md) — fakes, no mocks
