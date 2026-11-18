@@ -1,7 +1,8 @@
 # Pipeline de integración continua del backend (FastAPI).
 #
 # Se dispara solo cuando cambia `backend/**`, `.pre-commit-config.yaml` (la
-# comprobación de deriva compara sus versiones con `backend/pyproject.toml`) o
+# comprobación de deriva compara sus versiones con `backend/pyproject.toml`),
+# el propio `scripts/check_pin_drift.py` (sus tests viven en `backend/tests/`) o
 # este mismo workflow: en un monorepo, una PR que toca únicamente el frontend
 # no debe pagar el coste de levantar PostgreSQL ni de instalar las dependencias
 # de Python.
@@ -17,6 +18,7 @@ on:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
       - '.pre-commit-config.yaml'
+      - 'scripts/check_pin_drift.py'
   push:
     branches:
       - main
@@ -24,6 +26,7 @@ on:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
       - '.pre-commit-config.yaml'
+      - 'scripts/check_pin_drift.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
