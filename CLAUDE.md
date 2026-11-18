@@ -40,6 +40,7 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 
 - Code language: English (variables, functions, classes, comments)
 - Documentation language, by audience: **Spanish** for what humans read — the four `README.md` files and the ADRs under `backend/docs/`; **English** for what agents read — `CLAUDE.md`, `docs/` and `.claude/`. UI copy is Spanish
+- Core versus example: the template's permanent core is the architecture (hexagonal backend, Bulletproof React frontend), the styles and design tokens, and auth (login, register). The sample catalogue (items, collections, tags) and the navigation entries that point at it are a replaceable example. Each layer keeps it in an `example/` folder (`backend/src/domain/services/example/`, `frontend/src/features/example/`, …); the dependency runs example → core, never the reverse, and the few core files that wire the sample in are listed in the removal procedure of `docs/the-example-domain.md`, which also explains the convention
 - Type hints / strict types are mandatory in both stacks
 - All code must have tests. Minimum coverage: 80%
 
