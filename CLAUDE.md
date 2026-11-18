@@ -138,8 +138,11 @@ make build        → docker build of both images (build only, no run)
   `[tool.coverage.report] fail_under = 80`; `frontend/vite.config.ts` →
   `coverage.thresholds`), never in the workflow YAML
 - E2E exists (`make test-e2e`, Playwright) but does NOT run in CI: it needs a live
-  API and a seeded database. Not built yet, one issue each: security scanning (#21),
-  Docker/GHCR build (#22), branch protection and required checks (#23)
+  API and a seeded database. Not built yet: security scanning (#21), whose Trivy
+  job also builds both images and is the only CI check on the Dockerfiles
+- Not planned, on purpose: branch protection (#23), because the project has a
+  single maintainer who pushes to `main` directly; and publishing images to GHCR
+  (#22), because nothing deploys them
 
 ## What NOT to do
 
