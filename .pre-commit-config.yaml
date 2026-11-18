@@ -54,6 +54,20 @@ repos:
           - "httpx==0.28.1"
           - "faker==40.37.0"
 
+  # Deriva de versiones: los hooks de ruff y mypy son repos remotos y sus
+  # versiones se copian a mano de backend/pyproject.toml. Este hook falla si
+  # las copias dejan de coincidir (ADR 0007). `language: python` crea un
+  # entorno aislado propio (con PyYAML), así que no depende del PATH ni del .venv.
+  - repo: local
+    hooks:
+      - id: check-pin-drift
+        name: pre-commit pins match pyproject
+        entry: python scripts/check_pin_drift.py
+        language: python
+        additional_dependencies: ["pyyaml==6.0.3"]
+        files: ^(\.pre-commit-config\.yaml|backend/pyproject\.toml|scripts/check_pin_drift\.py)$
+        pass_filenames: false
+
 # ------------------------- Frontend (React) -------------------------
 # `pass_filenames: false` es intencionado: ESLint 9 con flat config resuelve
 # eslint.config.js desde el cwd, y pre-commit ejecuta desde la raíz del
