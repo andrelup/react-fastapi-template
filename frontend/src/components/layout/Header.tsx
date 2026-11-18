@@ -3,17 +3,20 @@
 // on), so the Header reads it directly via `useAuth()` instead of receiving
 // `user` as a prop.
 import { useAuth } from '@/features/auth';
+import { cn } from '@/lib/utils';
 
 export const Header = () => {
   const { user } = useAuth();
 
   return (
     <header
-      className={`flex h-14 items-center border-b border-border bg-surface px-4 md:h-[62px] md:px-7 ${
+      className={cn(
+        // Pinned to the top from `md`, above the content and the sticky sidebar.
+        'flex h-14 items-center border-b border-border bg-surface px-4 md:sticky md:top-0 md:z-30 md:h-[62px] md:px-7',
         // On mobile the auth navbar centers the lone logo (no session yet);
         // the logged-in navbar keeps it left with search/actions on the right.
-        user ? 'justify-between' : 'justify-center md:justify-start'
-      }`}
+        user ? 'justify-between' : 'justify-center md:justify-start',
+      )}
     >
       {/*
         TODO: add a "Volver" (back) button here (mobile only, left of the

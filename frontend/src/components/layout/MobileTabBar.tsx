@@ -1,48 +1,20 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Home, Store, User } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `Sidebar`/`Header` already
 // rely on), so the tab bar reads it directly via `useAuth()` instead of
 // receiving `user` as a prop.
 import { useAuth } from '@/features/auth';
 import { MobileAccountDrawer } from '@/components/layout/MobileAccountDrawer';
-
-const HomeIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M3 11l9-7 9 7" />
-    <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-  </svg>
-);
-
-const AccountIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
-  </svg>
-);
+import { useCatalogNavState } from '@/components/layout/useCatalogNavState';
+import { cn } from '@/lib/utils';
 
 const tabClassName = (isActive: boolean) =>
-  `flex flex-1 flex-col items-center justify-center gap-[3px] text-[10px] ${
-    isActive ? 'text-primary-dark font-bold' : 'text-muted'
-  }`;
+  cn(
+    'flex flex-1 flex-col items-center justify-center gap-[3px] text-[10px]',
+    isActive ? 'text-primary-dark font-bold' : 'text-muted',
+  );
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) => tabClassName(isActive);
 
@@ -62,7 +34,7 @@ const AccountTab = ({ open, onClick }: AccountTabProps) => (
     aria-expanded={open}
     className={tabClassName(open)}
   >
-    <AccountIcon />
+    <User className="h-5 w-5" aria-hidden="true" />
     <span>Cuenta</span>
   </button>
 );
@@ -72,12 +44,15 @@ const barClassName =
 
 /**
  * Bottom tab bar shown on mobile (`max-width: 768px`) instead of the
- * `Sidebar`. Simplified navigation (design system section 10): Inicio +
- * Cuenta. The "Cuenta" tab opens the `MobileAccountDrawer` with the
- * remaining secondary options.
+ * `Sidebar`: the two primary destinations, Inicio and Catálogo, plus a Cuenta
+ * tab that opens the `MobileAccountDrawer` with everything else the `Sidebar`
+ * offers (Mis items, Colecciones, Desarrollo, logout). The mobile navigation
+ * must reach every section the `Sidebar` does; `navigation-parity.test.tsx`
+ * enforces it.
  */
 export const MobileTabBar = () => {
   const { user } = useAuth();
+  const { catalogActive } = useCatalogNavState();
   const [accountOpen, setAccountOpen] = useState(false);
 
   // Avoid a flash of the tab bar before the session is known.
@@ -92,9 +67,18 @@ export const MobileTabBar = () => {
       <nav aria-label="Navegación móvil" className={barClassName}>
         <div className="flex h-full items-stretch">
           <NavLink to="/" end className={navLinkClassName}>
-            <HomeIcon />
+            <Home className="h-5 w-5" aria-hidden="true" />
             <span>Inicio</span>
           </NavLink>
+          {/* `Link`, not `NavLink`: it must not light up on the "Mis items" view. */}
+          <Link
+            to="/items"
+            aria-current={catalogActive ? 'page' : undefined}
+            className={tabClassName(catalogActive)}
+          >
+            <Store className="h-5 w-5" aria-hidden="true" />
+            <span>Catálogo</span>
+          </Link>
           <AccountTab open={accountOpen} onClick={toggleAccount} />
         </div>
       </nav>
