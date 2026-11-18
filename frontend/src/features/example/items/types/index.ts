@@ -17,6 +17,12 @@ export interface ItemFilters {
   category?: string;
 }
 
+/** Filters accepted by `searchItems`: the listing filters plus `ownerId`,
+ * which only the search endpoint understands (`getItems` does not take it). */
+export interface ItemSearchFilters extends ItemFilters {
+  ownerId?: number;
+}
+
 /** A collection an item belongs to, as shown on the item detail screen. */
 export interface CollectionRef {
   id: number;

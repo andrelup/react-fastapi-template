@@ -1,52 +1,25 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useCallback, useRef, useState } from 'react';
+import type { RefObject } from 'react';
+import { User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `Sidebar`/`Header` already
 // rely on), so the tab bar reads it directly via `useAuth()` instead of
 // receiving `user` as a prop.
 import { useAuth } from '@/features/auth';
 import { MobileAccountDrawer } from '@/components/layout/MobileAccountDrawer';
-
-const HomeIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={2}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <path d="M3 11l9-7 9 7" />
-    <path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" />
-  </svg>
-);
-
-const AccountIcon = () => (
-  <svg
-    className="h-5 w-5"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth={1.8}
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden="true"
-  >
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
-  </svg>
-);
+import { TAB_ENTRIES } from '@/components/layout/navigation';
+import { useNavEntryActive } from '@/components/layout/useNavEntryActive';
+import { cn } from '@/lib/utils';
 
 const tabClassName = (isActive: boolean) =>
-  `flex flex-1 flex-col items-center justify-center gap-[3px] text-[10px] ${
-    isActive ? 'text-primary-dark font-bold' : 'text-muted'
-  }`;
-
-const navLinkClassName = ({ isActive }: { isActive: boolean }) => tabClassName(isActive);
+  cn(
+    'flex flex-1 flex-col items-center justify-center gap-[3px] text-[10px]',
+    isActive ? 'text-primary-dark font-bold' : 'text-muted',
+  );
 
 interface AccountTabProps {
+  buttonRef: RefObject<HTMLButtonElement>;
   open: boolean;
   onClick: () => void;
 }
@@ -54,15 +27,16 @@ interface AccountTabProps {
 // Opens the `MobileAccountDrawer` rather than navigating: the "Cuenta" section
 // is a mobile-only menu of the secondary options that live in the desktop
 // `Sidebar`.
-const AccountTab = ({ open, onClick }: AccountTabProps) => (
+const AccountTab = ({ buttonRef, open, onClick }: AccountTabProps) => (
   <button
+    ref={buttonRef}
     type="button"
     onClick={onClick}
     aria-haspopup="dialog"
     aria-expanded={open}
     className={tabClassName(open)}
   >
-    <AccountIcon />
+    <User className="h-5 w-5" aria-hidden="true" />
     <span>Cuenta</span>
   </button>
 );
@@ -72,13 +46,30 @@ const barClassName =
 
 /**
  * Bottom tab bar shown on mobile (`max-width: 768px`) instead of the
- * `Sidebar`. Simplified navigation (design system section 10): Inicio +
- * Cuenta. The "Cuenta" tab opens the `MobileAccountDrawer` with the
- * remaining secondary options.
+ * `Sidebar`. The tabs that navigate (Inicio, Catálogo) come from the
+ * navigation config (`TAB_ENTRIES`); the Cuenta tab opens the
+ * `MobileAccountDrawer` with everything else the `Sidebar` offers. The mobile
+ * navigation must reach every section the `Sidebar` does;
+ * `navigation-parity.test.tsx` enforces it.
  */
 export const MobileTabBar = () => {
   const { user } = useAuth();
+  const isActive = useNavEntryActive();
+  const location = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [seenLocationKey, setSeenLocationKey] = useState(location.key);
+  const accountTabRef = useRef<HTMLButtonElement>(null);
+
+  // Browser Back/Forward changes the page without a click on the panel, so the
+  // panel closes whenever the location does. Adjusting state while rendering
+  // (instead of an effect that copies the location into state) re-renders
+  // before anything is committed: no extra commit, no frame with a stale modal.
+  if (seenLocationKey !== location.key) {
+    setSeenLocationKey(location.key);
+    setAccountOpen(false);
+  }
+
+  const closeAccount = useCallback(() => setAccountOpen(false), []);
 
   // Avoid a flash of the tab bar before the session is known.
   if (!user) {
@@ -91,14 +82,26 @@ export const MobileTabBar = () => {
     <>
       <nav aria-label="Navegación móvil" className={barClassName}>
         <div className="flex h-full items-stretch">
-          <NavLink to="/" end className={navLinkClassName}>
-            <HomeIcon />
-            <span>Inicio</span>
-          </NavLink>
-          <AccountTab open={accountOpen} onClick={toggleAccount} />
+          {TAB_ENTRIES.map((entry) => (
+            // `Link`, not `NavLink`: see `useNavEntryActive`.
+            <Link
+              key={entry.id}
+              to={entry.to}
+              aria-current={isActive(entry) ? 'page' : undefined}
+              className={tabClassName(isActive(entry))}
+            >
+              <entry.icon className="h-5 w-5" aria-hidden="true" />
+              <span>{entry.tabLabel ?? entry.label}</span>
+            </Link>
+          ))}
+          <AccountTab buttonRef={accountTabRef} open={accountOpen} onClick={toggleAccount} />
         </div>
       </nav>
-      <MobileAccountDrawer open={accountOpen} onClose={() => setAccountOpen(false)} />
+      <MobileAccountDrawer
+        open={accountOpen}
+        onClose={closeAccount}
+        returnFocusRef={accountTabRef}
+      />
     </>
   );
 };

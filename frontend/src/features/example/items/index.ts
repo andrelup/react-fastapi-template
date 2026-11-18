@@ -15,4 +15,12 @@ export {
   createTag,
   getCollectionRefs,
 } from './api/items-api';
-export type { Item, ItemFilters, ItemDetail, CollectionRef, ItemInput, Tag } from './types';
+export type {
+  Item,
+  ItemFilters,
+  ItemSearchFilters,
+  ItemDetail,
+  CollectionRef,
+  ItemInput,
+  Tag,
+} from './types';
