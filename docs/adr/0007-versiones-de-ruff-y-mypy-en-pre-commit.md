@@ -31,7 +31,7 @@ del monorepo, no leía el `[tool.mypy]` de `backend/pyproject.toml`, mientras qu
   de ruff o de mypy, versión distinta de una dependencia, dependencia ausente de `pyproject.toml` o
   no fijada con `==`. Se ejecuta como hook local de pre-commit (`language: python`, con su propio
   entorno aislado y PyYAML declarado) y como paso del job `lint` de `ci-backend.yml`, cuyo `paths:`
-  incluye ahora `.pre-commit-config.yaml`.
+  incluye ahora `.pre-commit-config.yaml` y el propio script.
 - Los tests de la comprobación están en `backend/tests/unit/test_check_pin_drift.py`, porque
   `pytest` ya se ejecuta desde `backend/` en CI.
 
