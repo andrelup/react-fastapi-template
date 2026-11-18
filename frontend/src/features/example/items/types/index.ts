@@ -10,11 +10,13 @@ export interface Item {
   version: number;
 }
 
-/** Filters accepted by `getItems` — every field is optional. */
+/** Filters accepted by `getItems` and `searchItems` — every field is
+ * optional. `ownerId` is only honoured by the search endpoint. */
 export interface ItemFilters {
   page?: number;
   pageSize?: number;
   category?: string;
+  ownerId?: number;
 }
 
 /** A collection an item belongs to, as shown on the item detail screen. */
