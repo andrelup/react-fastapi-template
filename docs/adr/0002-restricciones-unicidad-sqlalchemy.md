@@ -51,7 +51,7 @@ La clave está en la segunda fila. Cuando pides `index=True` **junto a** `unique
 
 Visto así es hasta razonable —una constraint sobre una columna que ya tiene su propio índice único sería redundante, y te ahorra un índice duplicado— pero es exactamente lo que despista al leer el esquema después.
 
-En el esquema actual conviven la segunda y la tercera forma, repartidas entre [`sqlalchemy_models.py`](../src/adapters/outbound/persistence/sqlalchemy_models.py) (las tablas propias del template) y el paquete [`example/`](../src/adapters/outbound/persistence/example/) (el catálogo de ejemplo):
+En el esquema actual conviven la segunda y la tercera forma, repartidas entre [`sqlalchemy_models.py`](../../backend/src/adapters/outbound/persistence/sqlalchemy_models.py) (las tablas propias del template) y el paquete [`example/`](../../backend/src/adapters/outbound/persistence/example/) (el catálogo de ejemplo):
 
 ```python
 # sqlalchemy_models.py — unique + index → índice único
@@ -82,7 +82,7 @@ DETAIL:  Key (email)=(test@test.es) already exists.
 
 Fíjate en un detalle delicioso: el propio mensaje de Postgres llama **"unique constraint"** al índice. Para el motor, la distinción que nos preocupaba ni siquiera existe.
 
-Y el código ya cuenta con esta garantía. En [`error_handler.py`](../src/adapters/inbound/middleware/error_handler.py) hay un handler de `IntegrityError` → **409** cuyo comentario lo dice explícitamente: cubre la carrera entre dos peticiones concurrentes. El reparto de responsabilidades es éste:
+Y el código ya cuenta con esta garantía. En [`error_handler.py`](../../backend/src/adapters/inbound/middleware/error_handler.py) hay un handler de `IntegrityError` → **409** cuyo comentario lo dice explícitamente: cubre la carrera entre dos peticiones concurrentes. El reparto de responsabilidades es éste:
 
 - **`AuthService`** comprueba con `find_by_email` antes de registrar. Cubre el caso normal y produce un error de negocio limpio (`DuplicateEmailError` → 409).
 - **La restricción de BD** es la red que atrapa el caso que la comprobación de negocio no puede cubrir: dos registros simultáneos con el mismo email, ambos pasando el `find_by_email` antes de que ninguno haya hecho commit.
@@ -112,4 +112,4 @@ Para no volver a tropezar:
 
 ---
 
-Ver también: [arquitectura-hexagonal.md](./arquitectura-hexagonal.md) para el porqué de la separación entre modelos de dominio y modelos ORM.
+Ver también: [arquitectura-hexagonal.md](../../backend/docs/arquitectura-hexagonal.md) para el porqué de la separación entre modelos de dominio y modelos ORM.

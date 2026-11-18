@@ -18,10 +18,12 @@ catalogue and the navigation entries that point at it are a replaceable example,
 `example/` folder per layer. The dependency runs example → core, never the reverse; the few core files
 that wire the sample in are listed in the removal procedure of the example-domain document.
 
-The short architecture decisions behind it live in `backend/docs/`:
-[why hexagonal](../backend/docs/por-que-hexagonal.md),
-[why `Protocol` and not ABC](../backend/docs/por-que-protocol-y-no-abc.md),
-[why the `ApiResponse` envelope](../backend/docs/por-que-el-envelope-apiresponse.md).
+The architecture decisions behind it are numbered ADRs, written in Spanish, in
+[`adr/`](./adr/README.md):
+[why hexagonal](./adr/0004-por-que-hexagonal.md),
+[why `Protocol` and not ABC](./adr/0005-por-que-protocol-y-no-abc.md),
+[why the `ApiResponse` envelope](./adr/0006-por-que-el-envelope-apiresponse.md).
+Every new decision gets the next number there.
 
 ## Frontend — `frontend/`
 
@@ -47,8 +49,8 @@ The live component catalogue is the app itself, at the route **`/components-ui`*
 ## Ground rules that apply to both stacks
 
 - **Code in English.** Documentation splits by audience: Spanish for what humans read (the four
-  `README.md` files and the ADRs under `backend/docs/`), English for what agents read (`CLAUDE.md`,
-  this `docs/` tree, `.claude/`). UI copy is in Spanish.
+  `README.md` files, the ADRs in `adr/` and the guide in `backend/docs/`), English for what agents
+  read (`CLAUDE.md`, the rest of this `docs/` tree, `.claude/`). UI copy is in Spanish.
 - **Types are mandatory**: mypy strict in the backend, TypeScript strict in the frontend.
 - **Everything is tested.** Project minimum coverage: 80 %.
 - **Conventional Commits** with a module scope: `feat(backend): …`, `fix(frontend): …`.

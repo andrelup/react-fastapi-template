@@ -17,10 +17,10 @@ Read it alongside exactly one or two of these, never all of them:
 | Vitest and React Testing Library conventions | [frontend-testing.md](./frontend-testing.md) |
 | Structured logging | [backend-logging.md](./backend-logging.md) |
 
-The decisions behind the shape of all this are in `backend/docs/`:
-[why hexagonal](../backend/docs/por-que-hexagonal.md),
-[why `Protocol` and not ABC](../backend/docs/por-que-protocol-y-no-abc.md),
-[why the `ApiResponse` envelope](../backend/docs/por-que-el-envelope-apiresponse.md).
+The decisions behind the shape of all this are ADRs in `docs/adr/`:
+[why hexagonal](./adr/0004-por-que-hexagonal.md),
+[why `Protocol` and not ABC](./adr/0005-por-que-protocol-y-no-abc.md),
+[why the `ApiResponse` envelope](./adr/0006-por-que-el-envelope-apiresponse.md).
 
 Examples below use a neutral `Review` / `Topic` / `Label` / `Comment` vocabulary. They name shapes,
 not files — none of them exists in this repository, and nothing here depends on the sample domain

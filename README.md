@@ -19,7 +19,7 @@ sin adornos.
   abierto y acepta el rol que le mandes, porque cerrar esa puerta se puede hacer de cinco maneras
   razonables y cuál es la buena depende del proyecto. Decidirlo es lo primero que le toca a quien
   use la plantilla; el porqué y las alternativas están en
-  [roles-y-registro-abierto.md](./backend/docs/roles-y-registro-abierto.md).
+  [0003-roles-y-registro-abierto.md](./docs/adr/0003-roles-y-registro-abierto.md).
 - **Logging estructurado** — cada petición emite un evento con `request_id`, `status_code` y
   `duration_ms`, correlacionable desde la cabecera `X-Request-ID` de la respuesta.
 
@@ -171,8 +171,9 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 
 - **Idioma del código:** inglés (variables, funciones, clases, comentarios).
 - **Idioma de la documentación, según a quién va dirigida:** **español** para lo
-  que leen personas — los cuatro `README.md` y los ADR de `backend/docs/`—, e
-  **inglés** para lo que leen los agentes — `CLAUDE.md`, `docs/` y `.claude/`.
+  que leen personas — los cuatro `README.md`, los ADR de `docs/adr/` y la guía
+  de `backend/docs/`—, e **inglés** para lo que leen los agentes — `CLAUDE.md`,
+  el resto de `docs/` y `.claude/`.
   Los textos de la interfaz, en español.
 - **Tipado estricto obligatorio** en ambos stacks (mypy strict / TypeScript strict).
 - Todo el código debe tener tests. **Coverage mínimo: 80 %**, aplicado
