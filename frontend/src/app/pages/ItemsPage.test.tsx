@@ -66,11 +66,17 @@ describe('ItemsPage', () => {
     const search = await screen.findByRole('searchbox', { name: 'Buscar en el catálogo' });
     await user.type(search, 'cámara');
     expect(search).toHaveValue('cámara');
+    await user.click(screen.getByRole('combobox', { name: 'Categoría' }));
+    await user.click(await screen.findByRole('option', { name: 'Hogar' }));
+    expect(screen.getByRole('combobox', { name: 'Categoría' })).toHaveTextContent('Hogar');
 
     await user.click(screen.getByRole('link', { name: 'Todo' }));
 
     expect(await screen.findByRole('heading', { name: 'Catálogo' })).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Categoría' })).toHaveTextContent(
+      'Todas las categorías',
+    );
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' }), 'radio');
     await user.click(screen.getByRole('link', { name: 'Mis items' }));
