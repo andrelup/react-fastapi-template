@@ -1,5 +1,4 @@
-import type { ReactNode } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `ProtectedRoute` already
 // relies on), so the Sidebar reads it directly via `useAuth()` instead of
@@ -9,42 +8,25 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
 import { cn } from '@/lib/utils';
-import { SoonPill } from '@/components/layout/SoonPill';
-import { useCatalogNavState } from '@/components/layout/useCatalogNavState';
+import { NavGroup } from '@/components/layout/NavGroup';
+import { NavSoonItem } from '@/components/layout/NavSoonItem';
+import { SIDEBAR_GROUPS, isSoonEntry } from '@/components/layout/navigation';
+import { useNavEntryActive } from '@/components/layout/useNavEntryActive';
 
 export interface SidebarProps {
   className?: string;
 }
 
-const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
+const navLinkClassName = (isActive: boolean) =>
   cn(
     'block rounded px-3 py-2 text-sm',
     isActive ? 'bg-primary-50 font-semibold text-primary-dark' : 'text-body hover:bg-bg',
   );
 
-// Visual-only item: no page exists yet for it, so it is not wrapped in a
-// `NavLink`. Turn it into a real `NavLink` once its route exists.
-const InactiveNavItem = ({ label }: { label: string }) => (
-  <div
-    aria-disabled="true"
-    className="flex items-center justify-between rounded px-3 py-2 text-sm text-body"
-  >
-    <span>{label}</span>
-    <SoonPill />
-  </div>
-);
-
-const NavGroup = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div className="mb-4">
-    <p className="mb-1 px-3 text-[11px] font-bold uppercase tracking-wide text-muted">{label}</p>
-    {children}
-  </div>
-);
-
 /** Left sidebar shown for logged-in users: profile, grouped navigation, and logout. */
 export const Sidebar = ({ className }: SidebarProps) => {
   const { user, logout } = useAuth();
-  const { catalogActive, mineActive } = useCatalogNavState();
+  const isActive = useNavEntryActive();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -59,7 +41,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
     <aside
       className={cn(
         'flex w-[248px] flex-col border-r border-border bg-surface',
-        'md:sticky md:top-[62px] md:h-[calc(100dvh-62px)] md:self-start',
+        'md:sticky md:top-header md:h-[calc(100dvh-theme(spacing.header))] md:self-start',
         className,
       )}
     >
@@ -78,44 +60,26 @@ export const Sidebar = ({ className }: SidebarProps) => {
       </div>
 
       <nav className="flex-1 overflow-auto p-4">
-        <NavGroup label="Principal">
-          <NavLink to="/" end className={navLinkClassName}>
-            Inicio
-          </NavLink>
-          {/* `Link`, not `NavLink`: it would also mark "Mis items" active (same path). */}
-          <Link
-            to="/items"
-            aria-current={catalogActive ? 'page' : undefined}
-            className={navLinkClassName({ isActive: catalogActive })}
-          >
-            Explorar catálogo
-          </Link>
-        </NavGroup>
-
-        <NavGroup label="Colecciones">
-          <NavLink to="/colecciones" className={navLinkClassName}>
-            Ver colecciones
-          </NavLink>
-          <InactiveNavItem label="Colecciones destacadas" />
-        </NavGroup>
-
-        <NavGroup label="Cuenta">
-          <Link
-            to="/items?mine=true"
-            aria-current={mineActive ? 'page' : undefined}
-            className={navLinkClassName({ isActive: mineActive })}
-          >
-            Mis items
-          </Link>
-          <InactiveNavItem label="Mensajes" />
-          <InactiveNavItem label="Ajustes" />
-        </NavGroup>
-
-        <NavGroup label="Desarrollo">
-          <NavLink to="/components-ui" className={navLinkClassName}>
-            Componentes UI
-          </NavLink>
-        </NavGroup>
+        {SIDEBAR_GROUPS.map((group) => (
+          <NavGroup key={group.id} label={group.label}>
+            {group.entries.map((entry) =>
+              isSoonEntry(entry) ? (
+                <NavSoonItem key={entry.id} label={entry.label} className="px-3 py-2 text-sm" />
+              ) : (
+                // `Link`, not `NavLink`: `aria-current` must follow `useNavEntryActive`
+                // (`NavLink` ignores the query string, which two `/items` entries need).
+                <Link
+                  key={entry.id}
+                  to={entry.to}
+                  aria-current={isActive(entry) ? 'page' : undefined}
+                  className={navLinkClassName(isActive(entry))}
+                >
+                  {entry.label}
+                </Link>
+              ),
+            )}
+          </NavGroup>
+        ))}
       </nav>
 
       <div className="mt-auto border-t border-border p-4">

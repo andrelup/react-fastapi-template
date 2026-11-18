@@ -12,7 +12,7 @@ export const Header = () => {
     <header
       className={cn(
         // Pinned to the top from `md`, above the content and the sticky sidebar.
-        'flex h-14 items-center border-b border-border bg-surface px-4 md:sticky md:top-0 md:z-30 md:h-[62px] md:px-7',
+        'flex h-14 items-center border-b border-border bg-surface px-4 md:sticky md:top-0 md:z-30 md:h-header md:px-7',
         // On mobile the auth navbar centers the lone logo (no session yet);
         // the logged-in navbar keeps it left with search/actions on the right.
         user ? 'justify-between' : 'justify-center md:justify-start',

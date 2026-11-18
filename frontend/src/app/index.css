@@ -40,6 +40,8 @@
   --radius-lg: 14px;
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-float: 0 8px 30px rgba(20, 52, 42, 0.08);
+  /* Altura de la cabecera en escritorio: la comparten la cabecera y la barra lateral fija. */
+  --header-height: 62px;
   /* Alias shadcn/ui.
      shadcn/ui components are written against these names. Here every one of
      them is a pointer into the palette above: no new colour, no repeated
