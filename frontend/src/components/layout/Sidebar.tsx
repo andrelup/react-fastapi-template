@@ -7,9 +7,9 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { cn } from '@/lib/utils';
+import { SoonPill } from '@/components/layout/SoonPill';
 import { useCatalogNavState } from '@/components/layout/useCatalogNavState';
 
 export interface SidebarProps {
@@ -24,13 +24,13 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
 
 // Visual-only item: no page exists yet for it, so it is not wrapped in a
 // `NavLink`. Turn it into a real `NavLink` once its route exists.
-const InactiveNavItem = ({ label, badge }: { label: string; badge?: number }) => (
+const InactiveNavItem = ({ label }: { label: string }) => (
   <div
     aria-disabled="true"
     className="flex items-center justify-between rounded px-3 py-2 text-sm text-body"
   >
     <span>{label}</span>
-    {badge !== undefined && <Badge>{badge}</Badge>}
+    <SoonPill />
   </div>
 );
 
@@ -107,7 +107,7 @@ export const Sidebar = ({ className }: SidebarProps) => {
           >
             Mis items
           </Link>
-          <InactiveNavItem label="Mensajes" badge={1} />
+          <InactiveNavItem label="Mensajes" />
           <InactiveNavItem label="Ajustes" />
         </NavGroup>
 

@@ -93,12 +93,12 @@ describe('MobileAccountDrawer', () => {
     expect(await screen.findByRole('heading', { name: 'Colecciones' })).toBeInTheDocument();
   });
 
-  it('closes from the close button and from the backdrop', async () => {
+  it('closes from the close button and on Escape', async () => {
     const user = userEvent.setup();
     const onClose = renderDrawer();
 
     await user.click(await screen.findByRole('button', { name: 'Cerrar' }));
-    await user.click(screen.getByRole('button', { name: 'Cerrar menú de cuenta' }));
+    await user.keyboard('{Escape}');
 
     expect(onClose).toHaveBeenCalledTimes(2);
   });

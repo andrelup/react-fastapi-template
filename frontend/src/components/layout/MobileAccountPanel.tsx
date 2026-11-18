@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { LogOut, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 interface MobileAccountPanelProps {
@@ -32,14 +33,15 @@ export const MobileAccountPanel = ({
   <div className={cn('flex w-[86%] max-w-[360px] flex-col bg-surface shadow-float', className)}>
     <div className="flex items-center justify-between px-5 py-4">
       <span className="text-[11px] font-bold uppercase tracking-wide text-muted">Cuenta</span>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         aria-label="Cerrar"
         onClick={onClose}
-        className="flex h-8 w-8 items-center justify-center rounded-md bg-bg text-body hover:bg-border"
+        className="h-8 w-8 bg-bg hover:bg-border"
       >
         <X className="h-5 w-5" aria-hidden="true" />
-      </button>
+      </Button>
     </div>
 
     <div className="px-4">
@@ -57,14 +59,10 @@ export const MobileAccountPanel = ({
     </nav>
 
     <div className="border-t border-border p-4">
-      <button
-        type="button"
-        onClick={onLogout}
-        className="flex w-full items-center justify-center gap-2 rounded border border-danger-border bg-transparent py-2.5 font-semibold text-danger hover:bg-danger-bg"
-      >
-        <LogOut className="h-[18px] w-[18px]" aria-hidden="true" />
+      <Button variant="destructive" className="w-full" onClick={onLogout}>
+        <LogOut aria-hidden="true" />
         Cerrar sesión
-      </button>
+      </Button>
     </div>
   </div>
 );

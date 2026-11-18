@@ -456,11 +456,7 @@ const UiComponentsPage = () => {
               to="#"
               onNavigate={(event) => event.preventDefault()}
             />
-            <DrawerItem
-              icon={<MessageCircle className="h-5 w-5" />}
-              label="Mensajes"
-              soon="Próximamente"
-            />
+            <DrawerItem icon={<MessageCircle className="h-5 w-5" />} label="Mensajes" soon />
           </DrawerGroup>
         </MobileAccountPanel>
       </Section>

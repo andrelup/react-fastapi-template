@@ -49,10 +49,12 @@ describe('desktop and mobile navigation parity', () => {
 
     await user.click(await screen.findByRole('button', { name: /Cuenta/ }));
 
-    const sidebar = collectEntries(screen.getByRole('complementary'));
+    const sidebar = collectEntries(screen.getByRole('complementary', { hidden: true }));
     const mobile = {
       hrefs: [
-        ...collectEntries(screen.getByRole('navigation', { name: 'Navegación móvil' })).hrefs,
+        ...collectEntries(
+          screen.getByRole('navigation', { name: 'Navegación móvil', hidden: true }),
+        ).hrefs,
         ...collectEntries(screen.getByRole('dialog', { name: 'Cuenta' })).hrefs,
       ],
       inactive: collectEntries(screen.getByRole('dialog', { name: 'Cuenta' })).inactive,

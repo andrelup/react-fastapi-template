@@ -502,7 +502,7 @@ You normally do **not** touch these; you render inside them.
 | `PageContainer` | The `<main>` wrapper: max width, padding, and the bottom padding that clears the mobile tab bar. |
 | `Footer` | Slim legal bar. Hidden on mobile when authenticated. |
 | `MobileTabBar` | Mobile-only bottom navigation: Inicio, Catálogo and a Cuenta tab that opens the account drawer. Catálogo shares its active rule with the Sidebar (`useCatalogNavState`). Hidden from `md` up, and rendered only with a session. |
-| `MobileAccountDrawer` | Mobile-only slide-over menu opened from the tab bar. Carries every Sidebar entry the bar has no room for, under the same group headings (Cuenta, Colecciones, Desarrollo), plus the profile block and logout. Built from `MobileAccountPanel` (the presentational panel, no session or router state), `DrawerGroup` and `DrawerItem`, which `/components-ui` reuses for its inline mock. |
+| `MobileAccountDrawer` | Mobile-only slide-over menu opened from the tab bar. Carries every Sidebar entry the bar has no room for, under the same group headings (Cuenta, Colecciones, Desarrollo), plus the profile block and logout. It is a Radix dialog (via the `ui/Dialog` pieces): focus enters on open, Tab stays inside, Escape closes, focus returns to the Cuenta tab (`returnFocusRef`), and `MobileTabBar` also closes it on any location change (browser Back). Built from `MobileAccountPanel` (the presentational panel, no session or router state), `DrawerGroup` and `DrawerItem` (`soon` variant for inactive entries), which `/components-ui` reuses for its inline mock. |
 | `MobileActionBar` | Mobile-only sticky action bar that stacks above the tab bar. Scaffolding for detail/confirmation screens; no consumers yet. |
 
 ### Responsive rules
@@ -518,7 +518,9 @@ Mobile-first Tailwind; **`md:` (768px) means desktop**.
 
 Navigation entries whose route does not exist yet are rendered as **visual-only** items
 (`InactiveNavItem` in `Sidebar`, the `soon` variant of `DrawerItem` in the account panel), never as
-links that would 404. Both carry `aria-disabled="true"`. Follow that convention, and convert the
+links that would 404. Both carry `aria-disabled="true"` and show the same `SoonPill`
+(«Próximamente»): `aria-disabled` on a role-less `div` is not announced, so the visible text is what
+tells everyone the entry is not available yet. Follow that convention, and convert the
 item into a real link (the `to` variant of `DrawerItem`) in the same PR that adds the route.
 
 **Desktop and mobile navigation must offer the same sections.** Adding an entry to `Sidebar` means

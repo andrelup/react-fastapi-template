@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
 import { MobileTabBar } from './MobileTabBar';
 
@@ -17,10 +18,16 @@ vi.mock('@/lib/api-client', () => ({
   setAuthToken: vi.fn(),
 }));
 
-const renderTabBar = (initialEntries: string[] = ['/']) =>
+const BackButton = () => {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate(-1)}>Atrás</button>;
+};
+
+const renderTabBar = (initialEntries: string[] = ['/'], initialIndex?: number) =>
   render(
     <AuthProvider>
-      <MemoryRouter initialEntries={initialEntries}>
+      <MemoryRouter initialEntries={initialEntries} initialIndex={initialIndex}>
+        <BackButton />
         <MobileTabBar />
       </MemoryRouter>
     </AuthProvider>,
@@ -41,7 +48,7 @@ describe('MobileTabBar', () => {
   it('renders nothing when there is no session', () => {
     const { container } = renderTabBar();
 
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector('nav')).toBeNull();
   });
 
   it('shows the Inicio, Catálogo and Cuenta tabs once logged in', async () => {
@@ -118,6 +125,48 @@ describe('MobileTabBar', () => {
     expect(screen.getByRole('dialog', { name: 'Cuenta' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('moves focus into the open panel, closes on Escape and returns focus to the tab', async () => {
+    const user = userEvent.setup();
+    await login();
+    renderTabBar();
+
+    const accountTab = await screen.findByRole('button', { name: /Cuenta/ });
+    await user.click(accountTab);
+
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(accountTab).toHaveFocus());
+  });
+
+  it('keeps Tab inside the open panel', async () => {
+    const user = userEvent.setup();
+    await login();
+    renderTabBar();
+
+    await user.click(await screen.findByRole('button', { name: /Cuenta/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Cuenta' });
+
+    for (let i = 0; i < 12; i += 1) {
+      await user.tab();
+      expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    }
+  });
+
+  it('closes the panel when the location changes, as with the browser Back button', async () => {
+    await login();
+    renderTabBar(['/', '/items'], 1);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Cuenta/ }));
+    expect(screen.getByRole('dialog', { name: 'Cuenta' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Atrás', hidden: true }));
+
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

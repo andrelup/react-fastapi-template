@@ -129,6 +129,24 @@ describe('Sidebar', () => {
     );
   });
 
+  it('shows the «Próximamente» pill on every inactive entry, with no unread badge', async () => {
+    await renderAt('/');
+
+    expect(screen.getAllByText('Próximamente')).toHaveLength(3);
+    expect(screen.getByText('Mensajes').closest('[aria-disabled="true"]')).toHaveTextContent(
+      'MensajesPróximamente',
+    );
+  });
+
+  it('treats a trailing slash like the plain path', async () => {
+    await renderAt('/items/?mine=true');
+
+    expect(screen.getByRole('link', { name: 'Mis items' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Explorar catálogo' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
   it('is not rendered when there is no session', () => {
     render(
       <AuthProvider>
