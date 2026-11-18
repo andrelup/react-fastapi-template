@@ -9,7 +9,7 @@ interface MobileAccountPanelProps {
   email: string;
   onClose: () => void;
   onLogout: () => void;
-  /** The `DrawerGroup`s of the menu. */
+  /** The `NavGroup`s of the menu. */
   children: ReactNode;
   /** Positioning is the caller's: the drawer pins it to the right edge, the
    * `/components-ui` mock lays it out inline. */
