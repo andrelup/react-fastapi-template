@@ -1,7 +1,12 @@
 # syntax=docker/dockerfile:1
 
 # Etapa de build: compila la SPA a ficheros estaticos en /app/dist.
-FROM node:24-alpine AS builder
+# Versión de Node de la etapa de build. Debe coincidir con `frontend/.nvmrc`;
+# el job `lint` de CI lo comprueba. Se declara antes del primer FROM porque un
+# Dockerfile no puede leer ficheros en ese punto.
+ARG NODE_VERSION=24
+
+FROM node:${NODE_VERSION}-alpine AS builder
 
 WORKDIR /app
 
