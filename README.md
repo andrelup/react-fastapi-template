@@ -63,7 +63,7 @@ Los dos proyectos son **independientes** y se comunican exclusivamente a través
 
 ## Puesta en marcha
 
-Requisitos: **Python 3.12+**, **Node.js 20+**, **Docker** y **Docker Compose**.
+Requisitos: **Python 3.12+**, **Node.js 24** (la versión mayor de `frontend/.nvmrc`), **Docker** y **Docker Compose**.
 
 ### Getting started (un solo comando)
 
