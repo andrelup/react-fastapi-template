@@ -74,7 +74,7 @@ Lo cual significa que la unicidad de `users.email` está garantizada hoy, sin to
 ```
 BEGIN;
 INSERT INTO users (email, name, role, hashed_password)
-VALUES ('test@test.es', 'Duplicado', 'customer', 'x');
+VALUES ('test@test.es', 'Duplicado', 'viewer', 'x');
 
 ERROR:  duplicate key value violates unique constraint "ix_users_email"
 DETAIL:  Key (email)=(test@test.es) already exists.
