@@ -1,6 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SoonPill } from '@/components/layout/SoonPill';
 import { cn } from '@/lib/utils';
 
 interface DrawerItemBaseProps {
@@ -17,8 +18,8 @@ interface DrawerLinkItemProps extends DrawerItemBaseProps {
 }
 
 interface DrawerInactiveItemProps extends DrawerItemBaseProps {
-  /** Pill text of an upcoming section: the entry has no route yet, so it is not a link. */
-  soon: string;
+  /** An upcoming section: no route yet, so it shows the «Próximamente» pill and is not a link. */
+  soon: true;
   to?: never;
   onNavigate?: never;
 }
@@ -34,20 +35,25 @@ const itemClassName = 'flex w-full items-center gap-3 rounded-md px-3 py-3 text-
  * exists.
  */
 export const DrawerItem = ({ icon, label, to, soon, onNavigate }: DrawerItemProps) => {
-  if (soon !== undefined) {
+  if (soon) {
     return (
       <div aria-disabled="true" className={cn(itemClassName, 'text-body')}>
         <span aria-hidden="true">{icon}</span>
         <span className="flex-1">{label}</span>
-        <span className="rounded-full bg-bg px-2 py-0.5 text-[11px] font-semibold text-muted">
-          {soon}
-        </span>
+        <SoonPill />
       </div>
     );
   }
 
   return (
-    <Link to={to} onClick={onNavigate} className={cn(itemClassName, 'text-ink hover:bg-bg')}>
+    <Link
+      to={to}
+      onClick={onNavigate}
+      className={cn(
+        itemClassName,
+        'text-ink hover:bg-bg focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring',
+      )}
+    >
       <span aria-hidden="true" className="text-body">
         {icon}
       </span>

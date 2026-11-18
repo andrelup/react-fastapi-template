@@ -14,7 +14,10 @@ interface CatalogNavState {
  * this one rule instead.
  */
 export const useCatalogNavState = (): CatalogNavState => {
-  const { pathname, search } = useLocation();
+  const location = useLocation();
+  // `/items/` is the same page as `/items`.
+  const pathname = location.pathname.replace(/\/+$/, '') || '/';
+  const search = location.search;
 
   const inCatalog = pathname === '/items' || pathname.startsWith('/items/');
   const mineActive = pathname === '/items' && new URLSearchParams(search).get('mine') === 'true';

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { Home, Store, User } from 'lucide-react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `Sidebar`/`Header` already
 // rely on), so the tab bar reads it directly via `useAuth()` instead of
@@ -19,6 +20,7 @@ const tabClassName = (isActive: boolean) =>
 const navLinkClassName = ({ isActive }: { isActive: boolean }) => tabClassName(isActive);
 
 interface AccountTabProps {
+  buttonRef: RefObject<HTMLButtonElement>;
   open: boolean;
   onClick: () => void;
 }
@@ -26,8 +28,9 @@ interface AccountTabProps {
 // Opens the `MobileAccountDrawer` rather than navigating: the "Cuenta" section
 // is a mobile-only menu of the secondary options that live in the desktop
 // `Sidebar`.
-const AccountTab = ({ open, onClick }: AccountTabProps) => (
+const AccountTab = ({ buttonRef, open, onClick }: AccountTabProps) => (
   <button
+    ref={buttonRef}
     type="button"
     onClick={onClick}
     aria-haspopup="dialog"
@@ -53,7 +56,14 @@ const barClassName =
 export const MobileTabBar = () => {
   const { user } = useAuth();
   const { catalogActive } = useCatalogNavState();
+  const location = useLocation();
   const [accountOpen, setAccountOpen] = useState(false);
+  const accountTabRef = useRef<HTMLButtonElement>(null);
+
+  // Browser Back/Forward changes the page without a click on the panel.
+  useEffect(() => {
+    setAccountOpen(false);
+  }, [location]);
 
   // Avoid a flash of the tab bar before the session is known.
   if (!user) {
@@ -79,10 +89,14 @@ export const MobileTabBar = () => {
             <Store className="h-5 w-5" aria-hidden="true" />
             <span>Catálogo</span>
           </Link>
-          <AccountTab open={accountOpen} onClick={toggleAccount} />
+          <AccountTab buttonRef={accountTabRef} open={accountOpen} onClick={toggleAccount} />
         </div>
       </nav>
-      <MobileAccountDrawer open={accountOpen} onClose={() => setAccountOpen(false)} />
+      <MobileAccountDrawer
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        returnFocusRef={accountTabRef}
+      />
     </>
   );
 };
