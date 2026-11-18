@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { MessageCircle, Package, Trash2 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/Card';
+import { DrawerGroup } from '@/components/layout/DrawerGroup';
+import { DrawerItem } from '@/components/layout/DrawerItem';
+import { MobileAccountPanel } from '@/components/layout/MobileAccountPanel';
 import { Combobox } from '@/components/ui/Combobox';
 import type { ComboboxOption } from '@/components/ui/Combobox';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -432,6 +435,34 @@ const UiComponentsPage = () => {
           <ServerErrorState onRetry={() => setLastAction('reintentar')} />
         </div>
         {lastAction && <span className="sr-only">Última acción: {lastAction}</span>}
+      </Section>
+
+      <Section
+        title="Panel de cuenta móvil"
+        description="El panel lateral de la navegación móvil, en línea y con menús de ejemplo: una entrada navegable, una inactiva con «Próximamente» y el cierre de sesión. Ninguna entrada navega."
+      >
+        {/* Static on purpose: `to="#"` plus `preventDefault` — clicking goes nowhere. */}
+        <MobileAccountPanel
+          name="Ada Lovelace"
+          email="ada@example.com"
+          onClose={() => setLastAction('cerrar-panel')}
+          onLogout={() => setLastAction('cerrar-sesion')}
+          className="w-full max-w-[360px] rounded-lg border border-border shadow-none"
+        >
+          <DrawerGroup label="Cuenta">
+            <DrawerItem
+              icon={<Package className="h-5 w-5" />}
+              label="Mis items"
+              to="#"
+              onNavigate={(event) => event.preventDefault()}
+            />
+            <DrawerItem
+              icon={<MessageCircle className="h-5 w-5" />}
+              label="Mensajes"
+              soon="Próximamente"
+            />
+          </DrawerGroup>
+        </MobileAccountPanel>
       </Section>
     </>
   );
