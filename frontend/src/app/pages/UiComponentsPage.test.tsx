@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import UiComponentsPage from './UiComponentsPage';
+
+// The account-panel mock holds router links, so the page needs a router.
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <UiComponentsPage />
+    </MemoryRouter>,
+  );
 
 describe('UiComponentsPage', () => {
   it('renders every showcase section', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.getByRole('heading', { name: 'Componentes UI' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Botones' })).toBeInTheDocument();
@@ -23,10 +32,28 @@ describe('UiComponentsPage', () => {
     expect(screen.getByRole('heading', { name: 'Diálogo' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Diálogo de confirmación' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Estados del sistema' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Panel de cuenta móvil' })).toBeInTheDocument();
+  });
+
+  it('shows the account panel mock with a link, an inactive entry and logout, none navigating', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    const nav = screen.getByRole('navigation', { name: 'Menú de cuenta' });
+    const link = within(nav).getByRole('link', { name: /Mis items/ });
+    expect(link).toHaveAttribute('href');
+    expect(within(nav).queryByRole('link', { name: /Mensajes/ })).not.toBeInTheDocument();
+    expect(within(nav).getByText('Próximamente')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Cerrar sesión/ })).toBeInTheDocument();
+
+    await user.click(link);
+    await user.click(screen.getByRole('button', { name: /Cerrar sesión/ }));
+
+    expect(screen.getByText('Última acción: cerrar-sesion')).toBeInTheDocument();
   });
 
   it('shows the button variants and sizes', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.getByRole('button', { name: 'Principal' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Secundario' })).toBeInTheDocument();
@@ -38,14 +65,14 @@ describe('UiComponentsPage', () => {
   });
 
   it('shows the disabled and loading states of the button', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.getByRole('button', { name: 'Deshabilitado' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Cargando…' })).toBeDisabled();
   });
 
   it('shows a field with an error wired to the input', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     const password = screen.getByLabelText('Contraseña');
     expect(password).toHaveAttribute('aria-invalid', 'true');
@@ -53,7 +80,7 @@ describe('UiComponentsPage', () => {
   });
 
   it('shows a select with an error wired to its trigger, and its disabled and loading states', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     const invalidSelect = screen.getByRole('combobox', { name: 'Categoría con error' });
     expect(invalidSelect).toHaveAttribute('aria-invalid', 'true');
@@ -64,7 +91,7 @@ describe('UiComponentsPage', () => {
 
   it('shows a message when a select has no options', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     await user.click(screen.getByRole('combobox', { name: 'Categoría (sin opciones)' }));
 
@@ -72,7 +99,7 @@ describe('UiComponentsPage', () => {
   });
 
   it('shows the combobox demo with its chosen values and states', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.getByRole('button', { name: 'Quitar Urgente' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Quitar Nuevo' })).toBeInTheDocument();
@@ -86,7 +113,7 @@ describe('UiComponentsPage', () => {
 
   it('lets the combobox demo choose a tag from the list', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     await user.click(screen.getByRole('combobox', { name: 'Etiquetas' }));
     await user.click(await screen.findByRole('option', { name: 'Oferta' }));
@@ -94,13 +121,13 @@ describe('UiComponentsPage', () => {
     expect(screen.getAllByText('Oferta')).not.toHaveLength(0);
   });
   it('shows a textarea with an error wired to it', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.getByText('La descripción es obligatoria.')).toBeInTheDocument();
   });
 
   it('shows the search field', () => {
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' })).toBeEnabled();
     expect(
@@ -110,7 +137,7 @@ describe('UiComponentsPage', () => {
 
   it('fires onSelect from the listing card title', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     await user.click(screen.getByRole('button', { name: 'Silla de roble' }));
 
@@ -119,7 +146,7 @@ describe('UiComponentsPage', () => {
 
   it('lets pagination change the current page', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     const interactivePagination = screen.getAllByRole('navigation', { name: 'Paginación' })[0];
     const pagination = within(interactivePagination);
@@ -139,7 +166,7 @@ describe('UiComponentsPage', () => {
 
   it('opens the dialog when its trigger is clicked and closes it with Escape', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 
@@ -156,7 +183,7 @@ describe('UiComponentsPage', () => {
 
   it('opens the confirm dialog and records the action when confirmed', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     await user.click(screen.getByRole('button', { name: 'Eliminar artículo' }));
 
@@ -171,7 +198,7 @@ describe('UiComponentsPage', () => {
 
   it('records the action fired from a system state', async () => {
     const user = userEvent.setup();
-    render(<UiComponentsPage />);
+    renderPage();
 
     await user.click(screen.getByRole('button', { name: 'Reintentar' }));
 
