@@ -44,13 +44,37 @@ describe('MobileTabBar', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('shows the Inicio and Cuenta tabs once logged in', async () => {
+  it('shows the Inicio, Catálogo and Cuenta tabs once logged in', async () => {
     await login();
 
     renderTabBar();
 
     expect(await screen.findByText('Inicio')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Catálogo' })).toHaveAttribute('href', '/items');
     expect(screen.getByText('Cuenta')).toBeInTheDocument();
+  });
+
+  it('marks "Catálogo" active on the catalogue and on an item, but not on "Mis items"', async () => {
+    await login();
+    const { unmount } = renderTabBar(['/items/5']);
+    expect(await screen.findByRole('link', { name: 'Catálogo' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    unmount();
+
+    await login();
+    const mine = renderTabBar(['/items?mine=true']);
+    expect(await screen.findByRole('link', { name: 'Catálogo' })).not.toHaveAttribute(
+      'aria-current',
+    );
+    mine.unmount();
+
+    await login();
+    renderTabBar(['/']);
+    expect(await screen.findByRole('link', { name: 'Catálogo' })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 
   it('marks the "Inicio" tab as active on the home route', async () => {
@@ -76,9 +100,12 @@ describe('MobileTabBar', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Cuenta' });
     expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Mis items/ })).toHaveAttribute(
+      'href',
+      '/items?mine=true',
+    );
     expect(screen.getByText('Editar perfil')).toBeInTheDocument();
     expect(screen.getByText('Mensajes')).toBeInTheDocument();
-    expect(screen.getByText('Próximamente')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Cerrar sesión/ })).toBeInTheDocument();
   });
 

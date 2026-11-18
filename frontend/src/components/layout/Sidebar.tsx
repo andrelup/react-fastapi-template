@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 // Cross-cutting exception to the "components/ imports from no feature" rule:
 // auth is global Context state (the same reasoning `ProtectedRoute` already
 // relies on), so the Sidebar reads it directly via `useAuth()` instead of
@@ -9,20 +9,26 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
+import { cn } from '@/lib/utils';
+import { useCatalogNavState } from '@/components/layout/useCatalogNavState';
 
 export interface SidebarProps {
   className?: string;
 }
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
-  `block rounded px-3 py-2 text-sm ${
-    isActive ? 'bg-primary-50 font-semibold text-primary-dark' : 'text-body hover:bg-bg'
-  }`;
+  cn(
+    'block rounded px-3 py-2 text-sm',
+    isActive ? 'bg-primary-50 font-semibold text-primary-dark' : 'text-body hover:bg-bg',
+  );
 
 // Visual-only item: no page exists yet for it, so it is not wrapped in a
 // `NavLink`. Turn it into a real `NavLink` once its route exists.
 const InactiveNavItem = ({ label, badge }: { label: string; badge?: number }) => (
-  <div className="flex items-center justify-between rounded px-3 py-2 text-sm text-body">
+  <div
+    aria-disabled="true"
+    className="flex items-center justify-between rounded px-3 py-2 text-sm text-body"
+  >
     <span>{label}</span>
     {badge !== undefined && <Badge>{badge}</Badge>}
   </div>
@@ -36,8 +42,9 @@ const NavGroup = ({ label, children }: { label: string; children: ReactNode }) =
 );
 
 /** Left sidebar shown for logged-in users: profile, grouped navigation, and logout. */
-export const Sidebar = ({ className = '' }: SidebarProps) => {
+export const Sidebar = ({ className }: SidebarProps) => {
   const { user, logout } = useAuth();
+  const { catalogActive, mineActive } = useCatalogNavState();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -46,7 +53,16 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
   };
 
   return (
-    <aside className={`flex w-[248px] flex-col border-r border-border bg-surface ${className}`}>
+    // From `md` the sidebar is pinned under the sticky header and is exactly as
+    // tall as the rest of the window, so its nav scrolls internally and the
+    // logout button never leaves the screen.
+    <aside
+      className={cn(
+        'flex w-[248px] flex-col border-r border-border bg-surface',
+        'md:sticky md:top-[62px] md:h-[calc(100dvh-62px)] md:self-start',
+        className,
+      )}
+    >
       <div className="border-b border-border p-4">
         {user ? (
           <div className="flex items-center gap-3">
@@ -66,9 +82,14 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
           <NavLink to="/" end className={navLinkClassName}>
             Inicio
           </NavLink>
-          <NavLink to="/items" className={navLinkClassName}>
+          {/* `Link`, not `NavLink`: it would also mark "Mis items" active (same path). */}
+          <Link
+            to="/items"
+            aria-current={catalogActive ? 'page' : undefined}
+            className={navLinkClassName({ isActive: catalogActive })}
+          >
             Explorar catálogo
-          </NavLink>
+          </Link>
         </NavGroup>
 
         <NavGroup label="Colecciones">
@@ -79,6 +100,13 @@ export const Sidebar = ({ className = '' }: SidebarProps) => {
         </NavGroup>
 
         <NavGroup label="Cuenta">
+          <Link
+            to="/items?mine=true"
+            aria-current={mineActive ? 'page' : undefined}
+            className={navLinkClassName({ isActive: mineActive })}
+          >
+            Mis items
+          </Link>
           <InactiveNavItem label="Mensajes" badge={1} />
           <InactiveNavItem label="Ajustes" />
         </NavGroup>

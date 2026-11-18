@@ -89,6 +89,46 @@ describe('Sidebar', () => {
     expect(screen.getByText('Colecciones destacadas')).toBeInTheDocument();
   });
 
+  const renderAt = async (entry: string) => {
+    window.localStorage.setItem('auth-token', JSON.stringify('test-token'));
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={[entry]}>
+          <Sidebar />
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+    await screen.findByText('Ada Lovelace');
+  };
+
+  it('offers "Mis items" as a link to the owner view of the catalogue', async () => {
+    await renderAt('/');
+
+    expect(screen.getByRole('link', { name: 'Mis items' })).toHaveAttribute(
+      'href',
+      '/items?mine=true',
+    );
+  });
+
+  it('marks only "Explorar catálogo" on the catalogue and on an item', async () => {
+    await renderAt('/items/3');
+
+    expect(screen.getByRole('link', { name: 'Explorar catálogo' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Mis items' })).not.toHaveAttribute('aria-current');
+  });
+
+  it('marks only "Mis items" on the owner view', async () => {
+    await renderAt('/items?mine=true');
+
+    expect(screen.getByRole('link', { name: 'Mis items' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Explorar catálogo' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
   it('is not rendered when there is no session', () => {
     render(
       <AuthProvider>
