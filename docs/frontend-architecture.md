@@ -22,11 +22,12 @@ frontend/src/
 │   └── pages/               One file per route, default-exported for React.lazy
 │
 ├── features/                Domain modules — each one autonomous
-│   └── auth/                Fully implemented; the only feature, and the reference one
+│   ├── auth/                Core, fully implemented; the reference feature
+│   └── example/             Replaceable sample — see the-example-domain.md
 │
 ├── components/
 │   ├── ui/                  Generic primitives (Button, Input, Card, Dialog, state screens…)
-│   └── layout/              Header, Footer, Sidebar, Layout, mobile navigation
+│   └── layout/              Header, Footer, Sidebar, Layout, mobile navigation, navigation.ts config
 │
 ├── hooks/                   Generic hooks: useApi, useApiOnMount, useDebounce, useLocalStorage
 ├── lib/                     api-client.ts — the single fetch() call site
@@ -98,8 +99,7 @@ Rules:
 - **`RoleRoute`** wraps `ProtectedRoute` and then gates on `user.role`. A disallowed role renders
   the **same 404 screen** as an unknown URL — deliberately, so the existence of the section is not
   revealed. While the user object is still being rehydrated it renders a spinner instead of
-  deciding. No route uses it today: it is exported from `features/auth` and covered by its own
-  test, waiting for the first role-gated screen.
+  deciding. Today it guards the create and edit pages in `app/router.tsx`.
 - **There is exactly one layout** for every route. Introducing a role-specific layout would be a
   new architectural decision, not the current state.
 
@@ -108,7 +108,14 @@ Rules:
 1. Create `app/pages/XxxPage.tsx` with a default export.
 2. Add the `lazy()` import at the top of `router.tsx`.
 3. Add the route entry, wrapped in `ProtectedRoute` / `RoleRoute` as needed.
-4. Add the navigation entries in `Sidebar` and `MobileTabBar` if the route is user-facing.
+4. If the route is user-facing, add an entry to `NAV_GROUPS` in
+   `components/layout/navigation.ts` and say where it goes on mobile: `mobile: 'tab'` (a
+   `MobileTabBar` tab) or `mobile: 'drawer'` (the account panel). The `Sidebar`, the tab bar and
+   the drawer all render from that config — see
+   [One navigation config](./frontend-ui-components.md#one-navigation-config). The `mobile` field
+   is required by the entry type and `navigation.test.ts` checks that every Sidebar entry has a
+   mobile place; `navigation-parity.test.tsx` is only a backstop that fails if a surface stops
+   rendering from the config.
 
 ---
 

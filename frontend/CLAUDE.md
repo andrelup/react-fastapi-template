@@ -36,10 +36,13 @@ frontend/
 │   │       ├── LoginPage.tsx
 │   │       ├── RegisterPage.tsx
 │   │       ├── UiComponentsPage.tsx       # Live catalogue at /components-ui
-│   │       └── NotFoundPage.tsx
+│   │       ├── NotFoundPage.tsx
+│   │       ├── ItemsPage.tsx  ItemDetailPage.tsx  ItemFormPage.tsx
+│   │       └── CollectionsPage.tsx  CollectionDetailPage.tsx  CollectionFormPage.tsx
+│   │                                      # The six Item* / Collection* pages are the example's
 │   │
 │   ├── features/                  # Self-contained feature modules
-│   │   ├── auth/                  # The only feature that exists today
+│   │   ├── auth/                  # Core, and the reference feature for all others
 │   │   │   ├── api/auth-api.ts            # /auth/login, /auth/register, /auth/me
 │   │   │   ├── components/
 │   │   │   │   ├── AuthProvider.tsx       # Session state, restored from localStorage
@@ -51,8 +54,9 @@ frontend/
 │   │   │   ├── hooks/                     # useAuth, useLogin
 │   │   │   ├── types/index.ts
 │   │   │   └── index.ts                   # Public contract of the feature
-│   │   └── …                      # items/ and collections/ do not exist yet —
-│   │                              # issues #39-#43 add the example catalogue
+│   │   └── example/               # Replaceable sample catalogue (docs/the-example-domain.md)
+│   │       ├── items/             # Each: api/ components/ hooks/ types/ index.ts
+│   │       └── collections/
 │   │
 │   ├── components/
 │   │   ├── ui/                    # Generic, no business logic. shadcn/ui, on the project tokens
@@ -61,10 +65,14 @@ frontend/
 │   │   │   └── EmptyState.tsx  NoResultsState.tsx  NotFoundState.tsx
 │   │   │       ServerErrorState.tsx  SystemStateCard.tsx
 │   │   └── layout/                # Layout, Header, Footer, Sidebar, PageContainer,
-│   │                              # MobileTabBar, MobileActionBar, MobileAccountDrawer
+│   │                              # MobileTabBar, MobileActionBar, MobileAccountDrawer,
+│   │                              # MobileAccountPanel, NavGroup, NavSoonItem, DrawerLinkItem
+│   │       ├── navigation.ts      # The one navigation config (NAV_GROUPS) all three surfaces render
+│   │       └── useNavEntryActive.ts   # The active rule shared by those surfaces
 │   │
 │   ├── hooks/                     # Generic: useApi, useDebounce, useLocalStorage
 │   ├── lib/api-client.ts          # The ONLY place allowed to call fetch
+│   ├── lib/paths.ts               # ITEMS_PATH, MY_ITEMS_PATH, isMineView — the example's
 │   ├── lib/utils.ts               # `cn` — the only sanctioned way to build a class string
 │   ├── types/api.ts               # ApiResponse<T>, PaginatedResponse<T>
 │   ├── utils/                     # get-initials
@@ -88,10 +96,12 @@ frontend/
 ```
 
 Unit tests are colocated next to what they cover (`Button.test.tsx`) and are omitted from the tree.
-Anything not listed above does not exist yet. In particular `features/` holds `auth/` and nothing
-else: the example domain — `Item`, the publishable catalogue resource, and `Collection`, the
-editorial grouping that orders it — is what issues #39 to #43 build, as `features/example/items/` and
-`features/example/collections/`.
+`features/auth/` is template core. The example domain — `Item`, the publishable catalogue resource,
+and `Collection`, the editorial grouping that orders it — is replaceable sample code: it lives in
+`features/example/items/` and `features/example/collections/`, with its six pages, `lib/paths.ts`
+and the navigation entries that point at it. The tree is not exhaustive (it omits the `auth/`
+tests and the smaller files); `docs/the-example-domain.md` lists what the sample touches and how to
+remove it.
 
 ## Bulletproof React Architecture rules
 
@@ -198,7 +208,10 @@ Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` wit
   ```
 - Protected routes with the `ProtectedRoute` component from `features/auth`
 - Role-restricted routes with `RoleRoute`, which demands a session **and** a role
-  (`allow={['seller']}`). No route uses it yet: `router.tsx` guards only `/`, with `ProtectedRoute`.
+  (`allow={['admin', 'editor']}`). In `router.tsx`, `ProtectedRoute` guards `/` and the example's
+  `/items`, `/items/:id`, `/colecciones` and `/colecciones/:id`; `RoleRoute` guards the example's
+  `/items/nuevo` and `/items/:id/editar` (`admin`, `editor`) and `/colecciones/nueva` and
+  `/colecciones/:id/editar` (`admin`). `/login`, `/register` and `/components-ui` are public.
   There is a single `Layout`; roles gate a route, they do not get a layout of their own
 
 ## Path aliases
