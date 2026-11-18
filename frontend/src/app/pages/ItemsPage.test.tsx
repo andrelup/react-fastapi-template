@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '@/features/auth';
@@ -55,7 +55,9 @@ describe('ItemsPage', () => {
     renderPage('/?mine=true');
 
     expect(await screen.findByRole('heading', { name: 'Mis items' })).toBeInTheDocument();
-    expect(apiClient.get).toHaveBeenCalledWith('/items/search?owner_id=7&page=1&page_size=20');
+    await waitFor(() =>
+      expect(apiClient.get).toHaveBeenCalledWith('/items/search?owner_id=7&page=1&page_size=20'),
+    );
 
     await user.click(screen.getByRole('link', { name: 'Todo' }));
 
