@@ -16,21 +16,34 @@ import { useItems } from '../hooks/useItems';
 
 const PAGE_SIZE = 20;
 
+interface ItemsCatalogProps {
+  /** Owner view («Mis items»): only the session user's own items. */
+  mine?: boolean;
+}
+
 /** The catalogue screen: paginated listing, free-text search and a category
- * filter. Visible to all three roles — the example domain has no owner-only
- * view yet. */
-export const ItemsCatalog = () => {
+ * filter. Visible to all three roles. With `mine` it is the same screen
+ * narrowed to the items the session user owns: it waits for the session
+ * (never flashing the full catalogue) and asks the search endpoint for
+ * `owner_id`. A page that toggles `mine` should remount it (`key`) so the
+ * page, search and category state start over. */
+export const ItemsCatalog = ({ mine = false }: ItemsCatalogProps) => {
   const navigate = useNavigate();
-  const { hasRole } = useAuth();
+  const { user, hasRole } = useAuth();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string | undefined>(undefined);
+
+  // The owner view cannot be requested until the session has rehydrated.
+  const waitingForUser = mine && !user;
 
   const { data, isLoading, error, refetch } = useItems({
     page,
     pageSize: PAGE_SIZE,
     category,
     search,
+    ownerId: mine ? user?.id : undefined,
+    enabled: !waitingForUser,
   });
 
   const hasActiveFilters = search.trim() !== '' || category !== undefined;
@@ -56,10 +69,12 @@ export const ItemsCatalog = () => {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="font-serif text-3xl font-bold tracking-[-0.015em] text-ink md:text-[34px]">
-            Catálogo
+            {mine ? 'Mis items' : 'Catálogo'}
           </h1>
           <p className="mt-2 max-w-[460px] text-[15px] text-body md:text-base">
-            Explora los artículos publicados en el catálogo.
+            {mine
+              ? 'Los artículos del catálogo que has creado tú.'
+              : 'Explora los artículos publicados en el catálogo.'}
           </p>
         </div>
         {hasRole('editor') && (
@@ -85,7 +100,7 @@ export const ItemsCatalog = () => {
         />
       </div>
 
-      {isLoading && (
+      {(isLoading || waitingForUser) && (
         <div className="flex justify-center py-12">
           <Spinner />
         </div>
@@ -97,7 +112,16 @@ export const ItemsCatalog = () => {
         <NoResultsState onClearSearch={handleClearSearch} />
       )}
 
-      {!isLoading && !error && data && data.items.length === 0 && !hasActiveFilters && (
+      {!isLoading && !error && data && data.items.length === 0 && !hasActiveFilters && mine && (
+        <EmptyState
+          title="Todavía no tienes items"
+          description="Los artículos que crees aparecerán aquí."
+          actionLabel={hasRole('editor') ? 'Crear item' : undefined}
+          onAction={() => navigate('/items/nuevo')}
+        />
+      )}
+
+      {!isLoading && !error && data && data.items.length === 0 && !hasActiveFilters && !mine && (
         <EmptyState
           title="Todavía no hay artículos"
           description="Cuando se publiquen artículos en el catálogo, aparecerán aquí."
