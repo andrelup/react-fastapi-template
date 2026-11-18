@@ -88,6 +88,15 @@ describe('items-api', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/items/search?q=c%C3%A1mara&page=1&page_size=20');
   });
 
+  it('does not accept an owner filter on the plain listing', async () => {
+    const { getItems } = await import('./items-api');
+
+    // @ts-expect-error `ownerId` belongs to `ItemSearchFilters`, not to `getItems`.
+    const call = () => getItems({ ownerId: 7 });
+
+    expect(call).toBeTypeOf('function');
+  });
+
   it('searches by owner without a text, sending no q', async () => {
     const { apiClient } = await import('@/lib/api-client');
     vi.mocked(apiClient.get).mockResolvedValueOnce(rawPage);

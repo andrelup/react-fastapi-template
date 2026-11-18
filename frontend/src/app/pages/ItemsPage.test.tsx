@@ -48,8 +48,7 @@ describe('ItemsPage', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/items?page=1&page_size=20');
   });
 
-  it('shows the owner view with mine=true and switches back without leaking state', async () => {
-    const user = userEvent.setup();
+  it('shows the owner view with mine=true', async () => {
     const { apiClient } = await import('@/lib/api-client');
 
     renderPage('/?mine=true');
@@ -58,9 +57,25 @@ describe('ItemsPage', () => {
     await waitFor(() =>
       expect(apiClient.get).toHaveBeenCalledWith('/items/search?owner_id=7&page=1&page_size=20'),
     );
+  });
+
+  it('starts the other view from scratch when switching, instead of leaking the search', async () => {
+    const user = userEvent.setup();
+
+    renderPage('/?mine=true');
+    const search = await screen.findByRole('searchbox', { name: 'Buscar en el catálogo' });
+    await user.type(search, 'cámara');
+    expect(search).toHaveValue('cámara');
 
     await user.click(screen.getByRole('link', { name: 'Todo' }));
 
     expect(await screen.findByRole('heading', { name: 'Catálogo' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' })).toHaveValue('');
+
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' }), 'radio');
+    await user.click(screen.getByRole('link', { name: 'Mis items' }));
+
+    expect(await screen.findByRole('heading', { name: 'Mis items' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Buscar en el catálogo' })).toHaveValue('');
   });
 });
