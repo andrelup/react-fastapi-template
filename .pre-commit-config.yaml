@@ -11,7 +11,7 @@
 # ------------------------- Backend (Python) -------------------------
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20
+    rev: v0.16.5
     hooks:
       - id: ruff-check
         files: ^backend/
@@ -20,25 +20,39 @@ repos:
         files: ^backend/
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
+    rev: v2.3.1
     hooks:
       - id: mypy
-        files: ^backend/src/
-        args: [--strict]
+        files: ^backend/.*\.py$
+        # Mismo alcance y configuración que el job `lint` de CI
+        # (`cd backend && mypy --strict .`): todo `backend/` y el [tool.mypy]
+        # de backend/pyproject.toml, que desde la raíz no se descubriría solo.
+        # `pass_filenames: false` evita que mypy vea solo los ficheros
+        # modificados, que daría un veredicto distinto del de CI.
+        args: [--config-file=backend/pyproject.toml, --strict, backend]
+        pass_filenames: false
+        require_serial: true
+        # Cada versión copia la de backend/pyproject.toml (dependencies y extra
+        # `dev`). `scripts/check_pin_drift.py` falla si dejan de coincidir.
         additional_dependencies:
-          - fastapi
-          - "sqlalchemy[asyncio]>=2.0"
-          - "pydantic>=2"
-          - pydantic-settings
-          - structlog
-          - asyncpg
-          - alembic
-          - "python-jose[cryptography]"
-          - "passlib[bcrypt]"
-          - "bcrypt<4.1"
-          - email-validator
-          - types-passlib
-          - types-python-jose
+          - "fastapi==0.141.1"
+          - "sqlalchemy[asyncio]==2.0.52"
+          - "pydantic==2.13.5"
+          - "pydantic-settings==2.15.0"
+          - "structlog==26.1.0"
+          - "asyncpg==0.31.0"
+          - "alembic==1.19.1"
+          - "python-jose[cryptography]==3.5.0"
+          - "passlib[bcrypt]==1.7.4"
+          - "bcrypt==4.0.1"
+          - "email-validator==2.3.0"
+          - "types-passlib==1.7.7.20260211"
+          - "types-python-jose==3.5.0.20260408"
+          # Tipadas que importan los tests, el seed y alembic.
+          - "pytest==9.1.1"
+          - "pytest-asyncio==1.4.0"
+          - "httpx==0.28.1"
+          - "faker==40.37.0"
 
 # ------------------------- Frontend (React) -------------------------
 # `pass_filenames: false` es intencionado: ESLint 9 con flat config resuelve
