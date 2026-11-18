@@ -149,11 +149,21 @@ class ItemService:
     def __init__(self, item_repository: ItemRepository) -> None:
         self._item_repository = item_repository  # el port, no la implementación
 
-    async def delete(self, seller: User, item_id: int) -> None:
-        self._ensure_seller(seller)  # regla de rol → ForbiddenError
+    async def update(self, item_id: int, changes: Item, current_user: User) -> Item:
         existing = await self._get_or_raise(item_id)  # → ItemNotFoundError
-        self._ensure_owner(seller, existing)  # regla de propiedad → ForbiddenError
-        await self._item_repository.delete(item_id)
+        self._ensure_may_write(existing, current_user)  # rol y propiedad, juntos
+        existing.name = changes.name
+        ...  # resto de campos
+        return await self._item_repository.save(existing)
+
+    @staticmethod
+    def _ensure_may_write(item: Item, user: User) -> None:
+        """ADMIN edita cualquiera; EDITOR solo lo suyo; VIEWER nada."""
+        if has_role(user, UserRole.ADMIN):  # regla de rol
+            return
+        if has_role(user, UserRole.EDITOR) and item.owner_id == user.id:  # rol + propiedad
+            return
+        raise ForbiddenError("You do not have permission to perform this action")
 ```
 
 ### Paso 5 — Modelo ORM → `adapters/outbound/persistence/sqlalchemy_models.py` (ampliar)
@@ -251,7 +261,7 @@ Chuleta de decisión — "quiero hacer X → el fichero va en Y":
 
 Pregúntate: **"¿esto seguiría siendo verdad si mañana cambiamos FastAPI por gRPC y PostgreSQL por Mongo?"**
 
-- *"Un seller solo puede editar sus propios artículos"* → sigue siendo verdad → **dominio**.
+- *"Un EDITOR solo puede editar sus propios items (el ADMIN, cualquiera)"* → sigue siendo verdad → **dominio**.
 - *"Un update sin permiso devuelve un 403 con envelope `{success, data, error}`"* → es HTTP → **adaptador inbound** (error handler).
 - *"La búsqueda usa `ILIKE` sobre nombre/descripción/categoría"* → es SQL → **adaptador outbound** (repositorio). El dominio solo sabe que existe `search(query, skip, limit)`.
 
