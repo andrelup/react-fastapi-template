@@ -244,15 +244,15 @@ igual en local y en CI.
 
 Los tests E2E existen (`make test-e2e`) pero **no corren en CI**: necesitan la
 API levantada y la base sembrada, así que de momento son un target manual.
-Las fases `build` y `security-scan` todavía no existen. Cada pendiente llega en
-su propia issue:
+La fase `security-scan` todavía no existe; cuando llegue, su job de Trivy
+construirá también las dos imágenes Docker, así que un `Dockerfile` roto saldrá
+en rojo. Las imágenes no se publican en ningún registro: nada las despliega.
+Cada pendiente llega en su propia issue:
 
 | Fase pendiente | Issue |
 |---|---|
 | E2E dentro del pipeline | #33 |
-| Escaneo de seguridad (CodeQL, gitleaks, Trivy) | #21 |
-| Build de imágenes Docker y publicación en GHCR | #22 |
-| Branch protection y checks obligatorios | #23 |
+| Escaneo de seguridad (CodeQL, gitleaks, Trivy) y build de las imágenes | #21 |
 
 ## Roadmap
 
