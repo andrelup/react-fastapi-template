@@ -48,9 +48,15 @@ Out of scope — hand back instead of doing it yourself:
 - `per-file-ignores` for `tests/**` (S101/S105/S106) and the docker-shelling
   integration conftest (S603/S607)
 
-**Backend — mypy**: `strict = true`, `python_version = "3.12"`. New third-party
-dependencies must be mirrored into the mypy hook's `additional_dependencies` in
-`.pre-commit-config.yaml`, otherwise the hook and the local run diverge.
+**Backend — mypy**: `strict = true`, `python_version = "3.12"`.
+
+**Backend hooks run the project's `.venv`.** `ruff-check`, `ruff-format` and `mypy` are
+`repo: local` hooks whose entry is `python scripts/run_in_venv.py <tool> …`: pre-commit does not
+put `.venv` on `PATH`, so the launcher calls the venv interpreter by path. `backend/pyproject.toml`
+is therefore the only list of versions — a new dependency or a bump goes there and nowhere else.
+Never add a remote `rev` or `additional_dependencies` for ruff or mypy: that recreates a second
+list that drifts. The mypy hook runs `mypy --strict .` from `backend/`, the CI `lint` command, with
+`pass_filenames: false`. See `docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
 
 **Frontend — ESLint 9 flat config**
 
@@ -76,7 +82,8 @@ Prettier owns formatting; ESLint must never re-implement a formatting rule.
   root, so `npm --prefix frontend` is what enters the right directory. Do not
   "fix" this by passing filenames.
 - `make lint` = `ruff check .` + `mypy .` in backend, then `npm --prefix frontend run lint`
-- `make install-hooks` = `npm --prefix frontend ci` + `pre-commit install`
+- `make install-hooks` = `npm --prefix frontend ci` + `pre-commit install`, run with the
+  `.venv` interpreter, so it needs `make setup` to have created the venv first
 
 ## Commands
 
@@ -90,7 +97,6 @@ cd backend && python -m mypy .              # strict type check
 npm --prefix frontend run typecheck         # tsc --noEmit
 npm --prefix frontend run format:check      # prettier in check mode
 pre-commit run --all-files                  # full hook sweep
-pre-commit autoupdate                       # bump hook revs
 ```
 
 ## Approach
@@ -106,9 +112,10 @@ pre-commit autoupdate                       # bump hook revs
   `pyproject.toml`. An unexplained ignore is a defect.
 - **One source of truth per concern.** Formatting → Prettier / `ruff format`.
   Import order → Ruff `I`. Types → mypy / tsc. Never duplicate a concern across tools.
-- **Pin versions.** pre-commit hook `rev`s are pinned; bump them deliberately with
-  `pre-commit autoupdate` and run `--all-files` afterwards to absorb the fallout in
-  a single commit.
+- **Pin versions in one place.** Every tool version lives in its project's manifest —
+  `backend/pyproject.toml` (`==` pins) or `frontend/package.json` — and the hooks run those
+  installed copies. Bump there, reinstall (`pip install -e ".[dev]"` / `npm ci`), and run
+  `pre-commit run --all-files` to absorb the fallout in the same commit.
 - **Keep the three entry points in sync**: local (`make lint`), hooks
   (`.pre-commit-config.yaml`) and CI must run the same checks with the same settings.
   A rule that only fires in one of them is a bug.
@@ -132,7 +139,7 @@ pre-commit autoupdate                       # bump hook revs
 - [ ] Every new ignore/suppression has a written justification
 - [ ] No bare `# noqa`, no `@ts-ignore`, no `eslint-disable` without a rule name
 - [ ] `eslint-config-prettier` is still the last entry in the flat config
-- [ ] New backend runtime deps mirrored into the mypy hook's `additional_dependencies`
+- [ ] New backend deps declared in `backend/pyproject.toml` only — no second list in the hooks
 - [ ] Local, hook and CI runs execute the same checks
 - [ ] No formatting rule duplicated between ESLint and Prettier
 

@@ -1,8 +1,10 @@
 # Pipeline de integración continua del backend (FastAPI).
 #
-# Se dispara solo cuando cambia `backend/**` o este mismo workflow: en un
-# monorepo, una PR que toca únicamente el frontend no debe pagar el coste de
-# levantar PostgreSQL ni de instalar las dependencias de Python.
+# Se dispara solo cuando cambia `backend/**`, este mismo workflow o
+# `scripts/run_in_venv.py`, el lanzador de los hooks de pre-commit del backend
+# (sus tests viven en `backend/tests/unit/`): en un monorepo, una PR que toca
+# únicamente el frontend no debe pagar el coste de levantar PostgreSQL ni de
+# instalar las dependencias de Python.
 #
 # Orden: lint -> test-backend. El umbral de cobertura (80%) NO se pasa por
 # línea de comandos: vive en `backend/pyproject.toml` ([tool.coverage.report]
@@ -14,12 +16,14 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
+      - 'scripts/run_in_venv.py'
   push:
     branches:
       - main
     paths:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
+      - 'scripts/run_in_venv.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

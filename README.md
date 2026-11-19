@@ -187,7 +187,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 
 ### Hooks de pre-commit
 
-`make setup` ya los instala. Si solo quieres esa parte (sin entorno virtual ni base de datos):
+`make setup` ya los instala. Si ya tienes el `.venv` y solo quieres esa parte (sin base de datos):
 
 ```bash
 make install-hooks
@@ -196,16 +196,22 @@ make install-hooks
 Instala las dependencias npm del frontend y engancha `pre-commit` en `.git/hooks/pre-commit`.
 A partir de ahí, cada `git commit` ejecuta automáticamente:
 
-| Hook                | Se dispara cuando cambian | Qué hace                                       |
-| ------------------- | ------------------------- | ---------------------------------------------- |
-| `ruff-check`        | `backend/`                | Lint de Python con autofix                     |
-| `ruff-format`       | `backend/`                | Formato de Python                              |
-| `mypy`              | `backend/src/`            | Tipado estricto                                |
-| `eslint (frontend)` | `frontend/src/*.ts(x)`    | `npm run lint` — falla con cualquier warning   |
-| `prettier (frontend)` | `frontend/`             | `npm run format:check`                         |
+| Hook                  | Se dispara cuando cambian                         | Qué hace                                      |
+| --------------------- | ------------------------------------------------- | --------------------------------------------- |
+| `ruff-check`          | un `.py` de `backend/`                            | Lint de Python con autofix                    |
+| `ruff-format`         | un `.py` de `backend/`                            | Formato de Python                             |
+| `mypy`                | un `.py` de `backend/` o `backend/pyproject.toml` | Tipado estricto de todo `backend/`, igual que CI |
+| `eslint (frontend)`   | `frontend/src/*.ts(x)`                            | `npm run lint` — falla con cualquier warning  |
+| `prettier (frontend)` | `frontend/`                                       | `npm run format:check`                        |
 
-Si Prettier se queja, `make format-front` lo arregla. Los hooks del frontend usan el ESLint y
-el Prettier de `frontend/node_modules`, así que las dependencias tienen que estar instaladas.
+Los hooks usan las herramientas ya instaladas en el proyecto: los del backend, el ruff y el mypy
+del `.venv`; los del frontend, el ESLint y el Prettier de `frontend/node_modules`. Por eso las
+versiones solo se declaran en `backend/pyproject.toml` y `frontend/package.json`: para añadir o
+subir una librería basta con cambiarla ahí y reinstalar (`pip install -e ".[dev]"` desde
+`backend/`, o `npm ci` desde `frontend/`). Hasta reinstalar, el hook sigue usando las versiones
+anteriores. Ver `docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
+
+Si Prettier se queja, `make format-front` lo arregla.
 
 ## Docker
 
