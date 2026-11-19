@@ -33,13 +33,14 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 | Write backend tests | `docs/backend-testing.md` |
 | Add a log line, or touch the logging config or middleware | `docs/backend-logging.md` |
 | Work on the sample catalogue, or remove it | `docs/the-example-domain.md` |
+| Record an architecture decision, or look up why one was taken | `docs/adr/README.md` — numbered ADRs, written in Spanish |
 
 `docs/README.md` is the index; consult it only if the table above does not resolve which document applies.
 
 ## Global conventions
 
 - Code language: English (variables, functions, classes, comments)
-- Documentation language, by audience: **Spanish** for what humans read — the four `README.md` files and the ADRs under `backend/docs/`; **English** for what agents read — `CLAUDE.md`, `docs/` and `.claude/`. UI copy is Spanish
+- Documentation language, by audience: **Spanish** for what humans read — the four `README.md` files, the ADRs in `docs/adr/` and the guide in `backend/docs/`; **English** for what agents read — `CLAUDE.md`, the rest of `docs/` and `.claude/`. UI copy is Spanish
 - Core versus example: the template's permanent core is the architecture (hexagonal backend, Bulletproof React frontend), the styles and design tokens, and auth (login, register). The sample catalogue (items, collections, tags) and the navigation entries that point at it are a replaceable example. Each layer keeps it in an `example/` folder (`backend/src/domain/services/example/`, `frontend/src/features/example/`, …); the dependency runs example → core, never the reverse, and the few core files that wire the sample in are listed in the removal procedure of `docs/the-example-domain.md`, which also explains the convention
 - Type hints / strict types are mandatory in both stacks
 - All code must have tests. Minimum coverage: 80%

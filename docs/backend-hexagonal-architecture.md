@@ -305,7 +305,7 @@ request's `role` straight through, so any caller can create an `admin`. That is 
 deliberately stops: the roles here simulate the mechanism, and the real policy (pin every signup to
 VIEWER, seed a root admin, invitations, an external IdP) belongs to the project built on top —
 there is no generic answer, and picking one here would only be something to undo. The reasoning is
-in `backend/docs/roles-y-registro-abierto.md`, and `test_register_honours_a_client_supplied_role`
+in `docs/adr/0003-roles-y-registro-abierto.md`, and `test_register_honours_a_client_supplied_role`
 pins the behaviour. Flag the gap if it matters to the task; never close it on your own initiative.
 
 **Every response uses the envelope** `ApiResponse[T]` from `schemas/common.py`:

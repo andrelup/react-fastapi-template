@@ -42,7 +42,7 @@ Elegir una por ti significaría que quien adopte la plantilla tiene que **deshac
 
 - El mecanismo de punta a punta: rol persistido, incluido en el token, expuesto en `/auth/me`, comprobado en el backend y en la SPA.
 - El sitio exacto donde enchufar la política: `register()` en `backend/src/adapters/inbound/api/auth_router.py` y el schema `RegisterRequest` en `backend/src/adapters/inbound/schemas/auth_schemas.py`.
-- La separación que sí es una regla del proyecto y conviene respetar: la autenticación responde *quién* es quien llama; *qué puede hacer* se decide en los servicios de dominio, nunca en el router (ver [arquitectura-hexagonal.md](./arquitectura-hexagonal.md)).
+- La separación que sí es una regla del proyecto y conviene respetar: la autenticación responde *quién* es quien llama; *qué puede hacer* se decide en los servicios de dominio, nunca en el router (ver [arquitectura-hexagonal.md](../../backend/docs/arquitectura-hexagonal.md)).
 
 ## Consecuencias
 

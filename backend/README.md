@@ -110,7 +110,7 @@ Documentación interactiva disponible en `http://localhost:8000/docs` (Swagger U
 mande el cliente, así que cualquiera puede crearse como `admin`. Es el punto donde la plantilla se
 detiene adrede, porque la política de alta cambia mucho de un proyecto a otro y no hay una forma
 genérica de resolverla. El razonamiento y las alternativas, en
-[docs/roles-y-registro-abierto.md](./docs/roles-y-registro-abierto.md).
+[docs/adr/0003-roles-y-registro-abierto.md](../docs/adr/0003-roles-y-registro-abierto.md).
 
 ## Testing
 
