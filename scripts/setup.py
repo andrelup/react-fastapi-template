@@ -130,9 +130,37 @@ def check_prerequisites(skip_front: bool) -> None:
     info(f"npm {out.strip() if code == 0 else '(version desconocida)'} OK")
 
 
+def env_keys(path: Path) -> set[str]:
+    """Variable names defined in a dotenv file; comments and blank lines are skipped."""
+    keys: set[str] = set()
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name = line.split("=", 1)[0].strip()
+        keys.add(name.removeprefix("export ").strip())
+    return keys
+
+
+def missing_env_keys(env_file: Path, example_file: Path) -> list[str]:
+    """Keys of the example that an existing .env lacks, sorted."""
+    return sorted(env_keys(example_file) - env_keys(env_file))
+
+
 def ensure_env_file() -> None:
     if ENV_FILE.exists():
         info(".env ya existe, no se toca")
+        # An old .env never receives the keys added to .env.example later, and
+        # some of them are required: say which ones instead of letting the
+        # backend or Vite fail on the first run.
+        if ENV_EXAMPLE.exists():
+            missing = missing_env_keys(ENV_FILE, ENV_EXAMPLE)
+            if missing:
+                warn(
+                    "al .env le faltan claves que si estan en .env.example: "
+                    f"{', '.join(missing)}. Copialas de .env.example y ajusta "
+                    "sus valores; las marcadas como OBLIGATORIA impiden arrancar."
+                )
         return
     if not ENV_EXAMPLE.exists():
         fail(f"no existe {ENV_EXAMPLE}, no se puede generar el .env")
@@ -249,7 +277,7 @@ def print_summary() -> None:
         "  make dev-front    -> SPA en http://localhost:3000\n"
         "\nOtros comandos:\n"
         "  make dev          -> solo PostgreSQL en Docker, lista para los de arriba\n"
-        "  make prod         -> stack completo con las imagenes de produccion\n"
+        "  make preview      -> stack completo en local con las imagenes de produccion\n"
         "  make test         -> tests de backend + frontend\n"
         "  make lint         -> ruff + mypy + eslint\n"
         "\nLos targets del Makefile llaman al .venv directamente, no hace falta "
