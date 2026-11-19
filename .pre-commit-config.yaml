@@ -4,41 +4,53 @@
 #
 # Instalación (una vez):
 #   make install-hooks
-# equivale a `npm --prefix frontend ci` + `pre-commit install`. Los hooks del
-# frontend usan el ESLint/Prettier de frontend/node_modules, así que las
-# dependencias npm tienen que estar instaladas para que el commit no falle.
+# equivale a `npm --prefix frontend ci` + `pre-commit install`, y necesita el
+# `.venv` que crea `make setup`. Los hooks usan las herramientas ya instaladas
+# en el proyecto: los del backend, el ruff y el mypy del `.venv`; los del
+# frontend, el ESLint y el Prettier de frontend/node_modules.
 
 # ------------------------- Backend (Python) -------------------------
+# ruff y mypy se ejecutan desde el `.venv` del proyecto, el que instala
+# `pip install -e ".[dev]"` a partir de backend/pyproject.toml. Esa es la única
+# lista de versiones, como frontend/package.json lo es para ESLint y Prettier:
+# añadir o subir una librería no obliga a tocar este fichero (ADR 0007).
+# pre-commit no pone el `.venv` en el PATH, así que `scripts/run_in_venv.py`
+# llama a su intérprete por ruta; `language: python` solo aporta un Python con
+# el que lanzar ese script, sin dependencias propias.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20
+  - repo: local
     hooks:
+      # `--force-exclude` y `require_serial` son los que fijaba ruff-pre-commit:
+      # el `exclude` de pyproject.toml se respeta aunque pre-commit pase el
+      # fichero de forma explícita.
       - id: ruff-check
+        name: ruff check (backend)
+        entry: python scripts/run_in_venv.py ruff check --fix --force-exclude
+        language: python
+        types_or: [python, pyi]
         files: ^backend/
-        args: [--fix]
-      - id: ruff-format
-        files: ^backend/
+        require_serial: true
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.1.0
-    hooks:
+      - id: ruff-format
+        name: ruff format (backend)
+        entry: python scripts/run_in_venv.py ruff format --force-exclude
+        language: python
+        types_or: [python, pyi]
+        files: ^backend/
+        require_serial: true
+
+      # El mismo comando que el job `lint` de CI (`cd backend && mypy --strict .`):
+      # todo `backend/` con su [tool.mypy]. `pass_filenames: false` evita que
+      # mypy vea solo los ficheros modificados. También se dispara al cambiar
+      # pyproject.toml, porque una subida de versión o un cambio en [tool.mypy]
+      # pueden romper el tipado sin tocar ningún .py.
       - id: mypy
-        files: ^backend/src/
-        args: [--strict]
-        additional_dependencies:
-          - fastapi
-          - "sqlalchemy[asyncio]>=2.0"
-          - "pydantic>=2"
-          - pydantic-settings
-          - structlog
-          - asyncpg
-          - alembic
-          - "python-jose[cryptography]"
-          - "passlib[bcrypt]"
-          - "bcrypt<4.1"
-          - email-validator
-          - types-passlib
-          - types-python-jose
+        name: mypy (backend)
+        entry: python scripts/run_in_venv.py --cwd backend mypy --strict .
+        language: python
+        files: ^backend/(.*\.pyi?|pyproject\.toml)$
+        pass_filenames: false
+        require_serial: true
 
 # ------------------------- Frontend (React) -------------------------
 # `pass_filenames: false` es intencionado: ESLint 9 con flat config resuelve

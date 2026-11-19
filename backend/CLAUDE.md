@@ -183,7 +183,10 @@ Note: `.pre-commit-config.yaml` lives at the **monorepo root** (git hooks are pe
 
 - Ruff as the single linter and formatter
 - mypy in strict mode
-- Pre-commit hooks: ruff check, ruff format, mypy
+- Pre-commit hooks: ruff check, ruff format, mypy. They run the ruff and mypy installed in the
+  project `.venv` (through `scripts/run_in_venv.py`), so `pyproject.toml` is the only place versions
+  live: add or bump a dependency there and reinstall, nothing else. The mypy hook runs the CI `lint`
+  command, `mypy --strict .`, over the whole of `backend/`
 
 ## What NOT to do
 
