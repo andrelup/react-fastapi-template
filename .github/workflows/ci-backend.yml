@@ -1,11 +1,10 @@
 # Pipeline de integración continua del backend (FastAPI).
 #
-# Se dispara solo cuando cambia `backend/**`, `.pre-commit-config.yaml` (la
-# comprobación de deriva compara sus versiones con `backend/pyproject.toml`),
-# el propio `scripts/check_pin_drift.py` (sus tests viven en `backend/tests/`) o
-# este mismo workflow: en un monorepo, una PR que toca únicamente el frontend
-# no debe pagar el coste de levantar PostgreSQL ni de instalar las dependencias
-# de Python.
+# Se dispara solo cuando cambia `backend/**`, este mismo workflow o
+# `scripts/run_in_venv.py`, el lanzador de los hooks de pre-commit del backend
+# (sus tests viven en `backend/tests/unit/`): en un monorepo, una PR que toca
+# únicamente el frontend no debe pagar el coste de levantar PostgreSQL ni de
+# instalar las dependencias de Python.
 #
 # Orden: lint -> test-backend. El umbral de cobertura (80%) NO se pasa por
 # línea de comandos: vive en `backend/pyproject.toml` ([tool.coverage.report]
@@ -17,16 +16,14 @@ on:
     paths:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
-      - '.pre-commit-config.yaml'
-      - 'scripts/check_pin_drift.py'
+      - 'scripts/run_in_venv.py'
   push:
     branches:
       - main
     paths:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
-      - '.pre-commit-config.yaml'
-      - 'scripts/check_pin_drift.py'
+      - 'scripts/run_in_venv.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -58,13 +55,6 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e ".[dev]"
-
-      # Las versiones de los hooks de pre-commit se copian a mano de
-      # pyproject.toml (ADR 0007); si dejan de coincidir, el hook local y este
-      # job darían veredictos distintos. PyYAML llega con `pre-commit`, que es
-      # una dependencia `dev` fijada.
-      - name: Check pre-commit pins match pyproject
-        run: python ../scripts/check_pin_drift.py
 
       - name: Ruff check
         run: ruff check .
