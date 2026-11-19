@@ -1,8 +1,9 @@
 # Pipeline de integración continua del backend (FastAPI).
 #
-# Se dispara solo cuando cambia `backend/**`, este mismo workflow o
-# `scripts/run_in_venv.py`, el lanzador de los hooks de pre-commit del backend
-# (sus tests viven en `backend/tests/unit/`): en un monorepo, una PR que toca
+# Se dispara solo cuando cambia `backend/**`, este mismo workflow,
+# `scripts/run_in_venv.py` (el lanzador de los hooks de pre-commit del backend)
+# o `scripts/setup.py` (el de `make setup`), cuyos tests viven en
+# `backend/tests/unit/`: en un monorepo, una PR que toca
 # únicamente el frontend no debe pagar el coste de levantar PostgreSQL ni de
 # instalar las dependencias de Python.
 #
@@ -17,6 +18,7 @@ on:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
       - 'scripts/run_in_venv.py'
+      - 'scripts/setup.py'
   push:
     branches:
       - main
@@ -24,6 +26,7 @@ on:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
       - 'scripts/run_in_venv.py'
+      - 'scripts/setup.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -89,20 +92,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    # `src/config/settings.py` instancia `Settings()` en tiempo de import y
-    # `db_password` / `jwt_secret_key` no tienen valor por defecto: sin estas
-    # variables la propia recolección de tests reventaría al importar. En CI no
-    # existe el `.env` de la raíz, así que el entorno es la única fuente.
-    # No son secretos: apuntan al contenedor efímero `services.postgres`, que
-    # solo vive dentro de este job y no es accesible desde fuera del runner.
-    env:
-      DB_HOST: localhost
-      DB_PORT: '5432'
-      DB_USERNAME: admin
-      DB_PASSWORD: admin
-      DB_NAME: react-fastapi-template
-      JWT_SECRET_KEY: ci-only-not-a-real-secret
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -116,6 +105,24 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e ".[dev]"
+
+      # La configuración sale del secret de Actions `CI_DOTENV`, que el
+      # mantenedor crea a mano con el contenido de un `.env`: valores de
+      # mentira y las mismas credenciales que el servicio `postgres` de arriba,
+      # que solo vive dentro de este job. Se vuelca al `.env` de la raíz, el
+      # mismo fichero que lee `src/config/settings.py` en local; sin él la
+      # recolección de tests revienta, porque `Settings()` se instancia al
+      # importar y las direcciones y los secretos no tienen valor por defecto.
+      - name: Write .env from the CI secret
+        working-directory: .
+        env:
+          CI_DOTENV: ${{ secrets.CI_DOTENV }}
+        run: |
+          if [ -z "$CI_DOTENV" ]; then
+            echo "::error::Falta el secret CI_DOTENV (o está vacío): créalo en Settings > Secrets and variables > Actions con el contenido de un .env para CI, partiendo de .env.example"
+            exit 1
+          fi
+          printf '%s\n' "$CI_DOTENV" > .env
 
       # `tests/conftest.py` abre sesiones contra la BD real y da por hecho que
       # la tabla `users` ya existe, de ahí que las migraciones vayan antes.
