@@ -123,7 +123,7 @@ def check_prerequisites(skip_front: bool) -> None:
     npm = tool("npm")
     if npm is None:
         fail(
-            "no se encuentra `npm` en el PATH. Instala Node.js 20+ "
+            "no se encuentra `npm` en el PATH. Instala Node.js 24 (ver `frontend/.nvmrc`) "
             '(https://nodejs.org) o lanza `make setup ARGS="--skip-front"`.'
         )
     code, out = capture([npm, "--version"])

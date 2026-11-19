@@ -38,14 +38,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # El repo no fija la versión de Node (no hay `engines`, `.nvmrc` ni
-      # `packageManager`), así que se pinta aquí la misma que usa
-      # `frontend/Dockerfile` (node:24-alpine) para que local, Docker y CI
-      # compilen con el mismo runtime.
+      # Falla pronto si `engines.node` o el ARG del Dockerfile se desvían de
+      # `.nvmrc`, la fuente de la versión de Node.
+      - name: Check Node version consistency
+        run: |
+          major="$(tr -d '[:space:]v' < .nvmrc)"
+          docker_default="$(sed -n 's/^ARG NODE_VERSION=//p' Dockerfile | head -n1)"
+          engines="$(sed -n 's/.*"node": *"\([^"]*\)".*/\1/p' package.json | head -n1)"
+          status=0
+          if [ "$docker_default" != "$major" ]; then
+            echo "::error file=frontend/Dockerfile::ARG NODE_VERSION=$docker_default does not match .nvmrc ($major)"
+            status=1
+          fi
+          if [ "$engines" != "^$major" ]; then
+            echo "::error file=frontend/package.json::engines.node is '$engines', expected '^$major' (from .nvmrc)"
+            status=1
+          fi
+          exit "$status"
+
+      # La versión de Node sale de `frontend/.nvmrc` (la ruta es relativa a la
+      # raíz del repo, no a `working-directory`). `engines` y el ARG del
+      # Dockerfile la repiten; el paso anterior comprueba que coinciden.
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -76,7 +93,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version-file: frontend/.nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 

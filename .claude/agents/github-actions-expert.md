@@ -33,7 +33,7 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 **Frontend** (`frontend/package.json`):
 - npm (`package-lock.json`). No pnpm, no yarn
 - Real scripts: `dev`, `build` (`tsc --noEmit && vite build`), `preview`, `lint` (`eslint src e2e --max-warnings=0`), `lint:fix`, `format`, `format:check`, `typecheck`, `test` (`vitest run`), `test:watch`, `test:coverage`, `test:e2e` (`playwright test`)
-- **No `engines`, no `.nvmrc`, no `packageManager`** → the Node version is unpinned in the repo and the workflows pin `node-version: '24'` themselves. Issue #27 is open to move it to a single source
+- **`frontend/.nvmrc` is the single source of the Node version** (`24`). Both CI jobs read it with `node-version-file: frontend/.nvmrc`; `engines.node` (`^24`) and the Dockerfile's `ARG NODE_VERSION` repeat it, and a step in the `lint` job of `ci-frontend.yml` fails if they drift. No `packageManager`. See `docs/adr/0008-version-de-node-en-un-unico-sitio.md`
 - Vitest is configured inside `vite.config.ts`, not a separate config, **with coverage thresholds at 80** for statements, lines, branches and functions. `test.exclude` keeps Vitest away from `e2e/**` — do not remove it, or `make test-front` will try to run the Playwright specs
 
 **E2E** — Playwright is wired: `frontend/playwright.config.ts`, specs in `frontend/e2e/tests/`, page objects in `frontend/e2e/page-objects/`, and `make test-e2e` runs it for real. Its `webServer` starts the SPA itself, but it still needs a running API and a seeded database, so **it is not a drop-in CI job**: decide explicitly how to provide both before adding one.
