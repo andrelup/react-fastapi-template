@@ -101,7 +101,8 @@ visible, `--squash` collapses it into a single commit.
 
 ## Makefile (root)
 
-All commands run from the monorepo root:
+All commands run from the monorepo root, on the developer's machine. None of them deploys
+anything (see Deployment below):
 
 ```
 make setup        → getting started: venv, deps, hooks, DB, migrations, seed
@@ -145,9 +146,23 @@ make build        → docker build of both images (build only, no run)
   single maintainer who pushes to `main` directly; and publishing images to GHCR
   (#22), because nothing deploys them
 
+## Deployment
+
+The template deploys nothing. Until it becomes a real project, the job is to make that move
+smooth: production-grade images, configuration that comes from each environment's `.env`, and CI
+that checks the images build.
+
+- **`make` is local only.** Every target tests or runs the platform on the developer's machine,
+  and none of them deploys, now or later. `make prod` is a smoke test, and `make build` only
+  builds images, even when it builds them for another environment (#85)
+- **Deploying will be CI's job.** When a project created from the template goes public, that
+  project adds a deploy workflow: publishing the images and releasing them to its platform. Until
+  then, no Make target, script or workflow in this repo deploys or publishes anything
+
 ## What NOT to do
 
 - Do not import code directly between `backend/` and `frontend/` — they are independent projects connected by a REST API
 - Do not install global dependencies — each subdirectory manages its own
 - Do not commit without the pre-commit hooks passing
+- Do not add a Make target, script or workflow step that deploys or publishes images — see Deployment
 - Do not use `print()` for debugging — use the configured logging system (structlog in the backend; see `docs/backend-logging.md`)
