@@ -4,69 +4,53 @@
 #
 # Instalación (una vez):
 #   make install-hooks
-# equivale a `npm --prefix frontend ci` + `pre-commit install`. Los hooks del
-# frontend usan el ESLint/Prettier de frontend/node_modules, así que las
-# dependencias npm tienen que estar instaladas para que el commit no falle.
+# equivale a `npm --prefix frontend ci` + `pre-commit install`, y necesita el
+# `.venv` que crea `make setup`. Los hooks usan las herramientas ya instaladas
+# en el proyecto: los del backend, el ruff y el mypy del `.venv`; los del
+# frontend, el ESLint y el Prettier de frontend/node_modules.
 
 # ------------------------- Backend (Python) -------------------------
+# ruff y mypy se ejecutan desde el `.venv` del proyecto, el que instala
+# `pip install -e ".[dev]"` a partir de backend/pyproject.toml. Esa es la única
+# lista de versiones, como frontend/package.json lo es para ESLint y Prettier:
+# añadir o subir una librería no obliga a tocar este fichero (ADR 0007).
+# pre-commit no pone el `.venv` en el PATH, así que `scripts/run_in_venv.py`
+# llama a su intérprete por ruta; `language: python` solo aporta un Python con
+# el que lanzar ese script, sin dependencias propias.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.5
-    hooks:
-      - id: ruff-check
-        files: ^backend/
-        args: [--fix]
-      - id: ruff-format
-        files: ^backend/
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v2.3.1
-    hooks:
-      - id: mypy
-        files: ^backend/.*\.py$
-        # Mismo alcance y configuración que el job `lint` de CI
-        # (`cd backend && mypy --strict .`): todo `backend/` y el [tool.mypy]
-        # de backend/pyproject.toml, que desde la raíz no se descubriría solo.
-        # `pass_filenames: false` evita que mypy vea solo los ficheros
-        # modificados, que daría un veredicto distinto del de CI.
-        args: [--config-file=backend/pyproject.toml, --strict, backend]
-        pass_filenames: false
-        require_serial: true
-        # Cada versión copia la de backend/pyproject.toml (dependencies y extra
-        # `dev`). `scripts/check_pin_drift.py` falla si dejan de coincidir.
-        additional_dependencies:
-          - "fastapi==0.141.1"
-          - "sqlalchemy[asyncio]==2.0.52"
-          - "pydantic==2.13.5"
-          - "pydantic-settings==2.15.0"
-          - "structlog==26.1.0"
-          - "asyncpg==0.31.0"
-          - "alembic==1.19.1"
-          - "python-jose[cryptography]==3.5.0"
-          - "passlib[bcrypt]==1.7.4"
-          - "bcrypt==4.0.1"
-          - "email-validator==2.3.0"
-          - "types-passlib==1.7.7.20260211"
-          - "types-python-jose==3.5.0.20260408"
-          # Tipadas que importan los tests, el seed y alembic.
-          - "pytest==9.1.1"
-          - "pytest-asyncio==1.4.0"
-          - "httpx==0.28.1"
-          - "faker==40.37.0"
-
-  # Deriva de versiones: los hooks de ruff y mypy son repos remotos y sus
-  # versiones se copian a mano de backend/pyproject.toml. Este hook falla si
-  # las copias dejan de coincidir (ADR 0007). `language: python` crea un
-  # entorno aislado propio (con PyYAML), así que no depende del PATH ni del .venv.
   - repo: local
     hooks:
-      - id: check-pin-drift
-        name: pre-commit pins match pyproject
-        entry: python scripts/check_pin_drift.py
+      # `--force-exclude` y `require_serial` son los que fijaba ruff-pre-commit:
+      # el `exclude` de pyproject.toml se respeta aunque pre-commit pase el
+      # fichero de forma explícita.
+      - id: ruff-check
+        name: ruff check (backend)
+        entry: python scripts/run_in_venv.py ruff check --fix --force-exclude
         language: python
-        additional_dependencies: ["pyyaml==6.0.3"]
-        files: ^(\.pre-commit-config\.yaml|backend/pyproject\.toml|scripts/check_pin_drift\.py)$
+        types_or: [python, pyi]
+        files: ^backend/
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff format (backend)
+        entry: python scripts/run_in_venv.py ruff format --force-exclude
+        language: python
+        types_or: [python, pyi]
+        files: ^backend/
+        require_serial: true
+
+      # El mismo comando que el job `lint` de CI (`cd backend && mypy --strict .`):
+      # todo `backend/` con su [tool.mypy]. `pass_filenames: false` evita que
+      # mypy vea solo los ficheros modificados. También se dispara al cambiar
+      # pyproject.toml, porque una subida de versión o un cambio en [tool.mypy]
+      # pueden romper el tipado sin tocar ningún .py.
+      - id: mypy
+        name: mypy (backend)
+        entry: python scripts/run_in_venv.py --cwd backend mypy --strict .
+        language: python
+        files: ^backend/(.*\.pyi?|pyproject\.toml)$
         pass_filenames: false
+        require_serial: true
 
 # ------------------------- Frontend (React) -------------------------
 # `pass_filenames: false` es intencionado: ESLint 9 con flat config resuelve
