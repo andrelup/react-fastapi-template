@@ -100,7 +100,7 @@ make seed                             # datos de ejemplo
 ```
 
 Docker se usa solo para la base de datos: el backend corre nativo en el host con `make dev-back`.
-Para ver el stack completo con las imágenes de producción, `make prod`.
+Para ver en local el stack completo con las imágenes de producción, `make preview`.
 
 Los targets del Makefile invocan el intérprete de `.venv` por ruta, así que no requieren tenerlo activado.
 

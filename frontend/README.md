@@ -79,10 +79,13 @@ contiene el catálogo de ejemplo (`items/` y `collections/`, con la misma estruc
 
 ## API Client
 
-- Un único `lib/api-client.ts` con la baseURL configurable:
+- Un único `lib/api-client.ts`, con la baseURL tomada del `.env` de la raíz del repo y sin valor
+  por defecto:
   ```typescript
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_BASE_URL: string = requireApiUrl(import.meta.env);
   ```
+  `requireApiUrl` (`lib/env.ts`) falla si falta la URL, y `vite.config.ts` la usa también para que
+  `vite`, `vite build` y `vitest` no arranquen sin ella.
 - Todas las llamadas al backend pasan por este client; el token JWT se inyecta automáticamente desde el `AuthContext`.
 - Respuestas tipadas con generics: `ApiResponse<Item>`, `ApiResponse<Item[]>`.
 

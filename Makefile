@@ -1,6 +1,10 @@
 # Comandos unificados del monorepo react-fastapi-template.
 # Todos se ejecutan desde la raiz del repo.
 #
+# Todos prueban o ejecutan la plataforma en el equipo local, y ninguno publica
+# ni despliega nada. Desplegar sera trabajo de CI cuando un proyecto creado
+# desde la plantilla salga a internet.
+#
 # Primer contacto con el repo:
 #   make setup      deja el entorno local listo para trabajar (una sola vez)
 #   make dev-back   API con hot reload  (terminal 1)
@@ -24,11 +28,20 @@ endif
 #   make setup ARGS="--skip-db"
 ARGS ?=
 
+# Entorno para el que `make build` construye las imagenes, p. ej.:
+#   make build ENV=staging
+# Sin ENV lee el .env y etiqueta :latest; con ENV lee el .env.<entorno> y
+# etiqueta :<entorno>. Solo lo usa `build`: el resto de comandos lee siempre
+# el .env.
+ENV ?=
+BUILD_ENV_FILE := $(if $(ENV),.env.$(ENV),.env)
+BUILD_TAG := $(if $(ENV),$(ENV),latest)
+
 .DEFAULT_GOAL := help
 
 .PHONY: help setup install-hooks dev dev-back dev-front \
         test test-back test-front test-e2e lint lint-front format-front \
-        migrate seed build prod
+        migrate seed build preview
 
 ## help: lista los comandos disponibles.
 help:
@@ -37,7 +50,7 @@ help:
 	@echo   make dev-back     backend con hot reload en el host, puerto 8000
 	@echo   make dev-front    frontend con hot reload en el host, puerto 3000
 	@echo   make dev          solo PostgreSQL en Docker, lista para dev-back/dev-front
-	@echo   make prod         stack completo con las imagenes de produccion
+	@echo   make preview      stack completo en local con las imagenes de produccion
 	@echo   make migrate      alembic upgrade head
 	@echo   make seed         datos de ejemplo en la base de datos
 	@echo   make test         tests de backend + frontend
@@ -48,7 +61,8 @@ help:
 	@echo   make lint-front   solo eslint
 	@echo   make format-front reescribe el frontend con Prettier
 	@echo   make install-hooks solo los hooks de git
-	@echo   make build        imagenes Docker de backend y frontend
+	@echo   make build        imagenes Docker de backend y frontend, sin arrancarlas
+	@echo                     ENV=staging las construye con el .env.staging
 
 ## setup: getting started completo. Idempotente, se puede relanzar sin miedo.
 ## Crea el .env, el entorno virtual, instala backend + frontend + hooks de
@@ -71,7 +85,7 @@ install-hooks:
 ## donde el hot reload funciona de verdad y donde no hace falta montar el
 ## codigo fuente dentro de un contenedor.
 ##
-## Para parar los contenedores (esta BD o el stack de `make prod`), desde
+## Para parar los contenedores (esta BD o el stack de `make preview`), desde
 ## infra/: docker compose --env-file ../.env --profile prod down
 dev:
 	cd infra && docker compose --env-file ../.env up -d postgres
@@ -129,23 +143,34 @@ migrate:
 seed:
 	cd backend && $(BACKEND_PYTHON) seed.py
 
-## prod: el stack completo con las imagenes de produccion (PostgreSQL +
-## backend + frontend). Sin hot reload, sin volumenes con el codigo y sin root:
-## es exactamente lo que se despliega, util como prueba de humo antes de subir.
-## La SPA queda en http://localhost:3000 y la API en http://localhost:8000.
+## preview: levanta en local el stack completo con las imagenes de produccion
+## (PostgreSQL + backend + frontend) y los valores del .env, como prueba de
+## humo. Sin hot reload, sin volumenes con el codigo y sin root: son las mismas
+## imagenes que se desplegarian. La SPA queda en http://localhost:3000 y la API
+## en http://localhost:8000. Usa siempre el .env y la etiqueta :latest, nunca
+## las imagenes de otro entorno.
 ##
 ## Arranca en background: la terminal queda libre en vez de quedarse enganchada
 ## a los logs de los tres contenedores. Para verlos, desde infra/:
 ## docker compose --env-file ../.env --profile prod logs -f
-prod:
+preview: export IMAGE_TAG := latest
+preview:
 	cd infra && docker compose --env-file ../.env --profile prod up -d --build
-	@echo Stack de produccion levantado:
+	@echo Stack de produccion levantado en local:
 	@echo   SPA en http://localhost:3000
 	@echo   API en http://localhost:8000/docs
 
-## build: construye las imagenes Docker de produccion de backend y frontend y
-## las etiqueta. `make prod` ademas las levanta; esto solo las construye, que es
-## lo que necesita la publicacion en un registro.
+## build: construye las imagenes de produccion de backend y frontend a traves
+## de compose, con los valores del env-file, y no arranca nada. Sin ENV lee el
+## .env y las etiqueta como :latest; con ENV=<entorno> (make build ENV=staging)
+## lee el .env.<entorno> y las etiqueta como :<entorno>, para que las de un
+## entorno no pisen las de otro.
+##
+## Las de otro entorno solo sirven para comprobar que el build funciona con sus
+## valores: no se arrancan en local, porque el navegador llamaria a la API de
+## ese entorno y su CORS rechazaria las peticiones. Ni este comando ni ningun
+## otro las publica en un registro ni las despliega.
+build: export IMAGE_TAG := $(BUILD_TAG)
 build:
-	docker build -t fastapi-template ./backend
-	docker build -t react-template ./frontend
+	cd infra && docker compose --env-file ../$(BUILD_ENV_FILE) --profile prod build
+	@echo Imagenes construidas con $(BUILD_ENV_FILE): fastapi-template:$(BUILD_TAG) y react-template:$(BUILD_TAG)

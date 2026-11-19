@@ -179,10 +179,14 @@ Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` wit
 
 ## API Client
 
-- A single `api-client.ts` in `lib/` with the base configuration:
+- A single `api-client.ts` in `lib/`, with the base URL read from the repo-root `.env` and no
+  default:
   ```typescript
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  const API_BASE_URL: string = requireApiUrl(import.meta.env);
   ```
+  `requireApiUrl` (`lib/env.ts`) throws when the URL is missing; `vite.config.ts` calls it too, so
+  `vite`, `vite build` and `vitest` refuse to start without it. Vite's `envDir` is the repo root:
+  there is no `frontend/.env`
 - Every backend call goes through this client.
 - The JWT token is injected automatically from the AuthContext.
 - Responses typed with generics: `ApiResponse<Item>`, `ApiResponse<Item[]>`.
