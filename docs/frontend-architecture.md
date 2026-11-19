@@ -125,8 +125,16 @@ Every call to the backend goes through **`lib/api-client.ts`**, which is the onl
 codebase allowed to call `fetch`.
 
 ```ts
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE_URL: string = requireApiUrl(import.meta.env);
 ```
+
+The URL has **no default**. It comes from the repo-root `.env` (`envDir` in `vite.config.ts` points
+there; there is no `frontend/.env`) or, in a Docker build, from the `VITE_API_URL` build arg.
+`requireApiUrl` in `lib/env.ts` throws when it is missing or blank, and `vite.config.ts` calls it
+before anything starts, so `vite`, `vite build` and `vitest` fail with a message naming the
+variable instead of calling `localhost`. A relative path such as `/api` is valid. `lib/env.ts`
+imports nothing and never reads `import.meta.env` itself, because the Vite config loads it before
+any alias or env exists.
 
 `request<T>()` does all of the following once, so callers never repeat it:
 

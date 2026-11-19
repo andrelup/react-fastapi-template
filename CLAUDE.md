@@ -93,7 +93,15 @@ visible, `--squash` collapses it into a single commit.
   frontend keeps port 80 by granting the nginx binary `CAP_NET_BIND_SERVICE`
   instead of running its master process as root
 - `VITE_API_URL` is a **build arg**, not a runtime variable: Vite bakes the API
-  URL into the bundle at build time
+  URL into the bundle at build time. It has no default anywhere, so a plain
+  `docker build ./frontend` without `--build-arg VITE_API_URL=…` fails on purpose
+- No address has a default in the compose file: the API URL, the CORS origins
+  and the DB port use `${VAR:?…}`, like the credentials. Compose interpolates
+  the whole file before doing anything, so every command needs a complete
+  env-file, even `make build`. The backend service's `DB_HOST: postgres` stays
+  fixed: it is the service name on the Docker network
+- The images have fixed names, `fastapi-template` and `react-template`, tagged
+  `${IMAGE_TAG:-latest}`; only `make build ENV=<env>` changes the tag
 - `docker compose down` does **not** stop services that belong to a profile —
   `--profile prod` is required. There is no Make target for stopping: it is run
   by hand from `infra/`
@@ -109,7 +117,7 @@ make setup        → getting started: venv, deps, hooks, DB, migrations, seed
 make dev-back     → backend on the host with hot reload (port 8000)
 make dev-front    → frontend on the host with hot reload (port 3000)
 make dev          → only PostgreSQL in Docker, detached; then run dev-back / dev-front on the host
-make prod         → build and run the production stack, detached (smoke test)
+make preview      → build and run the production stack locally with .env, detached (smoke test)
 make test         → backend (pytest) + frontend (vitest) tests
 make test-back    → backend tests only (pytest)
 make test-front   → frontend tests only (vitest)
@@ -117,13 +125,26 @@ make test-e2e     → playwright tests (needs the API running and the DB seeded)
 make lint         → backend + frontend linters
 make migrate      → alembic upgrade head
 make seed         → data seeding script
-make build        → docker build of both images (build only, no run)
+make build        → build both images through compose with .env, tagged :latest (no run)
+make build ENV=x  → same with .env.x, tagged :x — never run locally, never pushed
 ```
+
+`make dev`, `make preview` and every other target always read `.env`; only `make build` takes
+`ENV`. Images built for another environment only prove that the build works with its values:
+running them locally would make the browser call that environment's API, whose CORS rejects
+`localhost`.
 
 ## Secrets and configuration
 
-- Environment variables in `.env` (not versioned)
-- `.env.example` is versioned, with every required variable and example values
+- Environment variables in `.env` (not versioned), the single config file for the backend, Vite
+  (`envDir` points at the repo root) and compose. Other environments get `.env.staging` and
+  `.env.prod`, never versioned either; never `.env.production`, which Vite would load by itself
+- `.env.example` is versioned, with every required variable and example values; the required
+  ones are marked `OBLIGATORIA`. `make setup` warns when an existing `.env` lacks one of its keys
+- No defaults for addresses: the API URL, the CORS origins and the DB host and port are required
+  in `backend/src/config/settings.py`, `frontend/src/lib/env.ts` (checked by `vite.config.ts`
+  before `vite`, `vite build` or `vitest` start) and the compose file. A missing one stops the
+  platform with a message naming it, instead of falling back to `localhost`
 - Never hardcode secrets, database URLs, API keys or tokens in the code
 
 ## CI/CD
@@ -135,6 +156,12 @@ make build        → docker build of both images (build only, no run)
   `pytest --cov=src`)
 - `ci-frontend.yml`: `lint` (eslint, prettier, tsc --noEmit)
   → `test-frontend` (vitest with coverage)
+- CI reads nobody's `.env`. Its values, all fake, come from the Actions secret
+  `CI_DOTENV`, which holds a whole `.env` and is created by hand by the
+  maintainer, never by an agent. `test-backend` and `test-frontend` write it to
+  the root `.env` and fail with a clear error if it is missing. Dependabot PRs
+  (#16) cannot read Actions secrets: the same secret must also exist under
+  Dependabot secrets
 - Quality gate: linters, strict types and coverage thresholds. Thresholds live
   in each project's config (`backend/pyproject.toml` →
   `[tool.coverage.report] fail_under = 80`; `frontend/vite.config.ts` →
@@ -153,7 +180,7 @@ smooth: production-grade images, configuration that comes from each environment'
 that checks the images build.
 
 - **`make` is local only.** Every target tests or runs the platform on the developer's machine,
-  and none of them deploys, now or later. `make prod` is a smoke test, and `make build` only
+  and none of them deploys, now or later. `make preview` is a smoke test, and `make build` only
   builds images, even when it builds them for another environment (#85)
 - **Deploying will be CI's job.** When a project created from the template goes public, that
   project adds a deploy workflow: publishing the images and releasing them to its platform. Until

@@ -118,16 +118,16 @@ make dev-front   # SPA      → http://localhost:3000
 
 Los targets del Makefile llaman al intérprete de `.venv` por ruta, así que **no hace falta activar el entorno virtual**. Para lanzar comandos a mano sí conviene: `.venv\Scripts\Activate.ps1` (Windows) o `source .venv/bin/activate` (Linux/macOS).
 
-### Stack de producción
+### Stack de producción en local
 
-Para ver la aplicación funcionando tal y como se despliega, sin hot reload ni código montado por volúmenes:
+Para ver la aplicación funcionando con las imágenes que se desplegarían, sin hot reload ni código montado por volúmenes:
 
 ```bash
 cp .env.example .env
-make prod
+make preview
 ```
 
-Construye y levanta las tres imágenes (PostgreSQL + backend + frontend) con el perfil `prod` de Compose: la SPA en <http://localhost:3000> y la API en <http://localhost:8000>, ambas corriendo como usuario no root. Es la prueba de humo antes de publicar, no el entorno de trabajo diario.
+Construye y levanta en local las tres imágenes (PostgreSQL + backend + frontend) con el perfil `prod` de Compose y los valores del `.env`: la SPA en <http://localhost:3000> y la API en <http://localhost:8000>, ambas corriendo como usuario no root. Es una prueba de humo, no el entorno de trabajo diario, y no despliega nada.
 
 Igual que `make dev`, arranca en **background** y no vuelca los logs de los contenedores en la terminal. Para verlos: `cd infra && docker compose --env-file ../.env --profile prod logs -f`.
 
@@ -143,9 +143,21 @@ docker compose --env-file ../.env --profile prod down -v   # borra también el v
 
 El `--profile prod` es **imprescindible**: sin él, `down` deja en marcha los servicios que pertenecen a un perfil.
 
+### Entornos
+
+Toda URL o dirección que necesita la plataforma —la URL de la API, los orígenes CORS, y el host y el puerto de la base de datos— vive en el `.env` de cada entorno. El código no trae valores por defecto: si falta alguna, el backend, Vite y Docker Compose se niegan a arrancar con un mensaje que dice cuál falta, en lugar de apuntar a `localhost` en silencio. En `.env.example` van marcadas como `OBLIGATORIA`.
+
+- **Local:** `.env`, creado desde `.env.example` por `make setup`. Si tu `.env` es anterior a una clave nueva, `make setup` te avisa de las que le faltan.
+- **Staging y producción:** `.env.staging` y `.env.prod`, creados también desde `.env.example`. Nunca se versionan. No se usa `.env.production` porque Vite lo cargaría por su cuenta en cada build.
+- **CI:** no lee el `.env` de nadie. Sus valores, todos de mentira, salen de un secret de GitHub Actions que el mantenedor crea a mano.
+
+`make build ENV=staging` (o `ENV=prod`) construye las imágenes con los valores de ese fichero y las etiqueta como `:staging` (o `:prod`), para que no pisen las de otro entorno. Sirve para comprobar que el build funciona con esos valores; **esas imágenes no se arrancan en local**, porque el navegador llamaría a la API de ese entorno y su CORS rechazaría las peticiones. `make dev` y `make preview` usan siempre el `.env`.
+
+**Ningún comando de `make` despliega ni publica imágenes:** todos prueban o ejecutan la plataforma en tu equipo. Desplegar será trabajo de CI cuando un proyecto creado desde esta plantilla salga a internet.
+
 ## Comandos (Makefile)
 
-Todos los comandos se ejecutan desde la raíz del monorepo:
+Todos los comandos se ejecutan desde la raíz del monorepo y solo prueban o ejecutan la plataforma en local; ninguno despliega:
 
 | Comando              | Descripción                                     |
 | -------------------- | ----------------------------------------------- |
@@ -154,7 +166,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 | `make dev-back`      | Backend en el host con hot reload (puerto 8000)  |
 | `make dev-front`     | Frontend en el host con hot reload (puerto 3000) |
 | `make dev`           | Solo PostgreSQL en Docker, en background        |
-| `make prod`          | Stack completo con las imágenes de producción   |
+| `make preview`       | Stack completo en local con las imágenes de producción (prueba de humo) |
 | `make install-hooks` | Instala deps de npm del frontend + hooks de git |
 | `make test`       | Tests de backend (pytest) + frontend (vitest)   |
 | `make test-back`  | Solo tests del backend (pytest)                 |
@@ -165,7 +177,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo:
 | `make format-front` | Reformatea el frontend con Prettier           |
 | `make migrate`    | `alembic upgrade head`                          |
 | `make seed`       | Script de seed de datos                          |
-| `make build`      | Build de las imágenes Docker de ambos proyectos |
+| `make build`      | Build de las imágenes Docker de ambos proyectos, sin arrancarlas; `ENV=staging` usa el `.env.staging` |
 
 ## Convenciones globales
 
