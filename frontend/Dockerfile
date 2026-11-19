@@ -10,13 +10,18 @@ FROM node:${NODE_VERSION}-alpine AS builder
 
 WORKDIR /app
 
-# La URL de la API se inyecta en el bundle en tiempo de build, no de ejecucion.
-ARG VITE_API_URL=http://localhost:8000
-ENV VITE_API_URL=${VITE_API_URL}
-
 COPY package.json package-lock.json ./
 
 RUN npm ci
+
+# La URL de la API se inyecta en el bundle en tiempo de build, no de ejecucion.
+# No tiene valor por defecto: cada entorno la pasa como build arg (compose la
+# lee del env-file) y, si falta, el build se para aqui diciendo cual. Va
+# despues de `npm ci` para que construir las imagenes de otro entorno, con
+# otra URL, no invalide la cache de las dependencias.
+ARG VITE_API_URL
+RUN test -n "$VITE_API_URL" || { echo "Falta el build arg VITE_API_URL: pasalo con --build-arg, o construye con make build, que lo lee del .env" >&2; exit 1; }
+ENV VITE_API_URL=${VITE_API_URL}
 
 COPY . .
 
