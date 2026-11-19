@@ -395,9 +395,9 @@ Where the enforcement lives, so you do not go looking for it in the wrong place:
   `mypy --strict`) and a `test-backend` job that brings up a PostgreSQL service, runs
   `alembic upgrade head`, then `pytest --cov=src`. A `paths:` filter keeps a frontend-only PR from
   running it.
-- **The pre-commit mypy hook only covers `backend/src/`**, not the tests — its `files:` filter says
-  so. `make lint` and CI both run `mypy` over the whole of `backend/`, tests included, so a type
-  error in a test surfaces there rather than at commit time. Run `make lint` before pushing.
+- **The pre-commit hooks** run ruff on the staged files and `mypy --strict .` over the whole of
+  `backend/`, tests included — the CI `lint` command — so a type error in a test blocks the commit
+  like one in `src/`. They do not run the tests: run `make test-back` before pushing.
 
 ---
 

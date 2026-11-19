@@ -60,6 +60,8 @@ setup:
 ## install-hooks: solo la parte de hooks de `make setup`. Instala las
 ## dependencias npm del frontend (los hooks usan el ESLint/Prettier de
 ## frontend/node_modules) y engancha pre-commit en .git/hooks/pre-commit.
+## Necesita el .venv de `make setup`: pre-commit se ejecuta desde él, y los
+## hooks del backend usan su ruff y su mypy.
 install-hooks:
 	npm --prefix frontend ci
 	$(PYTHON) -m pre_commit install

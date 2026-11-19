@@ -130,31 +130,33 @@ mistakes (validators, `model_config`) are not caught automatically — be carefu
 
 ## 4. Pre-commit gate
 
-Four backend hooks are configured in the root `.pre-commit-config.yaml`:
+Three backend hooks are configured in the root `.pre-commit-config.yaml`:
 
-| Hook | Action |
-|---|---|
-| `ruff-check` | `ruff check --fix` — auto-fixes what it can |
-| `ruff-format` | reformats the code in place |
-| `mypy` | `mypy --strict` over the whole `backend/` tree, `--config-file backend/pyproject.toml` |
-| `check-pin-drift` | fails if the hook versions no longer match `backend/pyproject.toml` |
+| Hook | Fires on | Action |
+|---|---|---|
+| `ruff-check` | a staged `.py` under `backend/` | `ruff check --fix` on the staged files — auto-fixes what it can |
+| `ruff-format` | a staged `.py` under `backend/` | reformats the staged files in place |
+| `mypy` | a staged `.py` under `backend/`, or `backend/pyproject.toml` | `mypy --strict .` from `backend/` — the CI `lint` command, over the whole tree |
 
-The mypy hook checks the same scope and config as the CI `lint` job (`cd backend && mypy --strict .`):
-`src/`, `tests/`, `alembic/` and `seed.py`, with `pass_filenames: false`. The hook and CI give the
-same verdict on the same tree.
+The mypy hook checks `src/`, `tests/`, `alembic/` and `seed.py` whatever the commit touched
+(`pass_filenames: false`), so the hook and CI give the same verdict on the same tree. It also fires
+on `backend/pyproject.toml`, because a version bump or a `[tool.mypy]` change can break typing
+without touching a `.py`.
 
-The ruff and mypy hooks are remote repos, so their versions are **copied** from
-`backend/pyproject.toml`: the `rev` of each hook, and every entry of the mypy hook's
-`additional_dependencies`, pinned with `==`. `scripts/check_pin_drift.py` runs as a hook and in
-the CI `lint` job and names every mismatch. To bump a tool or a dependency, change
-`backend/pyproject.toml` **and** `.pre-commit-config.yaml` in the same commit (the first run after
-a bump rebuilds the hook environment, which takes a minute or two). Do not run
-`pre-commit autoupdate`: it would move the revs away from `pyproject.toml`. See
-`docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
+All three run the ruff and mypy **installed in the project `.venv`**, so `backend/pyproject.toml`
+is the only place their versions — and those of the libraries mypy reads — are declared: the same
+pins CI installs. pre-commit does not put `.venv` on `PATH`, so the hooks go through
+`scripts/run_in_venv.py`, which calls the venv interpreter by path; without a `.venv` the hook
+fails and points to `make setup`. See `docs/adr/0007-versiones-de-ruff-y-mypy-en-pre-commit.md`.
 
-The ruff and mypy hooks build their own isolated environments (pinned, see above), so they do not
-use the project virtualenv; the frontend hooks do need `npm ci`. `make setup` (or
-`make install-hooks`) installs the git hook and the npm dependencies once.
+To add or bump a backend dependency, ruff or mypy, edit `backend/pyproject.toml` and reinstall
+(`pip install -e ".[dev]"` from `backend/`). `.pre-commit-config.yaml` does not change. Until you
+reinstall, the hooks keep running the old versions; CI, which installs from `pyproject.toml`, is
+where a mismatch shows.
+
+`make setup` creates the `.venv`, runs `npm ci` (the frontend hooks need `frontend/node_modules`)
+and installs the git hook. With the `.venv` already in place, `make install-hooks` does only the
+last two.
 
 ---
 
