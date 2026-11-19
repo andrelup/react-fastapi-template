@@ -27,23 +27,30 @@ class Settings(BaseSettings):
         env_file=_ROOT_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
+        # A missing variable is the normal way an incomplete .env fails, and
+        # pydantic's error would otherwise echo every other value it read,
+        # the database password and the JWT secret included.
+        hide_input_in_errors=True,
     )
 
     app_name: str = "fastapi-template API"
     environment: str = "development"
-    db_host: str = "localhost"
-    db_port: int = 5432
+    # Required on purpose: every address comes from each environment's .env.
+    # A default would point at localhost and fail silently anywhere else.
+    db_host: str
+    db_port: int
     db_username: str = "admin"
     # Required on purpose: secrets must come from the environment, never code.
     db_password: str
     db_name: str = "react-fastapi-template"
     log_level: str = "INFO"
-    # Origins allowed to call the API from a browser (CORS). Comma-separated
-    # in the .env file, e.g. "http://localhost:3000,http://localhost:5173".
+    # Origins allowed to call the API from a browser (CORS). Required, like
+    # the other addresses. Comma-separated in the .env file, e.g.
+    # "http://localhost:3000,http://localhost:5173".
     # NoDecode disables pydantic-settings' JSON decoding for this env var so
     # the plain comma-separated string reaches _split_cors_origins below;
     # without it a non-JSON value raises SettingsError at startup.
-    cors_allowed_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+    cors_allowed_origins: Annotated[list[str], NoDecode]
 
     # Required on purpose: the JWT signing secret must come from the
     # environment, never hardcoded.
@@ -68,5 +75,5 @@ class Settings(BaseSettings):
         )
 
 
-# mypy can't know that the required db_password/jwt_secret_key arrive via .env at runtime.
+# mypy can't know that the required fields (addresses and secrets) arrive via .env at runtime.
 settings = Settings()  # type: ignore[call-arg]
