@@ -11,8 +11,12 @@ from src.config.settings import Settings
 
 def _make_settings(**overrides: Any) -> Settings:
     """Build Settings isolated from the developer's real .env file."""
+    # Every value Settings refuses to default: the secrets and the addresses.
     overrides.setdefault("jwt_secret_key", "test-jwt-secret")
     overrides.setdefault("db_password", "test-db-password")
+    overrides.setdefault("db_host", "db.test")
+    overrides.setdefault("db_port", 5432)
+    overrides.setdefault("cors_allowed_origins", "http://app.test")
     # mypy doesn't know pydantic-settings' _env_file init kwarg.
     return Settings(_env_file=None, **overrides)  # type: ignore[call-arg]
 

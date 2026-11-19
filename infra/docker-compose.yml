@@ -1,12 +1,19 @@
 # Entorno de infraestructura de react-fastapi-template.
 #
-# Las credenciales viven en el .env de la raiz del monorepo (no versionado,
-# ver .env.example) y se inyectan por interpolación, por eso los comandos
-# canónicos son (desde la raiz del repo):
+# Las credenciales y las direcciones viven en el .env de la raiz del monorepo
+# (no versionado, ver .env.example) y se inyectan por interpolación, por eso
+# los comandos canónicos son (desde la raiz del repo):
 #
-#   make dev    solo PostgreSQL; el backend y el frontend se ejecutan
-#               nativos en el host con hot reload (uvicorn / vite)
-#   make prod   el stack completo con las imagenes de produccion
+#   make dev      solo PostgreSQL; el backend y el frontend se ejecutan
+#                 nativos en el host con hot reload (uvicorn / vite)
+#   make preview  el stack completo en local con las imagenes de produccion,
+#                 como prueba de humo
+#   make build    solo construye las imagenes; con ENV=<entorno> lee el
+#                 .env.<entorno> y las etiqueta como :<entorno>
+#
+# Ninguna direccion tiene valor por defecto: si falta en el env-file, compose
+# se niega a arrancar y dice cual (`:?`). Los `:-` que quedan son valores que
+# no son direcciones.
 #
 # Docker se usa aqui para dos cosas y solo dos: la base de datos en
 # desarrollo, y las imagenes que realmente se despliegan. No hay servicios de
@@ -39,7 +46,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?falta DB_PASSWORD en el env-file}
       POSTGRES_DB: ${DB_NAME:?falta DB_NAME en el env-file}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:?falta DB_PORT en el env-file}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -53,6 +60,10 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+    # Nombre fijo para la imagen que se construye. `make build ENV=<entorno>`
+    # pone la etiqueta, para que las de un entorno no pisen las de otro; sin
+    # ella (make preview, o compose a mano) es :latest.
+    image: fastapi-template:${IMAGE_TAG:-latest}
     container_name: fastapi-template
     # Solo los servicios del perfil "prod" reinician solos: son los que
     # representan el despliegue real, donde nadie esta mirando cuando algo
@@ -73,7 +84,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       # Origenes permitidos para CORS (lista separada por comas). Cada entorno
       # define en su .env solo los origenes que realmente sirve.
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?falta CORS_ALLOWED_ORIGINS en el env-file}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?falta JWT_SECRET_KEY en el env-file}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRES_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRES_MINUTES:-60}
@@ -97,7 +108,8 @@ services:
         # Vite hornea la URL de la API en el bundle en tiempo de build, no de
         # ejecucion: por eso es un build arg y no una variable de entorno. Es
         # la URL tal y como la ve el navegador del host, no la red interna.
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_API_URL: ${VITE_API_URL:?falta VITE_API_URL en el env-file}
+    image: react-template:${IMAGE_TAG:-latest}
     container_name: react-template
     restart: unless-stopped
     logging: *default-logging

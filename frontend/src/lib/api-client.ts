@@ -1,8 +1,10 @@
 import type { ApiResponse } from '@/types/api';
 import { ApiError } from '@/types/api';
+import { requireApiUrl } from './env';
 
-const API_BASE_URL: string =
-  (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8000';
+// No fallback: `vite.config.ts` already refuses to build without the URL, and
+// this check keeps a bundle built some other way from calling localhost.
+const API_BASE_URL: string = requireApiUrl(import.meta.env);
 
 let authToken: string | null = null;
 

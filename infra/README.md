@@ -15,8 +15,12 @@ brecha de aislamiento: código ejecutándose en el contenedor escribiría en tu 
 
 - Docker Desktop en marcha.
 - `.env` en la **raíz** del repo (copia `.env.example` de la raíz y rellena los valores). Es la
-  **única** fuente de configuración: la usan tanto el compose como el backend en local. Las
+  **única** fuente de configuración: la usan el compose, el backend y Vite en local. Las
   credenciales **nunca** se versionan ni se hardcodean en el compose.
+- Ni las credenciales ni las direcciones tienen valor por defecto en el compose: si al env-file le
+  falta la URL de la API, los orígenes CORS o el puerto de la base de datos, compose se niega a
+  arrancar y dice cuál falta. Compose interpola el fichero entero antes de hacer nada, así que
+  necesita el env-file completo aunque solo vaya a levantar `postgres`.
 
 ## Desarrollo: solo la base de datos
 
@@ -56,10 +60,16 @@ uvicorn src.main:app --reload --app-dir backend
 ## Producción: el stack completo
 
 ```bash
-make prod         # construye las dos imágenes y levanta los tres servicios
+make preview      # construye las dos imágenes y levanta en local los tres servicios
+make build        # solo construye las dos imágenes, sin arrancarlas
 ```
 
-Equivale a `docker compose --env-file ../.env --profile prod up -d --build`. Arranca en
+Ninguno de los dos despliega: levantan o construyen en tu equipo. `make build ENV=staging` construye
+las imágenes con el `.env.staging` y las etiqueta como `:staging` (sin `ENV`, `.env` y `:latest`);
+esas imágenes solo comprueban que el build funciona con los valores de ese entorno y no se arrancan
+en local, porque el navegador llamaría a la API de ese entorno y su CORS rechazaría las peticiones.
+
+`make preview` equivale a `docker compose --env-file ../.env --profile prod up -d --build`. Arranca en
 **background**, así que la terminal no se queda enganchada a los logs de los tres contenedores;
 para seguirlos, desde este directorio:
 
@@ -67,16 +77,19 @@ para seguirlos, desde este directorio:
 docker compose --env-file ../.env --profile prod logs -f
 ```
 
-Levanta exactamente lo
-que se despliega: sin hot reload, sin volúmenes con el código, y con el frontend sirviendo como
-usuario **no root**. Es la prueba de humo antes de publicar.
+Levanta las mismas imágenes
+que se desplegarían: sin hot reload, sin volúmenes con el código, y con el frontend sirviendo como
+usuario **no root**. Es una prueba de humo en local.
 
 - SPA en <http://localhost:3000> (nginx escucha en el 80 dentro del contenedor).
 - API en <http://localhost:8000>.
 - El backend aplica `alembic upgrade head` al arrancar, con el `alembic/` que la propia imagen
   copia — ya no llega por volumen.
 - `VITE_API_URL` es un **build arg**, no una variable de entorno: Vite hornea la URL de la API en
-  el bundle en tiempo de build. Cambiarla exige reconstruir la imagen del frontend.
+  el bundle en tiempo de build. Cambiarla exige reconstruir la imagen del frontend. No tiene valor
+  por defecto: un `docker build ./frontend` sin `--build-arg VITE_API_URL=…` falla a propósito.
+- Las imágenes se llaman `fastapi-template` y `react-template`, con la etiqueta `latest` salvo en
+  `make build ENV=…`.
 
 ## Parar
 
@@ -89,7 +102,7 @@ docker compose --env-file ../.env --profile prod down -v   # borra tambien el vo
 
 El `--profile prod` es **imprescindible**: sin él, `down` deja en marcha los servicios que
 pertenecen a un perfil, así que sirve igual para parar la BD de `make dev` y el stack de
-`make prod`.
+`make preview`.
 
 ## Logs y reinicio
 

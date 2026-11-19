@@ -100,5 +100,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # vitest carga `vite.config.ts`, que se niega a arrancar sin la URL de la
+      # API y la busca en el `.env` de la raíz. La configuración sale del
+      # secret de Actions `CI_DOTENV`, el mismo que usa `ci-backend.yml`: el
+      # mantenedor lo crea a mano con valores de mentira.
+      - name: Write .env from the CI secret
+        working-directory: .
+        env:
+          CI_DOTENV: ${{ secrets.CI_DOTENV }}
+        run: |
+          if [ -z "$CI_DOTENV" ]; then
+            echo "::error::Falta el secret CI_DOTENV (o está vacío): créalo en Settings > Secrets and variables > Actions con el contenido de un .env para CI, partiendo de .env.example"
+            exit 1
+          fi
+          printf '%s\n' "$CI_DOTENV" > .env
+
       - name: Run tests with coverage
         run: npm run test:coverage
