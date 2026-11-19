@@ -83,6 +83,27 @@ def test_settings_when_required_value_missing_raises_validation_error(
     assert errors[0]["type"] == "missing"
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("db_host", ""),
+        ("db_host", "   "),
+        ("cors_allowed_origins", ""),
+        ("cors_allowed_origins", " , "),
+    ],
+)
+def test_settings_when_address_is_empty_raises_validation_error(field: str, value: str) -> None:
+    # Arrange — `KEY=` in a .env is as missing as no key at all: compose's `:?`
+    # and the frontend's check both reject it, so the backend must too.
+
+    # Act
+    with pytest.raises(ValidationError) as exc_info:
+        make_settings(**{field: value})
+
+    # Assert
+    assert [error["loc"] for error in exc_info.value.errors()] == [(field,)]
+
+
 def test_settings_error_when_value_missing_does_not_echo_other_values(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

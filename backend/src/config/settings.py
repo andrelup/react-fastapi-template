@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote_plus
 
-from pydantic import field_validator
+from pydantic import Field, StringConstraints, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # The single monorepo-root .env is the source of truth for configuration.
@@ -36,8 +36,9 @@ class Settings(BaseSettings):
     app_name: str = "fastapi-template API"
     environment: str = "development"
     # Required on purpose: every address comes from each environment's .env.
-    # A default would point at localhost and fail silently anywhere else.
-    db_host: str
+    # A default would point at localhost and fail silently anywhere else. An
+    # empty value counts as missing, as it does for compose's `:?`.
+    db_host: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
     db_port: int
     db_username: str = "admin"
     # Required on purpose: secrets must come from the environment, never code.
@@ -45,12 +46,13 @@ class Settings(BaseSettings):
     db_name: str = "react-fastapi-template"
     log_level: str = "INFO"
     # Origins allowed to call the API from a browser (CORS). Required, like
-    # the other addresses. Comma-separated in the .env file, e.g.
-    # "http://localhost:3000,http://localhost:5173".
+    # the other addresses, and with at least one origin: an empty value would
+    # start the API and let CORS block every browser call. Comma-separated in
+    # the .env file, e.g. "http://localhost:3000,http://localhost:5173".
     # NoDecode disables pydantic-settings' JSON decoding for this env var so
     # the plain comma-separated string reaches _split_cors_origins below;
     # without it a non-JSON value raises SettingsError at startup.
-    cors_allowed_origins: Annotated[list[str], NoDecode]
+    cors_allowed_origins: Annotated[list[str], NoDecode, Field(min_length=1)]
 
     # Required on purpose: the JWT signing secret must come from the
     # environment, never hardcoded.
