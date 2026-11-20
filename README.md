@@ -284,7 +284,10 @@ encuentran acaba como SARIF en la pestaña *Security* del repositorio:
   Descartar la alerta (*dismiss*) en la pestaña *Security* es la forma de
   aceptar un falso positivo.
 - `gitleaks`: busca secretos en todo el histórico de git, con el valor
-  censurado (`--redact`) en el log y en el SARIF.
+  censurado (`--redact`) en el log y en el SARIF. Usa las reglas por defecto
+  más una sola excepción, en `.gitleaks.toml`: los nombres de algoritmo ML-KEM
+  (`MLKEM768-X25519`…), que la regla genérica de claves confunde con una API
+  key en las guías de la skill `modern-web-guidance`.
 - `trivy`: construye las dos imágenes (`docker build`, sin publicarlas) y
   escanea el sistema de ficheros y las dos imágenes. Es el único sitio de CI que
   comprueba que los `Dockerfile` construyen, así que uno roto sale en rojo.
@@ -294,7 +297,7 @@ encuentran acaba como SARIF en la pestaña *Security* del repositorio:
 Las acciones de terceros van fijadas por SHA de commit, y el binario de Trivy
 por versión: `trivy-action` fue comprometida en marzo de 2026
 (GHSA-69fq-xp46-6x23). Un hallazgo se corrige; no se oculta con un
-`.trivyignore` sin aprobación.
+`.trivyignore` ni con una excepción nueva en `.gitleaks.toml` sin aprobación.
 
 **Ejecución programada.** Corre el día 1 de cada mes a las 06:17 UTC, para que
 aparezcan las vulnerabilidades nuevas aunque no haya commits. En un repositorio
