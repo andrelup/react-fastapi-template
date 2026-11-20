@@ -28,10 +28,10 @@ COPY . .
 RUN npm run build
 
 # Etapa final: nginx sirviendo los estaticos, sin Node ni dependencias de dev.
-# 1.30 es la linea estable vigente de nginx (la 1.27 ya no recibe parches y su
-# tag se quedo en un Alpine viejo con decenas de CVE sin corregir). Los tags
-# `X.Y-alpine` se reconstruyen con cada parche, de modo que basta con tocarlo
-# cuando nginx publique la siguiente linea estable.
+# 1.30 is nginx's current stable line (1.27 no longer gets patches and its tag
+# was left on an old Alpine with dozens of unfixed CVEs). The `X.Y-alpine` tags
+# are rebuilt with every patch release, so this line only needs changing when
+# nginx publishes the next stable line.
 FROM nginx:1.30-alpine AS runtime
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

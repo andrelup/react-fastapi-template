@@ -78,7 +78,7 @@ Sanctioned toolbox:
 
 ## Workflow Design Rules (NON-NEGOTIABLE)
 
-- **One job per responsibility.** Job names mirror the documented pipeline: `lint`, `test-backend`, `test-frontend`, `test-e2e`, `security-scan`
+- **One job per responsibility.** Job names mirror the documented pipeline: `lint`, `test-backend`, `test-frontend` in the per-stack workflows, and `codeql`, `codeql-gate`, `gitleaks`, `trivy` in `security.yml` (the README's `security-scan` phase)
 - **Path filters.** This is a monorepo: `paths: ['backend/**', '.github/workflows/**']` for backend jobs, `frontend/**` for frontend jobs. A frontend-only PR must not run backend tests
 - **Concurrency** on every workflow:
   ```yaml
@@ -100,7 +100,7 @@ Sanctioned toolbox:
 ## Approach
 
 - Start minimal and **green**, then grow. A red pipeline nobody trusts is worse than a small one
-- Order the phases: `lint` → `test-backend` / `test-frontend` (parallel) → `security-scan`. `needs:` enforces it
+- Order the phases inside each stack workflow: `lint` → `test-backend` / `test-frontend`. `needs:` enforces it. `security.yml` is a separate workflow that runs alongside them, not after them; inside it only `codeql-gate` waits, with `needs: codeql`
 - Treat E2E, CodeQL and Trivy as separate increments, each in its own PR
 - Prefer several small workflow files (`ci-backend.yml`, `ci-frontend.yml`, `security.yml`) over one monolith — path filters then work per file
 - Before adding a step to CI, make sure it runs locally. If a check belongs on every commit, put it in `.pre-commit-config.yaml` too
