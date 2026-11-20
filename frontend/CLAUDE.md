@@ -177,6 +177,14 @@ shadcn/ui docs, adapt it to the tokens and to the conventions above, add it to `
 its real states (disabled, loading, with an error, empty), write its test, and only then use it.
 Never run `shadcn init` — it rewrites `index.css` and `tailwind.config.ts` with its own tokens.
 
+## The `modern-web-guidance` skill yields to this file
+
+`.claude/skills/modern-web-guidance/` is Google Chrome's guide to the web platform (HTML, CSS,
+browser APIs, accessibility, performance), and it asks to be consulted first for any UI work. Use
+it for the platform knowledge, but when its advice conflicts with this file, this file wins: a
+screen still uses only `/components-ui` components and the design tokens. For example, it
+recommends a native `<dialog>`, but a screen keeps using the catalogue's Radix-based `Dialog`.
+
 ## API Client
 
 - A single `api-client.ts` in `lib/`, with the base URL read from the repo-root `.env` and no
