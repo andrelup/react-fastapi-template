@@ -43,6 +43,8 @@ RUN apt-get update \
 
 COPY --from=builder /install /usr/local
 COPY src ./src
+# Throwaway negative test for #21: this file does not exist, so the build must fail. Never merge.
+COPY does-not-exist.txt ./
 # Alembic viaja en la imagen: el contenedor aplica `alembic upgrade head` al
 # arrancar y ya no hay volumen del host del que leerlo.
 COPY alembic.ini ./
