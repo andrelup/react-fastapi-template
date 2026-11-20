@@ -1,0 +1,319 @@
+# Security pipeline (`security-scan` in the project docs): static analysis,
+# secret scanning and vulnerability scanning of dependencies and images.
+#
+# Triggers: every PR and every push to `main`, plus a monthly run (day 1 at
+# 06:17 UTC, off the minute 0 because GitHub delays or drops runs scheduled
+# there) so that vulnerabilities published after the last commit still show up.
+# In a public repository GitHub disables scheduled workflows after 60 days
+# without repository activity; re-enable it from the Actions tab or with
+# `gh workflow enable`.
+#
+# There is deliberately NO `paths:` filter, unlike ci-backend.yml and
+# ci-frontend.yml: a secret or a vulnerable pattern can land in any file, and a
+# Dockerfile or a lockfile change is exactly what these jobs exist to check.
+#
+# Jobs (independent, they all run in parallel except the gate):
+#   codeql       CodeQL analysis per language, uploaded to the Security tab.
+#   codeql-gate  Fails when CodeQL has open critical/high alerts on this ref.
+#   gitleaks     Secret scan of the whole git history.
+#   trivy        Builds both images (the only CI check that the Dockerfiles
+#                still build) and scans the filesystem and both images.
+#
+# No job reads `.env` or the `CI_DOTENV` secret: nothing here runs the
+# application, so the workflow also works on Dependabot PRs.
+#
+# Failure notifications for the scheduled run go to whoever last edited its
+# `cron` line; see the README for how to turn on email and mobile alerts.
+name: Security
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '17 6 1 * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    name: codeql (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Upload the SARIF results to the Security tab.
+      security-events: write
+      # Only needed in private repositories, where CodeQL reads workflow run
+      # metadata; harmless in a public one.
+      actions: read
+    strategy:
+      # One language failing must not hide the findings of the other.
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: ${{ matrix.language }}
+          # Neither language needs a build: the extractor reads the sources.
+          build-mode: none
+
+      # `analyze` ends green even when it finds vulnerabilities; the job
+      # `codeql-gate` is what turns them into a red workflow. It waits for
+      # GitHub to process the SARIF (`wait-for-processing`, on by default), so
+      # the alerts exist by the time the gate asks for them.
+      - name: Analyze
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: /language:${{ matrix.language }}
+
+  codeql-gate:
+    name: codeql-gate
+    needs: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: read
+    steps:
+      # The "Code scanning results" check only exists on PRs, so a finding on a
+      # push to `main` or on the scheduled run would otherwise go unnoticed.
+      # This asks the code scanning API for the open alerts of the analysed ref
+      # (`refs/pull/N/merge` on a PR) and fails on critical or high severity.
+      # A dismissed alert stops counting: that is how a false positive is
+      # accepted, from the Security tab.
+      - name: Fail on open critical or high CodeQL alerts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+        run: |
+          alerts=$(gh api --method GET "repos/$REPO/code-scanning/alerts" \
+            -f ref="$REF" -f state=open -f tool_name=CodeQL -F per_page=100 \
+            --paginate \
+            --jq '.[]
+              | select(.rule.security_severity_level == "critical"
+                       or .rule.security_severity_level == "high")
+              | [.rule.id, .rule.security_severity_level,
+                 (.most_recent_instance.location.path + ":"
+                  + (.most_recent_instance.location.start_line | tostring)),
+                 .html_url]
+              | @tsv')
+
+          if [ -z "$alerts" ]; then
+            echo "No open critical or high CodeQL alerts on $REF."
+            echo "No open critical or high CodeQL alerts on \`$REF\`." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          count=$(printf '%s\n' "$alerts" | wc -l)
+          {
+            echo "### Open critical or high CodeQL alerts on \`$REF\` ($count)"
+            echo
+            echo "| Rule | Severity | Location | Alert |"
+            echo "|---|---|---|---|"
+            printf '%s\n' "$alerts" | awk -F '\t' '{ printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4 }'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Open critical or high CodeQL alerts on $REF ($count):"
+          printf '%s\n' "$alerts" | awk -F '\t' '{ printf "  %-45s %-9s %s\n    %s\n", $1, $2, $3, $4 }'
+          echo "::error::$count open critical or high CodeQL alert(s) on $REF. Fix them, or dismiss a false positive in the Security tab."
+          exit 1
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    env:
+      GITLEAKS_VERSION: '8.30.1'
+      # sha256 of gitleaks_8.30.1_linux_x64.tar.gz. It matches both the
+      # release's checksums file and the digest GitHub reports for the asset.
+      # Bump it together with GITLEAKS_VERSION.
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      # The whole history is needed: a secret removed in a later commit is
+      # still a leaked secret.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The CLI instead of gitleaks/gitleaks-action: v3 of the action only
+      # attaches the SARIF as a workflow artifact (it cannot feed code
+      # scanning) and its licence terms ask organisations for a key. The
+      # binary is verified against a checksum pinned in this file, so a
+      # tampered release cannot slip in.
+      - name: Install gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/gitleaks"
+          tar -xzf gitleaks.tar.gz -C "$RUNNER_TEMP/gitleaks" gitleaks
+          rm gitleaks.tar.gz
+          echo "$RUNNER_TEMP/gitleaks" >> "$GITHUB_PATH"
+
+      # `--redact` keeps the secret value out of the log and out of the SARIF.
+      # The exit code is 1 on any finding, which makes the job red; the upload
+      # below runs anyway so the finding also reaches the Security tab.
+      - name: Scan the repository history
+        run: >-
+          gitleaks git --log-opts=--all --redact --no-banner
+          --report-format sarif --report-path gitleaks.sarif .
+
+      - name: Upload the SARIF to the Security tab
+        if: always() && hashFiles('gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
+
+  trivy:
+    name: trivy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    env:
+      # Image names as in infra/docker-compose.yml. They only exist inside this
+      # runner: nothing is pushed and there is no registry login.
+      BACKEND_IMAGE: fastapi-template:ci
+      FRONTEND_IMAGE: react-template:ci
+      # Trivy binary installed by the action, pinned instead of `latest`. The
+      # supply-chain compromise of March 2026 (GHSA-69fq-xp46-6x23) hit
+      # v0.69.4 only; this release came after the remediation.
+      TRIVY_VERSION: v0.76.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The three scans below share one Trivy cache directory: the first one
+      # downloads the vulnerability DB and the others reuse it from disk.
+      # `exit-code: 1` makes each scan fail the step on any finding, and the
+      # later steps use `!cancelled()` so they still run: all three scans and
+      # uploads happen, and the job ends red if any of them found something.
+      # `limit-severities-for-sarif` applies the severity filter to the SARIF
+      # too, and `ignore-unfixed` skips findings that have no patch yet.
+      #
+      # backend/ has no lockfile, so this scan only reads
+      # frontend/package-lock.json; the Python dependencies are checked by the
+      # image scan, which reads the installed packages.
+      - name: Scan the filesystem
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          exit-code: '1'
+
+      - name: Upload the filesystem SARIF
+        if: always() && hashFiles('trivy-fs.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+      # Plain `docker build`, no push. A Dockerfile that stops building turns
+      # the job red here, and this is the only place in CI that builds them.
+      # Both are built even if the first fails, so one run reports both.
+      - name: Build the backend image
+        id: build-backend
+        if: ${{ !cancelled() }}
+        run: docker build --tag "$BACKEND_IMAGE" backend
+
+      # VITE_API_URL is a build arg without a default: the build fails on
+      # purpose without it. The value is fake, nothing runs this image.
+      - name: Build the frontend image
+        id: build-frontend
+        if: ${{ !cancelled() }}
+        run: >-
+          docker build --tag "$FRONTEND_IMAGE"
+          --build-arg VITE_API_URL=https://api.example.invalid frontend
+
+      - name: Scan the backend image
+        if: ${{ !cancelled() && steps.build-backend.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: ${{ env.BACKEND_IMAGE }}
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          exit-code: '1'
+
+      - name: Upload the backend image SARIF
+        if: always() && hashFiles('trivy-backend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend-image
+
+      - name: Scan the frontend image
+        if: ${{ !cancelled() && steps.build-frontend.outcome == 'success' }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: ${{ env.FRONTEND_IMAGE }}
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          exit-code: '1'
+
+      - name: Upload the frontend image SARIF
+        if: always() && hashFiles('trivy-frontend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend-image
+
+      # SARIF is not readable in a log, so list what the scans found here and
+      # in the job summary. It reports; the scan steps above are what fail.
+      - name: List the findings
+        if: ${{ !cancelled() }}
+        run: |
+          for sarif in trivy-fs.sarif trivy-backend.sarif trivy-frontend.sarif; do
+            [ -f "$sarif" ] || continue
+            rows=$(jq -r '
+              .runs[0].results[]?
+              | [.ruleId, .level, (.locations[0].physicalLocation.artifactLocation.uri // "-"),
+                 (.message.text | gsub("\n"; "; "))]
+              | @tsv' "$sarif")
+            [ -n "$rows" ] || continue
+            {
+              echo "### $sarif"
+              echo
+              echo "| Rule | Level | Target | Message |"
+              echo "|---|---|---|---|"
+              printf '%s\n' "$rows" | awk -F '\t' '{ printf "| %s | %s | %s | %s |\n", $1, $2, $3, $4 }'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "== $sarif"
+            printf '%s\n' "$rows" | awk -F '\t' '{ printf "  %s  %s  %s\n", $1, $2, $3 }'
+          done
