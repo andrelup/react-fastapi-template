@@ -2,7 +2,7 @@
 
 When building complex web applications, tasks have different levels of urgency. Completing tasks for the current view is more important than sending analytics or prefetching assets. The Prioritized Task Scheduling API (`scheduler.postTask()` and `TaskController`) lets you schedule, reprioritize, and cancel work across priority levels so the main thread stays responsive to user input.
 
-`scheduler.postTask()` controls when tasks *start* relative to each other, but a single callback running longer than 50ms still blocks the main thread once started. To split long-running work inside a task—while preserving its priority and `TaskSignal`—call `await scheduler.yield()` periodically inside the callback (see `break-up-long-tasks` (via `npx -y modern-web-guidance@latest retrieve "break-up-long-tasks"`)).
+`scheduler.postTask()` controls when tasks *start* relative to each other, but a single callback running longer than 50ms still blocks the main thread once started. To split long-running work inside a task—while preserving its priority and `TaskSignal`—call `await scheduler.yield()` periodically inside the callback (see `break-up-long-tasks` (via `npx -y modern-web-guidance@1.0.1 retrieve "break-up-long-tasks"`)).
 
 ### Scheduling tasks by priority
 
