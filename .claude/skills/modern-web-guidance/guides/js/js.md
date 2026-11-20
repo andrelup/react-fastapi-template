@@ -27,12 +27,12 @@ For specialized temporal, scheduling, and security workflows, consult the dedica
 
 | Workflow / Domain | Guide |
 | :--- | :--- |
-| Calculating exact calendar durations (`years`, `months`, `days`) between dates or events | `calculate-event-differentials` (via `npx -y modern-web-guidance@latest retrieve "calculate-event-differentials"`) |
-| Representing calendar dates (`PlainDate`), wall-clock times (`PlainTime`), or recurring rules without time-zone shift bugs | `capture-location-agnostic-data` (via `npx -y modern-web-guidance@latest retrieve "capture-location-agnostic-data"`) |
-| Converting instants across IANA time zones (`ZonedDateTime`) with DST disambiguation | `coordinate-global-events` (via `npx -y modern-web-guidance@latest retrieve "coordinate-global-events"`) |
-| Sorting and comparing nanosecond-precision timestamps (`Temporal.Instant.compare`) | `sort-high-precision-timestamps` (via `npx -y modern-web-guidance@latest retrieve "sort-high-precision-timestamps"`) |
-| Projecting dates into non-Gregorian calendar systems (`hebrew`, `islamic-civil`, `japanese`, `chinese`) | `support-global-calendar-systems` (via `npx -y modern-web-guidance@latest retrieve "support-global-calendar-systems"`) |
-| Sanitizing untrusted HTML strings before DOM insertion | `sanitize-untrusted-html` (via `npx -y modern-web-guidance@latest retrieve "sanitize-untrusted-html"`) |
+| Calculating exact calendar durations (`years`, `months`, `days`) between dates or events | `calculate-event-differentials` (via `npx -y modern-web-guidance@1.0.1 retrieve "calculate-event-differentials"`) |
+| Representing calendar dates (`PlainDate`), wall-clock times (`PlainTime`), or recurring rules without time-zone shift bugs | `capture-location-agnostic-data` (via `npx -y modern-web-guidance@1.0.1 retrieve "capture-location-agnostic-data"`) |
+| Converting instants across IANA time zones (`ZonedDateTime`) with DST disambiguation | `coordinate-global-events` (via `npx -y modern-web-guidance@1.0.1 retrieve "coordinate-global-events"`) |
+| Sorting and comparing nanosecond-precision timestamps (`Temporal.Instant.compare`) | `sort-high-precision-timestamps` (via `npx -y modern-web-guidance@1.0.1 retrieve "sort-high-precision-timestamps"`) |
+| Projecting dates into non-Gregorian calendar systems (`hebrew`, `islamic-civil`, `japanese`, `chinese`) | `support-global-calendar-systems` (via `npx -y modern-web-guidance@1.0.1 retrieve "support-global-calendar-systems"`) |
+| Sanitizing untrusted HTML strings before DOM insertion | `sanitize-untrusted-html` (via `npx -y modern-web-guidance@1.0.1 retrieve "sanitize-untrusted-html"`) |
 
 ---
 
@@ -342,7 +342,7 @@ Use `element.replaceChildren(...nodesOrStrings)` to clear a container or replace
 - **DO** call `container.replaceChildren(...nodes)` to atomically clear and insert new `Node` instances or `DocumentFragment`s (`HierarchyRequestError` pre-validation fails atomically before mutating existing children).
 - **DO** pass plain strings directly to `container.replaceChildren(text)` when inserting literal text without parsing HTML (note `el.replaceChildren('')` inserts an empty `Text` node with `childNodes.length === 1`, unlike `el.replaceChildren()`).
 - **DO** target `templateElement.content.replaceChildren(...)` when clearing or replacing the contents of a `<template>` element (calling `templateElement.replaceChildren()` leaves its inert `content` `DocumentFragment` untouched), and narrow `Node` references to `ParentNode` (`Element`, `Document`, `DocumentFragment`) in TypeScript since leaf `Node`s (`Text`, `Comment`) do not implement `replaceChildren()`.
-- **DO NOT** replace `while (el.firstElementChild) el.removeChild(el.firstElementChild)` when inline `Text` or `Comment` nodes must remain intact (`replaceChildren()` removes all `childNodes`), do not replace chained assignments (`a.innerHTML = b.innerHTML = ''`, since `replaceChildren()` returns `undefined`), do not pass raw HTML markup strings (`'<li>Item</li>'`) expecting parsed elements (for untrusted HTML strings, follow `sanitize-untrusted-html` (via `npx -y modern-web-guidance@latest retrieve "sanitize-untrusted-html"`)), do not pass a live `HTMLCollection`/`NodeList` (`source.children`) when `source` must keep copies, and do not replace `element.innerHTML = ''` on `<object>` or `<embed>` plugin containers or test harnesses asserting HTML parser steps.
+- **DO NOT** replace `while (el.firstElementChild) el.removeChild(el.firstElementChild)` when inline `Text` or `Comment` nodes must remain intact (`replaceChildren()` removes all `childNodes`), do not replace chained assignments (`a.innerHTML = b.innerHTML = ''`, since `replaceChildren()` returns `undefined`), do not pass raw HTML markup strings (`'<li>Item</li>'`) expecting parsed elements (for untrusted HTML strings, follow `sanitize-untrusted-html` (via `npx -y modern-web-guidance@1.0.1 retrieve "sanitize-untrusted-html"`)), do not pass a live `HTMLCollection`/`NodeList` (`source.children`) when `source` must keep copies, and do not replace `element.innerHTML = ''` on `<object>` or `<embed>` plugin containers or test harnesses asserting HTML parser steps.
 
 #### Code Example
 

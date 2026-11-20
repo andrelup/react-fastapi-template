@@ -2,7 +2,7 @@
 
 A custom element is a class registered against a tag name via `customElements.define()`. Registration and basic lifecycle are well understood; the rules below target the parts routinely implemented incorrectly.
 
-A custom element has no role or keyboard behavior of its own. That's fine when its content already carries the meaning, for example a layout wrapper around headings and text. If it needs semantics or keyboard support, build it from native elements such as `<button>` inside its template, or give it a role and ARIA state through `ElementInternals`, and focus handling, as described in `accessible-web-components` (via `npx -y modern-web-guidance@latest retrieve "accessible-web-components"`). If its content is purely decorative, hide it from assistive technologies with `aria-hidden="true"`.
+A custom element has no role or keyboard behavior of its own. That's fine when its content already carries the meaning, for example a layout wrapper around headings and text. If it needs semantics or keyboard support, build it from native elements such as `<button>` inside its template, or give it a role and ARIA state through `ElementInternals`, and focus handling, as described in `accessible-web-components` (via `npx -y modern-web-guidance@1.0.1 retrieve "accessible-web-components"`). If its content is purely decorative, hide it from assistive technologies with `aria-hidden="true"`.
 
 ## Lifecycle: the parts that get implemented wrong
 
@@ -121,7 +121,7 @@ Custom states only reach CSS: assistive technologies don't see them. When a stat
 
 **Custom state is runtime-only.** It is not serialized to the DOM, so it does not survive a reload, the element being re-created, or server rendering. If the state must be set declaratively in markup or persist across loads, that is a job for an **attribute** (see [Where the value lives](#where-the-value-lives)) — restore it in `connectedCallback` from your source of truth. Rule of thumb: custom state for what the component derives and owns at runtime and only needs to *style*; an attribute for what must be set from markup or serialized.
 
-For styling these states — both inside the component and from a consumer's stylesheet — see `styling-web-components` (via `npx -y modern-web-guidance@latest retrieve "styling-web-components"`).
+For styling these states — both inside the component and from a consumer's stylesheet — see `styling-web-components` (via `npx -y modern-web-guidance@1.0.1 retrieve "styling-web-components"`).
 
 ## Naming conventions
 
