@@ -38,9 +38,10 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 
 **E2E** — Playwright is wired: `frontend/playwright.config.ts`, specs in `frontend/e2e/tests/`, page objects in `frontend/e2e/page-objects/`, and `make test-e2e` runs it for real. Its `webServer` starts the SPA itself, but it still needs a running API and a seeded database, so **it is not a drop-in CI job**: decide explicitly how to provide both before adding one.
 
+**Exists** — `.github/workflows/security.yml` (issue #21): `codeql` (python and javascript-typescript matrix), `codeql-gate` (fails on open critical/high CodeQL alerts of the analysed ref), `gitleaks` (CLI pinned by release and sha256, not the action) and `trivy` (filesystem plus both images). No `paths:` filter on purpose. Its `trivy` job builds both images and is the only CI check that the Dockerfiles still build. Its third-party actions and the Trivy binary are pinned (`trivy-action` was compromised in March 2026, GHSA-69fq-xp46-6x23): never move them to a tag or to `latest`, and never add a `.trivyignore` without the maintainer's approval.
+
 **Still NON-EXISTENT** — do not reference these until they are built:
 - `.github/dependabot.yml` (issue #16)
-- `security.yml` (issue #21). Its Trivy job builds both images to scan them, which makes it the only CI check that the Dockerfiles still build
 
 **Not planned** — do not propose these here; an adopter who needs them adds them in their own repository:
 - Branch protection and required checks (#23, closed): the project has a single maintainer who pushes to `main` directly
@@ -70,14 +71,14 @@ Sanctioned toolbox:
 | Coverage gate | `fail_under` in `backend/pyproject.toml`, `coverage.thresholds` in `frontend/vite.config.ts` — both already set to 80, never on a command line |
 | Coverage reporting | GitHub job summary / PR comment. Codecov only if the user opts in |
 | SAST | `github/codeql-action` |
-| Secret scanning | `gitleaks` action + GitHub push protection |
+| Secret scanning | `gitleaks` CLI (the action cannot feed code scanning) + GitHub push protection |
 | Dependency vulns | Dependabot alerts + `dependabot.yml` |
 | Container / FS scan | `aquasecurity/trivy-action` |
 | Workflow lint | `actionlint` |
 
 ## Workflow Design Rules (NON-NEGOTIABLE)
 
-- **One job per responsibility.** Job names mirror the documented pipeline: `lint`, `test-backend`, `test-frontend`, `test-e2e`, `security-scan`
+- **One job per responsibility.** Job names mirror the documented pipeline: `lint`, `test-backend`, `test-frontend` in the per-stack workflows, and `codeql`, `codeql-gate`, `gitleaks`, `trivy` in `security.yml` (the README's `security-scan` phase)
 - **Path filters.** This is a monorepo: `paths: ['backend/**', '.github/workflows/**']` for backend jobs, `frontend/**` for frontend jobs. A frontend-only PR must not run backend tests
 - **Concurrency** on every workflow:
   ```yaml
@@ -99,7 +100,7 @@ Sanctioned toolbox:
 ## Approach
 
 - Start minimal and **green**, then grow. A red pipeline nobody trusts is worse than a small one
-- Order the phases: `lint` → `test-backend` / `test-frontend` (parallel) → `security-scan`. `needs:` enforces it
+- Order the phases inside each stack workflow: `lint` → `test-backend` / `test-frontend`. `needs:` enforces it. `security.yml` is a separate workflow that runs alongside them, not after them; inside it only `codeql-gate` waits, with `needs: codeql`
 - Treat E2E, CodeQL and Trivy as separate increments, each in its own PR
 - Prefer several small workflow files (`ci-backend.yml`, `ci-frontend.yml`, `security.yml`) over one monolith — path filters then work per file
 - Before adding a step to CI, make sure it runs locally. If a check belongs on every commit, put it in `.pre-commit-config.yaml` too

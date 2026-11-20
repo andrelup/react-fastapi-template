@@ -166,9 +166,31 @@ running them locally would make the browser call that environment's API, whose C
   in each project's config (`backend/pyproject.toml` →
   `[tool.coverage.report] fail_under = 80`; `frontend/vite.config.ts` →
   `coverage.thresholds`), never in the workflow YAML
+- `security.yml` (`security-scan`), with no `paths:` filter because a secret or
+  a vulnerable pattern can land in any file. Runs on PRs, on pushes to `main`
+  and monthly (cron `17 6 1 * *`). Four jobs: `codeql` (python and
+  javascript-typescript matrix) then `codeql-gate` (fails on open critical or
+  high CodeQL alerts of the analysed ref, read from the code scanning API;
+  dismissing an alert in the Security tab is how a false positive is accepted),
+  `gitleaks` (CLI pinned by release and sha256, whole history, `--redact`) and
+  `trivy` (filesystem scan plus both images). Everything lands in the Security
+  tab as SARIF. The `trivy` job builds both images with plain `docker build`, so
+  it is the only CI check on the Dockerfiles. It needs no `.env` and no
+  `CI_DOTENV`
+- Third-party actions in `security.yml` are pinned by full commit SHA with a
+  version comment, and Trivy's binary is pinned too (`TRIVY_VERSION`). Never
+  move them to a tag or to `latest`: `trivy-action` was compromised in March
+  2026 (GHSA-69fq-xp46-6x23). A finding is fixed, never hidden: no
+  `.trivyignore` without the maintainer's approval
+- GitHub disables scheduled workflows in a public repository after 60 days
+  without repository activity, and the scheduled run does not count as activity.
+  Re-enable it from the Actions tab or with `gh workflow enable`. Failure
+  notifications of the scheduled run go to whoever last edited its `cron` line:
+  email under Settings > Notifications > System > Actions (email on, "Only
+  notify for failed workflows"); mobile under GitHub Mobile > Settings >
+  Configure Notifications > Actions push, failures only
 - E2E exists (`make test-e2e`, Playwright) but does NOT run in CI: it needs a live
-  API and a seeded database. Not built yet: security scanning (#21), whose Trivy
-  job also builds both images and is the only CI check on the Dockerfiles
+  API and a seeded database
 - Not planned, on purpose: branch protection (#23), because the project has a
   single maintainer who pushes to `main` directly; and publishing images to GHCR
   (#22), because nothing deploys them
