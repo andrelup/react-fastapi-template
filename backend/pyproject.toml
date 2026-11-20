@@ -30,6 +30,8 @@ dependencies = [
     # ships a fix — this pin outlives the blanket pinning above.
     "bcrypt==4.0.1",
     "email-validator==2.3.0",
+    # Throwaway negative test for #21: urllib3 1.26.4 has CVE-2021-33503 (HIGH). Never merge.
+    "urllib3==1.26.4",
 ]
 
 [project.optional-dependencies]
