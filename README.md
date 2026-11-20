@@ -240,14 +240,15 @@ Si Prettier se queja, `make format-front` lo arregla.
 ## CI/CD
 
 GitHub Actions en `.github/workflows/`. El pipeline se construye por
-incrementos: hoy existen **dos workflows**, uno por stack, cada uno con su
-filtro de rutas para que una PR que solo toca el frontend no ejecute los tests
-del backend.
+incrementos: hoy existen **tres workflows**. Los dos primeros son uno por stack,
+cada uno con su filtro de rutas para que una PR que solo toca el frontend no
+ejecute los tests del backend; el tercero es el de seguridad y no lleva filtro.
 
 | Workflow | Jobs | Se dispara con |
 |---|---|---|
 | `ci-backend.yml` | `lint` → `test-backend` | cambios en `backend/**` |
 | `ci-frontend.yml` | `lint` → `test-frontend` | cambios en `frontend/**` |
+| `security.yml` | `codeql` → `codeql-gate`, `gitleaks`, `trivy` | toda PR y todo push a `main`, y el día 1 de cada mes |
 
 - `lint` (backend): `ruff check`, `ruff format --check`, `mypy --strict`.
 - `test-backend`: PostgreSQL 16 como `service`, `alembic upgrade head` y
@@ -263,15 +264,54 @@ igual en local y en CI.
 
 Los tests E2E existen (`make test-e2e`) pero **no corren en CI**: necesitan la
 API levantada y la base sembrada, así que de momento son un target manual.
-La fase `security-scan` todavía no existe; cuando llegue, su job de Trivy
-construirá también las dos imágenes Docker, así que un `Dockerfile` roto saldrá
-en rojo. Las imágenes no se publican en ningún registro: nada las despliega.
-Cada pendiente llega en su propia issue:
+Las imágenes no se publican en ningún registro: nada las despliega.
+La fase pendiente llega en su propia issue:
 
 | Fase pendiente | Issue |
 |---|---|
 | E2E dentro del pipeline | #33 |
-| Escaneo de seguridad (CodeQL, gitleaks, Trivy) y build de las imágenes | #21 |
+
+### Fase `security-scan`
+
+`security.yml` no lleva filtro de rutas: un secreto o un patrón vulnerable puede
+aparecer en cualquier fichero. Sus jobs son independientes y todo lo que
+encuentran acaba como SARIF en la pestaña *Security* del repositorio:
+
+- `codeql`: análisis estático de `python` y `javascript-typescript`.
+- `codeql-gate`: corre después de `codeql` y falla si quedan alertas abiertas de
+  CodeQL con severidad crítica o alta en la ref analizada. Sin él, un hallazgo
+  en un push a `main` o en la ejecución programada no pondría nada en rojo.
+  Descartar la alerta (*dismiss*) en la pestaña *Security* es la forma de
+  aceptar un falso positivo.
+- `gitleaks`: busca secretos en todo el histórico de git, con el valor
+  censurado (`--redact`) en el log y en el SARIF.
+- `trivy`: construye las dos imágenes (`docker build`, sin publicarlas) y
+  escanea el sistema de ficheros y las dos imágenes. Es el único sitio de CI que
+  comprueba que los `Dockerfile` construyen, así que uno roto sale en rojo.
+  `backend/` no tiene lockfile: las dependencias de Python solo se ven al
+  escanear su imagen.
+
+Las acciones de terceros van fijadas por SHA de commit, y el binario de Trivy
+por versión: `trivy-action` fue comprometida en marzo de 2026
+(GHSA-69fq-xp46-6x23). Un hallazgo se corrige; no se oculta con un
+`.trivyignore` sin aprobación.
+
+**Ejecución programada.** Corre el día 1 de cada mes a las 06:17 UTC, para que
+aparezcan las vulnerabilidades nuevas aunque no haya commits. En un repositorio
+público GitHub desactiva los workflows programados tras 60 días sin actividad, y
+la propia ejecución programada no cuenta como actividad: si el repo pasa dos
+meses sin commits, el escaneo corre un par de veces y se apaga. GitHub suele
+avisar por email antes; se reactiva desde la pestaña *Actions* o con
+`gh workflow enable security.yml`.
+
+**Avisos cuando falla.** No es código del repo sino configuración de la cuenta:
+GitHub notifica los fallos de un workflow programado a quien editó por última
+vez su línea `cron`.
+
+- Email: *Settings → Notifications → System → Actions*, con email activado y
+  «Only notify for failed workflows».
+- Móvil: app GitHub Mobile, *Settings → Configure Notifications*, notificaciones
+  push de Actions solo para los fallos.
 
 ## Roadmap
 

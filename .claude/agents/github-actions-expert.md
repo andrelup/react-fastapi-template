@@ -38,9 +38,10 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 
 **E2E** — Playwright is wired: `frontend/playwright.config.ts`, specs in `frontend/e2e/tests/`, page objects in `frontend/e2e/page-objects/`, and `make test-e2e` runs it for real. Its `webServer` starts the SPA itself, but it still needs a running API and a seeded database, so **it is not a drop-in CI job**: decide explicitly how to provide both before adding one.
 
+**Exists** — `.github/workflows/security.yml` (issue #21): `codeql` (python and javascript-typescript matrix), `codeql-gate` (fails on open critical/high CodeQL alerts of the analysed ref), `gitleaks` (CLI pinned by release and sha256, not the action) and `trivy` (filesystem plus both images). No `paths:` filter on purpose. Its `trivy` job builds both images and is the only CI check that the Dockerfiles still build. Its third-party actions and the Trivy binary are pinned (`trivy-action` was compromised in March 2026, GHSA-69fq-xp46-6x23): never move them to a tag or to `latest`, and never add a `.trivyignore` without the maintainer's approval.
+
 **Still NON-EXISTENT** — do not reference these until they are built:
 - `.github/dependabot.yml` (issue #16)
-- `security.yml` (issue #21). Its Trivy job builds both images to scan them, which makes it the only CI check that the Dockerfiles still build
 
 **Not planned** — do not propose these here; an adopter who needs them adds them in their own repository:
 - Branch protection and required checks (#23, closed): the project has a single maintainer who pushes to `main` directly
@@ -70,7 +71,7 @@ Sanctioned toolbox:
 | Coverage gate | `fail_under` in `backend/pyproject.toml`, `coverage.thresholds` in `frontend/vite.config.ts` — both already set to 80, never on a command line |
 | Coverage reporting | GitHub job summary / PR comment. Codecov only if the user opts in |
 | SAST | `github/codeql-action` |
-| Secret scanning | `gitleaks` action + GitHub push protection |
+| Secret scanning | `gitleaks` CLI (the action cannot feed code scanning) + GitHub push protection |
 | Dependency vulns | Dependabot alerts + `dependabot.yml` |
 | Container / FS scan | `aquasecurity/trivy-action` |
 | Workflow lint | `actionlint` |
