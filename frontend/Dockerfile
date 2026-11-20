@@ -28,7 +28,11 @@ COPY . .
 RUN npm run build
 
 # Etapa final: nginx sirviendo los estaticos, sin Node ni dependencias de dev.
-FROM nginx:1.27-alpine AS runtime
+# 1.30 es la linea estable vigente de nginx (la 1.27 ya no recibe parches y su
+# tag se quedo en un Alpine viejo con decenas de CVE sin corregir). Los tags
+# `X.Y-alpine` se reconstruyen con cada parche, de modo que basta con tocarlo
+# cuando nginx publique la siguiente linea estable.
+FROM nginx:1.30-alpine AS runtime
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
