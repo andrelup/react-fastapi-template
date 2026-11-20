@@ -1,0 +1,18 @@
+# gitleaks configuration, loaded automatically from the repository root by the
+# `gitleaks` job of `.github/workflows/security.yml`.
+#
+# It keeps every default rule. The only exception below is for WebCrypto
+# algorithm identifiers that the `generic-api-key` rule mistakes for a key,
+# because they follow the word "Key" (`'encapsulateKey', 'MLKEM768-X25519'`).
+# The match is anchored to the whole value, so a real secret is never hidden.
+#
+# A finding is fixed, not hidden: add a new exception only with the
+# maintainer's approval (#92).
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "ML-KEM algorithm names (WebCrypto identifiers), not secrets"
+regexTarget = "secret"
+regexes = ['''^MLKEM(512|768|1024)(-(X25519|P256|P384))?$''']
