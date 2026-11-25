@@ -1,18 +1,16 @@
 """Populate the sample catalogue (items, collections, tags) — the example half of the seed.
 
-`backend/seed.py` seeds the **template**: the user accounts and their roles, which
-survive `scripts/init-template.sh --no-example` because `UserRole`, `has_role()`
-and the auth slice all live outside the `example/` folders. This file seeds the
+`backend/seed.py` seeds the user accounts and their roles. This file seeds the
 **example** domain that sits on top of those accounts — the neutral catalogue of
 items, collections and tags that demonstrates the pattern and is meant to be
-deleted. Removing the sample is therefore `rm backend/seed_example.py` plus the
-marked import block in `seed.py` (issue #14, `--no-example`): the four fixed
-accounts stay, only the data this file wrote goes with it.
+deleted. Both files are sample data and removing the example deletes them
+together, accounts included (`docs/the-example-domain.md`, issue #14,
+`--no-example`).
 
 `seed.py` calls `seed_example_catalogue()` and passes it the users it just
 created or found, because every item needs an `owner_id` and this module has
 no repository of its own to fetch one — the whole point of the split is that
-users are the template's concern, not this one's.
+users are `seed.py`'s concern, not this one's.
 
 Like `seed.py`, this module is idempotent (keyed on the fixed collection names
 below), reproducible (a fixed Faker seed), and persists exclusively through

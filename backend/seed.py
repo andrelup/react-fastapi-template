@@ -4,14 +4,12 @@ Run with `make seed` (or `python seed.py` from `backend/`). Every row is written
 through the same repositories the application uses, so the seed can never drift
 from the persistence rules enforced by the domain.
 
-This file seeds the **template**: user accounts and their roles. `UserRole`,
-`has_role()`, the `users.role` column and `AuthService.register()` all live
-outside the `example/` folders and survive `scripts/init-template.sh
---no-example`, which is why this half is never deleted. The sample catalogue
-that sits on top of these accounts — items, collections and tags — is the
-**example** half, seeded by `seed_example.py` and called from the marked block
-below; deleting the sample is `rm backend/seed_example.py` plus that block
-(issue #14, `--no-example`), and the four fixed accounts created here stay.
+This file seeds the user accounts and their roles; the catalogue that sits on
+top of them — items, collections and tags — is seeded by `seed_example.py`,
+called at the end of the run. Both files are sample data: removing the example
+deletes them together, accounts included (`docs/the-example-domain.md`,
+issue #14, `--no-example`). What stays is the auth code the accounts rely on
+(`UserRole`, `has_role()`, `AuthService.register()`), not the accounts.
 
 Four accounts are created before anything else, with literal (non-Faker)
 emails on the neutral, RFC 2606-reserved `example.com` domain: `admin@`,
@@ -38,9 +36,8 @@ import structlog
 from faker import Faker
 
 # Example domain: seeds the sample catalogue (items, collections, tags) that
-# hangs off the accounts created below. Delete this import together with
-# `seed_example.py` when removing the sample (issue #14, `--no-example`) — the
-# fixed accounts are template code and survive that deletion.
+# hangs off the accounts created below. Both files are deleted together when
+# the sample is removed (issue #14, `--no-example`).
 from seed_example import seed_example_catalogue
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.adapters.outbound.persistence.database import async_session_factory, engine

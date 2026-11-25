@@ -71,9 +71,8 @@ hand, in this order:
 1. `rm -rf` each of the six backend `example/` directories listed above.
 2. Delete the twelve test files listed above. `backend/tests/fakes/` is then empty except for its
    `__init__.py`; leave the package, it is where the next fake with two consumers goes.
-3. `rm backend/seed_example.py`, and remove the marked block at the end of `backend/seed.py` that
-   calls it — marked in the style of `alembic/env.py:17-20`, with the same
-   `(issue #14, --no-example)` parenthetical.
+3. `rm backend/seed.py backend/seed_example.py`. Both halves of the seed go, the fixed accounts
+   included: they are sample data too. Steps 18-21 unwire them.
 
 **Backend — edit**
 
@@ -131,18 +130,31 @@ hand, in this order:
     `navigation.ts` (step 13), `useNavEntryActive.ts` (step 14) and `navigation.test.ts`
     (step 16).
 
+**Seed — unwire**
+
+18. `Makefile` — drop the `seed` target, its `.PHONY` entry and its `help` line, and the mentions of
+    the seed in the comments of `test` and `test-e2e`.
+19. `scripts/setup.py` — `migrate_and_seed()` is left running the migrations alone; drop the
+    `--no-seed` option and the mentions of the seed. `make setup` calls `seed.py`, so it fails
+    without this step.
+20. `backend/pyproject.toml` — drop `faker` from the dev extra and `seed.py` from
+    `[tool.coverage.run] omit`. Delete `.claude/agents/db-seeder.md`, whose only job is that file,
+    and drop `make seed` from the prose that mentions it (`git grep -n "make seed"`).
+21. `frontend/e2e/tests/auth.spec.ts` — it logs in as `viewer@example.com`, a seeded account. Point
+    it at an account of your own, or delete it with the sample.
+
 Then `make lint && make test` must pass, and the backend must still start with auth and health
-alone.
+alone. `make lint` and `make test` do not run the E2E specs, so step 21 does not announce itself.
 
-## Two things that look like steps and are not
+A database that was already migrated keeps the seeded accounts and the sample's tables, and its
+`alembic_version` points at the revision step 5 deleted. Recreate the development volume
+(`docker compose --env-file ../.env --profile prod down -v` from `infra/`, which deletes **all** its
+data), then `make dev` and `make migrate`. After that there are no accounts: the first
+user is created through registration. The form always creates a `viewer`; any other role is passed
+to `POST /auth/register` until the project closes it
+(`docs/adr/0003-roles-y-registro-abierto.md`).
 
-**`backend/seed.py` seeds users only; `backend/seed_example.py` seeds the sample catalogue.** Issue
-#12 split what used to be a single script in two: `seed.py` still creates accounts and nothing else,
-and delegates the catalogue — collections, items, tags — to `seed_example.py`, which it calls from a
-marked block at its own end, in the style of `alembic/env.py:17-20` and closed with the same
-`(issue #14, --no-example)` parenthetical. That is why step 3 above exists now: there is a file to
-delete and a call to remove, where before there was neither. Older versions of this procedure said
-`seed.py` needed no step at all; issue #12 is why that stopped being true.
+## One thing that looks like a step and is not
 
 **`frontend/src/lib/api-client.test.ts` mentions `/items`.** It is template code, and the path is an
 arbitrary URL string used to exercise the HTTP client. It is not a dependency on the sample, and it
@@ -151,6 +163,6 @@ the next person the investigation.
 
 ## The cost, and keeping it that way
 
-Thirteen steps, of which five are deletions and eight are small edits to template files. That number
-is the budget. If adding to the sample would push it higher, the sample is reaching into the
-template and the reach is the thing to fix — not the procedure.
+Twenty-one steps, four of them only to unwire the seed. That number is the budget. If adding to the
+sample would push it higher, the sample is reaching into the template and the reach is the thing to
+fix — not the procedure.
