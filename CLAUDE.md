@@ -1,6 +1,6 @@
 # react-fastapi-template — full-stack project template
 
-Monorepo with a Python backend and a React frontend, using a generic catalogue (items, collections, tags) as its example domain. Training project on Claude Code and agentic development.
+Monorepo with a Python backend and a React frontend, using a generic catalogue (items, collections, tags) as its example domain. A template shared with the community, free to use for anything, production included, with no warranty or liability (`README.md`, «Uso en producción»).
 
 ## Repository structure
 
