@@ -1,6 +1,8 @@
 # fastapi-template Backend — API REST
 
-API REST del template fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura, de modo que la persistencia, la API o cualquier servicio externo son detalles intercambiables.
+API REST del template fastapi-template, construida con **Python + FastAPI** siguiendo una **arquitectura hexagonal** (Ports & Adapters). El dominio (lógica de negocio) queda aislado de los frameworks y de la infraestructura: cambiar la base de datos o el framework web obliga a reescribir los adaptadores que dependen de ellos, y su cableado en `config/` y `main.py`, pero no el dominio.
+
+Trae dos cosas: la autenticación, que es núcleo de la plantilla, y un catálogo de ejemplo completo (`items`, `collections` y `tags`), que está para leerlo, copiarlo y borrarlo. El ejemplo vive en carpetas `example/` dentro de cada capa; cómo quitarlo está en [docs/the-example-domain.md](../docs/the-example-domain.md).
 
 ## Stack
 
@@ -22,9 +24,9 @@ El código se organiza en tres anillos: el **dominio** en el centro (lógica pur
 backend/
 ├── src/
 │   ├── domain/                # NÚCLEO — lógica de negocio pura, sin dependencias externas
-│   │   ├── models/            # Entidades de dominio (dataclasses / Pydantic)
+│   │   ├── models/            # Entidades de dominio (dataclasses)
 │   │   ├── ports/             # Interfaces (Protocol) de repositorios y servicios
-│   │   ├── services/          # Casos de uso (hoy solo auth)
+│   │   ├── services/          # Casos de uso: auth y, en example/, items, collections y tags
 │   │   └── exceptions.py      # Excepciones de dominio
 │   │
 │   ├── adapters/
@@ -33,30 +35,34 @@ backend/
 │   │   │   ├── schemas/       # Schemas Pydantic (request/response)
 │   │   │   └── middleware/    # Dependencia de auth, middleware de logging, error handler
 │   │   └── outbound/          # Salida: cómo el dominio accede al exterior
-│   │       ├── persistence/   # Repositorios SQLAlchemy + database.py
-│   │       │   └── example/   # Modelos ORM del catálogo de ejemplo (item, collection, tag)
-│   │       ├── security/      # PasswordHasher (bcrypt), TokenService (JWT)
+│   │       ├── persistence/   # Modelos ORM y repositorios SQLAlchemy + database.py
+│   │       │   └── example/   # Los del catálogo de ejemplo (item, collection, tag)
+│   │       └── security/      # PasswordHasher (bcrypt), TokenService (JWT)
 │   │
-│   ├── config/                # Settings (Pydantic) y container de DI
+│   ├── config/                # Settings (Pydantic), logging y container de DI
 │   └── main.py                # Entrypoint FastAPI
 │
-├── tests/                     # unit / integration / api
+├── tests/                     # unit / integration / api, y fakes compartidos
 ├── alembic/                   # Migraciones
 ├── pyproject.toml
 ├── Dockerfile
-└── seed.py
+├── seed.py                    # Cuentas de desarrollo
+└── seed_example.py            # Catálogo de ejemplo
 ```
+
+`models/`, `ports/` y `services/` del dominio, y `api/` y `schemas/` de la entrada, tienen también su
+carpeta `example/`.
 
 ### Reglas de la arquitectura
 
 1. **El dominio NO importa de adapters.** Los imports van siempre de fuera hacia dentro:
    - `adapters.inbound.api` → importa de `domain.services` y `domain.models`.
    - `adapters.outbound.persistence` → importa de `domain.ports` e implementa sus interfaces.
-   - `domain.services` → importa de `domain.ports` y `domain.models`, nada más.
+   - `domain.services` → importa de `domain.ports`, `domain.models` y `domain.exceptions`, nada más.
 2. **Los ports son `Protocol` classes** (`typing.Protocol`), no clases abstractas.
-3. **Los modelos de dominio son independientes de SQLAlchemy.** Los modelos ORM viven en `adapters/outbound/persistence/sqlalchemy_models.py` y se mapean desde/hacia el dominio.
+3. **Los modelos de dominio son independientes de SQLAlchemy.** Los modelos ORM viven en `adapters/outbound/persistence/` (`sqlalchemy_models.py` para las tablas de la plantilla, `example/` para las del catálogo) y se mapean desde/hacia el dominio.
 4. **Inyección de dependencias en `config/container.py`.** Conecta cada port con su implementación concreta; los routers reciben los servicios ya inyectados vía `Depends`.
-5. **Las excepciones de dominio se traducen en el `error_handler` middleware:** `UnauthorizedError` → 401, `ForbiddenError` → 403, `DuplicateEmailError` → 409. Toda excepción nueva tiene que añadir su entrada al mapa; si no, cae en el 500 por defecto.
+5. **Las excepciones de dominio se traducen en el `error_handler` middleware:** `UnauthorizedError` e `InvalidCredentialsError` → 401, `ForbiddenError` → 403, `ItemNotFoundError` y `CollectionNotFoundError` → 404, `DuplicateEmailError` y `DuplicateCollectionNameError` → 409. Toda excepción nueva tiene que añadir su entrada al mapa; si no, cae en el 500 por defecto.
 
 ## Formato de respuesta de la API
 
@@ -67,7 +73,7 @@ Todas las respuestas siguen la misma envoltura:
 { "success": false, "data": null,             "error": "Item 42 not found" }
 ```
 
-Los schemas Pydantic se separan por operación: `ItemCreate`, `ItemUpdate`, `ItemResponse`, `ItemListResponse`.
+Los schemas Pydantic se separan por operación: `ItemCreate`, `ItemUpdate`, `ItemResponse`, `ItemDetailResponse`, `ItemPageResponse`.
 
 ## Convenciones de código
 
@@ -116,11 +122,13 @@ genérica de resolverla. El razonamiento y las alternativas, en
 
 - Framework: **pytest + pytest-asyncio + httpx.AsyncClient**.
 - Patrón **AAA** (Arrange → Act → Assert).
-- Fixtures centralizadas en `conftest.py`: test DB y async client. No hay fixtures de usuario
-  compartidas a propósito: cada test construye el `User` con el rol que necesita en su propio
-  Arrange.
-- **Unitarios:** mockean los ports y prueban los servicios de dominio en aislamiento.
-- **Integración:** usan una DB real de test para verificar los repositorios.
+- Fixtures centralizadas en `conftest.py`: sesión de base de datos y async client. No hay fixtures
+  de usuario compartidas a propósito: cada test construye el `User` con el rol que necesita en su
+  propio Arrange.
+- **Unitarios:** prueban los servicios de dominio en aislamiento, con fakes en memoria escritos a
+  mano en lugar de mocks.
+- **Integración:** verifican los repositorios contra la PostgreSQL del `.env`. No hay una base de
+  datos aparte para los tests: cada uno corre en una transacción que se deshace al terminar.
 - **API:** `httpx.AsyncClient` contra la app FastAPI.
 - Coverage mínimo: **80 %**, y no es una recomendación: el umbral vive en
   `[tool.coverage.report] fail_under = 80` (`pyproject.toml`), así que
