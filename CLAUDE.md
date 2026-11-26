@@ -89,6 +89,13 @@ visible, `--squash` collapses it into a single commit.
   sit behind the `prod` profile
 - Multi-stage Dockerfiles in each subdirectory (`backend/Dockerfile`,
   `frontend/Dockerfile`), production-only: no development stage
+- Dependency updates come in two kinds. Direct dependencies, the ones declared
+  in `backend/pyproject.toml` and `frontend/package.json`, are updated one at a
+  time, each change reviewed. Indirect ones, such as the OS packages of the base
+  images, are not tracked one by one: they only have to pass the vulnerability
+  scans. That is why the backend runtime stage runs `apt-get upgrade`: the
+  official Python image lags days behind Debian's security fixes, and Trivy
+  fails meanwhile. Do not turn it back into per-package `--only-upgrade` steps
 - The production images run as a non-root user and declare a `HEALTHCHECK`. The
   frontend keeps port 80 by granting the nginx binary `CAP_NET_BIND_SERVICE`
   instead of running its master process as root

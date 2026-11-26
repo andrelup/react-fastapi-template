@@ -303,6 +303,14 @@ por versión: `trivy-action` fue comprometida en marzo de 2026
 (GHSA-69fq-xp46-6x23). Un hallazgo se corrige; no se oculta con un
 `.trivyignore` ni con una excepción nueva en `.gitleaks.toml` sin aprobación.
 
+**Cómo se actualizan las dependencias.** Las directas, las que el proyecto
+declara en `backend/pyproject.toml` y `frontend/package.json`, se actualizan de
+una en una, revisando cada cambio. Las indirectas, como los paquetes del sistema
+de las imágenes base, no se siguen así: basta con que pasen los escaneos de
+seguridad. Por eso la imagen del backend instala al construirse todos los
+parches de seguridad que Debian ya ha publicado (`apt-get upgrade`): la imagen
+oficial de Python tarda unos días en incluirlos, y mientras tanto Trivy falla.
+
 **Ejecución programada.** Corre el día 1 de cada mes a las 06:17 UTC, para que
 aparezcan las vulnerabilidades nuevas aunque no haya commits. En un repositorio
 público GitHub desactiva los workflows programados tras 60 días sin actividad, y
