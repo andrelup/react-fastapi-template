@@ -38,13 +38,13 @@ The docs describe more than the repo contains. Check the filesystem, not the REA
 
 **E2E** — Playwright is wired: `frontend/playwright.config.ts`, specs in `frontend/e2e/tests/`, page objects in `frontend/e2e/page-objects/`, and `make test-e2e` runs it for real. Its `webServer` starts the SPA itself, but it still needs a running API and a seeded database, so **it is not a drop-in CI job**: decide explicitly how to provide both before adding one.
 
-**Exists** — `.github/workflows/security.yml` (issue #21): `codeql` (python and javascript-typescript matrix), `codeql-gate` (fails on open critical/high CodeQL alerts of the analysed ref), `gitleaks` (CLI pinned by release and sha256, not the action) and `trivy` (filesystem plus both images). No `paths:` filter on purpose. Its `trivy` job builds both images and is the only CI check that the Dockerfiles still build. Its third-party actions and the Trivy binary are pinned (`trivy-action` was compromised in March 2026, GHSA-69fq-xp46-6x23): never move them to a tag or to `latest`, and never add a `.trivyignore` or a new `.gitleaks.toml` allowlist without the maintainer's approval.
+**Exists** — `.github/workflows/security.yml` (issue #21): `codeql` (python and javascript-typescript matrix), `codeql-gate` (fails on open critical/high CodeQL alerts of the analysed ref), `gitleaks` (CLI pinned by release and sha256, not the action) and `trivy` (filesystem plus both images). It runs on PRs and pushes to `main` and `develop`. `schedule` only fires on the default branch (`develop`), so the monthly run is a fan-out: its only job, `scan-branches`, dispatches one ordinary run per branch through `workflow_dispatch` and waits for both, so that a failure on either branch fails the scheduled run and reaches whoever last edited the `cron` line. A manual run with `-f both-branches=true` does the same. No `paths:` filter on purpose. Its `trivy` job builds both images and is the only CI check that the Dockerfiles still build. Its third-party actions and the Trivy binary are pinned (`trivy-action` was compromised in March 2026, GHSA-69fq-xp46-6x23): never move them to a tag or to `latest`, and never add a `.trivyignore` or a new `.gitleaks.toml` allowlist without the repo collaborator's approval.
 
 **Still NON-EXISTENT** — do not reference these until they are built:
 - `.github/dependabot.yml` (issue #16)
 
 **Not planned** — do not propose these here; an adopter who needs them adds them in their own repository:
-- Branch protection and required checks (#23, closed): the project has a single maintainer who pushes to `main` directly
+- Branch protection and required checks (#23, closed): the project has a single repo collaborator, who pushes to `develop` and `main` directly
 - Publishing images to GHCR and a separate `docker.yml` (#22, closed): nothing deploys the images
 
 **Rule:** if something does not exist, say so and either propose creating it or leave it out of the workflow. Never write a step that references a file, script or service that is not there.
@@ -95,7 +95,7 @@ Sanctioned toolbox:
 - **Matrices only when they earn their cost.** One Python version and one Node version unless the user asks otherwise
 - **`working-directory`** at job or step level for `backend/` and `frontend/` — never `cd` inside `run:`
 - **Reuse the `Makefile`** when the target is already correct. If it is wrong or a placeholder, fix the Makefile — do not duplicate the command in YAML
-- **`pull_request` + `push` to the main branches only.** Respect the issue-driven flow: PRs target `main` (there is no `develop` branch), bodies carry `Closes #N`. Never add automation that closes issues or deletes branches by itself — merging the linked PR already does that
+- **`pull_request` + `push` to the integration branches only.** Respect the issue-driven flow: PRs target `develop`, the integration and default branch, and bodies carry `Closes #N`; `main` only receives the batches the repo collaborator merges from `develop`. Every workflow runs the same way on both branches. Never add automation that closes issues or deletes branches by itself — merging the linked PR already does that
 
 ## Approach
 
@@ -128,7 +128,7 @@ Sanctioned toolbox:
 - [ ] Dependency caching enabled for pip and npm
 - [ ] Job dependency graph (`needs:`) matches the intended pipeline order
 - [ ] No SonarQube / SonarCloud / paid tooling introduced
-- [ ] Issue-driven flow untouched (PRs to `main`, `Closes #N` still does the closing)
+- [ ] Issue-driven flow untouched (PRs to `develop`, `Closes #N` still does the closing)
 - [ ] Conventional commit message suggested, scoped `ci:` (e.g. `ci: add backend test workflow`)
 
 ## Output

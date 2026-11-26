@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - main
+      - develop
     paths:
       - 'frontend/**'
       - '.github/workflows/ci-frontend.yml'
@@ -103,7 +104,7 @@ jobs:
       # vitest carga `vite.config.ts`, que se niega a arrancar sin la URL de la
       # API y la busca en el `.env` de la raíz. La configuración sale del
       # secret de Actions `CI_DOTENV`, el mismo que usa `ci-backend.yml`: el
-      # mantenedor lo crea a mano con valores de mentira.
+      # colaborador del repo lo crea a mano con valores de mentira.
       - name: Write .env from the CI secret
         working-directory: .
         env:

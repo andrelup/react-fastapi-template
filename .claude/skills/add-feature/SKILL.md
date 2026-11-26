@@ -46,5 +46,5 @@ npm --prefix frontend run test:coverage   # vitest, with the frontend's 80 % thr
 
 ## 5. Before the PR
 
-Walk `docs/adding-a-feature.md` §6 item by item. Then open the PR against `main` with
+Walk `docs/adding-a-feature.md` §6 item by item. Then open the PR against `develop` with
 `Closes #<n>`.
