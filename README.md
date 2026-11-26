@@ -409,10 +409,11 @@ Es un proyecto open source con un solo colaborador, que lo atiende cuando puede.
 - **Vulnerabilidades.** No las publiques en una issue: avísalas en privado desde
   la pestaña *Security* del repositorio, con *Report a vulnerability*.
 - **Pull requests.** Para contribuir, haz un fork, trabaja en una rama y abre una
-  pull request contra `develop`, nunca contra `main`: a `main` solo llegan
-  grupos de cambios que ya están en `develop`. El autor revisa los cambios y, si
-  todo está conforme, la acepta. Sigue las [convenciones](#convenciones-globales)
-  y las reglas de [Git](#git): Conventional Commits, tests y hooks de pre-commit.
+  pull request contra `develop`, nunca contra `main`: en `main` solo entran los
+  merges que hace el propio proyecto desde `develop`. El autor revisa los cambios
+  y, si todo está conforme, la acepta. Sigue las
+  [convenciones](#convenciones-globales) y las reglas de [Git](#git):
+  Conventional Commits, tests y hooks de pre-commit.
 
 ## Licencia
 
