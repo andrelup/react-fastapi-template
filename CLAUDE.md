@@ -95,7 +95,8 @@ visible, `--squash` collapses it into a single commit.
   images, are not tracked one by one: they only have to pass the vulnerability
   scans. That is why the backend runtime stage runs `apt-get upgrade`: the
   official Python image lags days behind Debian's security fixes, and Trivy
-  fails meanwhile. Do not turn it back into per-package `--only-upgrade` steps
+  fails meanwhile. Do not turn it back into per-package `--only-upgrade` steps.
+  See `docs/adr/0010-dependencias-directas-y-paquetes-del-sistema.md`
 - The production images run as a non-root user and declare a `HEALTHCHECK`. The
   frontend keeps port 80 by granting the nginx binary `CAP_NET_BIND_SERVICE`
   instead of running its master process as root

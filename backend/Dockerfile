@@ -37,7 +37,7 @@ ENV PYTHONUNBUFFERED=1
 # only have to pass the vulnerability scan. So the whole system is upgraded and
 # a lagging base image needs no change here. The cost: two builds on different
 # days may carry different package versions, as the floating 3.12-slim tag
-# already does.
+# already does. See docs/adr/0010-dependencias-directas-y-paquetes-del-sistema.md.
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \

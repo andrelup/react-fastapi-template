@@ -310,6 +310,8 @@ de las imágenes base, no se siguen así: basta con que pasen los escaneos de
 seguridad. Por eso la imagen del backend instala al construirse todos los
 parches de seguridad que Debian ya ha publicado (`apt-get upgrade`): la imagen
 oficial de Python tarda unos días en incluirlos, y mientras tanto Trivy falla.
+Ver el
+[ADR 0010](./docs/adr/0010-dependencias-directas-y-paquetes-del-sistema.md).
 
 **Ejecución programada.** Corre el día 1 de cada mes a las 06:17 UTC, para que
 aparezcan las vulnerabilidades nuevas aunque no haya commits. En un repositorio
