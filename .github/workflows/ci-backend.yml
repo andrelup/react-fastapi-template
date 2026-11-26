@@ -22,6 +22,7 @@ on:
   push:
     branches:
       - main
+      - develop
     paths:
       - 'backend/**'
       - '.github/workflows/ci-backend.yml'
@@ -107,11 +108,11 @@ jobs:
         run: pip install -e ".[dev]"
 
       # La configuración sale del secret de Actions `CI_DOTENV`, que el
-      # mantenedor crea a mano con el contenido de un `.env`: valores de
-      # mentira y las mismas credenciales que el servicio `postgres` de arriba,
-      # que solo vive dentro de este job. Se vuelca al `.env` de la raíz, el
-      # mismo fichero que lee `src/config/settings.py` en local; sin él la
-      # recolección de tests revienta, porque `Settings()` se instancia al
+      # colaborador del repo crea a mano con el contenido de un `.env`: valores
+      # de mentira y las mismas credenciales que el servicio `postgres` de
+      # arriba, que solo vive dentro de este job. Se vuelca al `.env` de la
+      # raíz, el mismo fichero que lee `src/config/settings.py` en local; sin él
+      # la recolección de tests revienta, porque `Settings()` se instancia al
       # importar y las direcciones y los secretos no tienen valor por defecto.
       - name: Write .env from the CI secret
         working-directory: .
