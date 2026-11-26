@@ -349,9 +349,9 @@ El frontend y el backend se desarrollan juntos en este repositorio pero se **des
 ## Uso en producción
 
 Puedes usar esta plantilla para lo que quieras, también en producción. Se
-distribuye tal cual, sin garantías, sin soporte y sin una auditoría de seguridad
-formal, y **su autor no se hace responsable del uso que se haga de ella** ni de
-sus consecuencias, como recoge la [licencia MIT](LICENSE).
+distribuye tal cual, sin garantías y sin una auditoría de seguridad formal, y
+**su autor no se hace responsable del uso que se haga de ella** ni de sus
+consecuencias, como recoge la [licencia MIT](LICENSE).
 
 **Lo que ya trae:**
 
@@ -394,10 +394,24 @@ sus consecuencias, como recoge la [licencia MIT](LICENSE).
   vulnerabilidades que aún no tienen parche (`ignore-unfixed`).
 
 > **Free to use for anything, production included.** react-fastapi-template is
-> provided as is, without warranty, support or a formal security audit, and its
-> author accepts no liability for any use of it, under the MIT license terms.
-> Before going live, close the open registration, replace the example secrets, add
-> login rate limiting and serve it over HTTPS with security headers.
+> provided as is, without warranty or a formal security audit, and its author
+> accepts no liability for any use of it, under the MIT license terms. Before
+> going live, close the open registration, replace the example secrets, add login
+> rate limiting and serve it over HTTPS with security headers.
+
+## Soporte y contribuciones
+
+Es un proyecto open source con un solo mantenedor, que lo atiende cuando puede.
+
+- **Issues.** Abre una para avisar de un fallo o proponer una mejora. El autor
+  las contesta cuando puede, y decide qué propuestas se hacen, con qué prioridad
+  y cuándo.
+- **Vulnerabilidades.** No las publiques en una issue: avísalas en privado desde
+  la pestaña *Security* del repositorio, con *Report a vulnerability*.
+- **Pull requests.** Para colaborar, haz un fork, trabaja en una rama y abre una
+  pull request contra `main`. El autor revisa los cambios y, si todo está
+  conforme, la acepta. Sigue las [convenciones](#convenciones-globales) y las
+  reglas de [Git](#git): Conventional Commits, tests y hooks de pre-commit.
 
 ## Licencia
 
