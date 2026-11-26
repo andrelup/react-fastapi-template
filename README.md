@@ -150,7 +150,7 @@ Toda URL o dirección que necesita la plataforma —la URL de la API, los oríge
 
 - **Local:** `.env`, creado desde `.env.example` por `make setup`. Si tu `.env` es anterior a una clave nueva, `make setup` te avisa de las que le faltan.
 - **Staging y producción:** `.env.staging` y `.env.prod`, creados también desde `.env.example`. Nunca se versionan. No se usa `.env.production` porque Vite lo cargaría por su cuenta en cada build.
-- **CI:** no lee el `.env` de nadie. Sus valores, todos de mentira, salen de un secret de GitHub Actions que el mantenedor crea a mano.
+- **CI:** no lee el `.env` de nadie. Sus valores, todos de mentira, salen de un secret de GitHub Actions que el colaborador del repo crea a mano.
 
 `make build ENV=staging` (o `ENV=prod`) construye las imágenes con los valores de ese fichero y las etiqueta como `:staging` (o `:prod`), para que no pisen las de otro entorno. Sirve para comprobar que el build funciona con esos valores; **esas imágenes no se arrancan en local**, porque el navegador llamaría a la API de ese entorno y su CORS rechazaría las peticiones. `make dev` y `make preview` usan siempre el `.env`.
 
@@ -197,6 +197,7 @@ Todos los comandos se ejecutan desde la raíz del monorepo y solo prueban o ejec
 
 - **Conventional commits** obligatorios: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`.
 - El scope indica el módulo: `feat(backend): add the item search endpoint`, `fix(frontend): fix login redirect`.
+- **`develop` es la rama por defecto y de integración.** Cada issue tiene su rama, que nace de `develop` (`gh issue develop <n> --checkout`), y su PR, igual que las PR desde forks, va contra `develop` con `Closes #<n>`. GitHub solo cierra las issues desde la rama por defecto, y ese es uno de los motivos de que lo sea. `main` solo recibe los lotes que el colaborador del repo integra desde `develop`.
 
 ### Hooks de pre-commit
 
@@ -246,13 +247,14 @@ Si Prettier se queja, `make format-front` lo arregla.
 GitHub Actions en `.github/workflows/`. El pipeline se construye por
 incrementos: hoy existen **tres workflows**. Los dos primeros son uno por stack,
 cada uno con su filtro de rutas para que una PR que solo toca el frontend no
-ejecute los tests del backend; el tercero es el de seguridad y no lleva filtro.
+ejecute los tests del backend (corren en toda PR y en los push a `main` y
+`develop`); el tercero es el de seguridad y no lleva filtro.
 
 | Workflow | Jobs | Se dispara con |
 |---|---|---|
 | `ci-backend.yml` | `lint` → `test-backend` | cambios en `backend/**` |
 | `ci-frontend.yml` | `lint` → `test-frontend` | cambios en `frontend/**` |
-| `security.yml` | `codeql` → `codeql-gate`, `gitleaks`, `trivy` | toda PR y todo push a `main`, y el día 1 de cada mes |
+| `security.yml` | `scan-branches` (solo en la ejecución mensual), `codeql` → `codeql-gate`, `gitleaks`, `trivy` | toda PR, todo push a `main` y `develop`, y el día 1 de cada mes |
 
 - `lint` (backend): `ruff check`, `ruff format --check`, `mypy --strict`.
 - `test-backend`: PostgreSQL 16 como `service`, `alembic upgrade head` y
@@ -284,7 +286,8 @@ encuentran acaba como SARIF en la pestaña *Security* del repositorio:
 - `codeql`: análisis estático de `python` y `javascript-typescript`.
 - `codeql-gate`: corre después de `codeql` y falla si quedan alertas abiertas de
   CodeQL con severidad crítica o alta en la ref analizada. Sin él, un hallazgo
-  en un push a `main` o en la ejecución programada no pondría nada en rojo.
+  en un push a `main` o `develop`, o en la ejecución mensual de una rama, no
+  pondría nada en rojo.
   Descartar la alerta (*dismiss*) en la pestaña *Security* es la forma de
   aceptar un falso positivo.
 - `gitleaks`: busca secretos en todo el histórico de git, con el valor
@@ -321,9 +324,24 @@ meses sin commits, el escaneo corre un par de veces y se apaga. GitHub suele
 avisar por email antes; se reactiva desde la pestaña *Actions* o con
 `gh workflow enable security.yml`.
 
+`schedule` solo se dispara en la rama por defecto (`develop`), pero `main`
+también hay que escanearla. Por eso la ejecución mensual no escanea nada por sí
+misma: su único job, `scan-branches`, lanza una ejecución normal por rama
+(`workflow_dispatch`) y espera a las dos. Los cuatro jobs corren dentro de esas
+ejecuciones, así que las alertas de cada rama quedan en la pestaña *Security*
+bajo su propia rama. Para lanzar el escaneo mensual a mano:
+
+```bash
+gh workflow run security.yml -f both-branches=true
+```
+
 **Avisos cuando falla.** No es código del repo sino configuración de la cuenta:
 GitHub notifica los fallos de un workflow programado a quien editó por última
-vez su línea `cron`.
+vez su línea `cron`. `scan-branches` falla si falla cualquiera de las dos ramas,
+así que el aviso sigue llegando a esa persona. Una ejecución lanzada con el
+`GITHUB_TOKEN` pertenece a `github-actions[bot]` y no avisa a nadie, y por eso
+el job espera a las ejecuciones hijas. Si lanzas el escaneo a mano, el aviso te
+llega a ti.
 
 - Email: *Settings → Notifications → System → Actions*, con email activado y
   «Only notify for failed workflows».

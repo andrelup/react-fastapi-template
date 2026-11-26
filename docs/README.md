@@ -54,8 +54,9 @@ The live component catalogue is the app itself, at the route **`/components-ui`*
 - **Types are mandatory**: mypy strict in the backend, TypeScript strict in the frontend.
 - **Everything is tested.** Project minimum coverage: 80 %.
 - **Conventional Commits** with a module scope: `feat(backend): …`, `fix(frontend): …`.
-- **One branch per issue**, PR against `main`, linked to the issue with a closing keyword. There is
-  no `develop` branch.
+- **One branch per issue**, branched from `develop` (the default branch), PR against
+  `develop`, linked to the issue with a closing keyword. `main` only receives the batches merged
+  from `develop`.
 - Never commit without the pre-commit hooks passing; never commit a secret.
 - `backend/` and `frontend/` are independent projects joined by a REST API — they never import each
   other.

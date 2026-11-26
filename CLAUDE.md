@@ -50,14 +50,14 @@ Each subdirectory (`backend/`, `frontend/`) has its own CLAUDE.md with conventio
 - Conventional commits are mandatory: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`
 - The commit scope indicates the module: `feat(backend): add the item search endpoint`, `fix(frontend): fix login redirect`
 - One branch per issue, created with `gh issue develop <n> --checkout` so it stays linked to the issue. The name it generates (`<n>-<slugified-title>`) is the convention — do not rename it
-- PRs against `main`, always with passing tests. There is no `develop` branch
+- `develop` is the default and integration branch: issue branches start from it and their PRs, and PRs from forks, target `develop`, always with passing tests. `main` only receives the batches that the repo collaborator merges from `develop`
 
 ### Issue-driven workflow
 
 Every task originates from a GitHub issue. Always link the work back to the issue so closing it also closes the PR and deletes the branch automatically:
 
-- Create the feature branch from the issue (e.g. `gh issue develop <issue-number> --checkout`) so the branch is linked to the issue
-- When opening the PR, link it to the issue with a closing keyword in the PR body (`Closes #<issue-number>`) so merging the PR closes the issue, and closing the issue removes the associated PR and branch
+- Create the feature branch from the issue (e.g. `gh issue develop <issue-number> --checkout`) so the branch is linked to the issue; it starts from `develop`
+- When opening the PR against `develop`, link it to the issue with a closing keyword in the PR body (`Closes #<issue-number>`) so merging the PR closes the issue, and closing the issue removes the associated PR and branch. GitHub only closes issues from a PR merged into the default branch, which is one reason `develop` is the default
 
 ### Merging is the user's job — never the agent's
 
@@ -66,15 +66,16 @@ Every task originates from a GitHub issue. Always link the work back to the issu
 the checks are. The same goes for deleting the branch or the worktree afterwards: they are the
 reviewer's evidence and they stay until the user says otherwise.
 
-The reason is not stylistic: **the user reviews the code before it enters `main`**, and a merge
-performed by the agent takes that review away. Passing CI is not a substitute for it.
+The reason is not stylistic: **the user reviews the code before it enters `develop`, and again
+before each batch enters `main`**, and a merge performed by the agent takes that review away.
+Passing CI is not a substitute for it.
 
 An agent's work ends at the pull request: branch pushed, PR open, checks green, a summary of what
 changed and what to look at. Then it stops and hands over the PR link.
 
 Merge strategy is likewise the user's call. If asked to merge, ask which strategy first — `--rebase`
-rewrites the commits onto `main` and erases the branch from the graph, `--merge` keeps the branch
-visible, `--squash` collapses it into a single commit.
+rewrites the commits onto the target branch and erases the branch from the graph, `--merge` keeps
+the branch visible, `--squash` collapses it into a single commit.
 
 ## Docker
 
@@ -158,7 +159,8 @@ running them locally would make the browser call that environment's API, whose C
 ## CI/CD
 
 - GitHub Actions in `.github/workflows/`, one workflow per stack with `paths:`
-  filters so a frontend-only PR never runs the backend suite
+  filters so a frontend-only PR never runs the backend suite. They run on any PR
+  and on pushes to `main` and `develop`
 - `ci-backend.yml`: `lint` (ruff check, ruff format --check, mypy --strict)
   → `test-backend` (PostgreSQL 16 service, `alembic upgrade head`,
   `pytest --cov=src`)
@@ -166,8 +168,9 @@ running them locally would make the browser call that environment's API, whose C
   → `test-frontend` (vitest with coverage)
 - CI reads nobody's `.env`. Its values, all fake, come from the Actions secret
   `CI_DOTENV`, which holds a whole `.env` and is created by hand by the
-  maintainer, never by an agent. `test-backend` and `test-frontend` write it to
-  the root `.env` and fail with a clear error if it is missing. Dependabot PRs
+  repo collaborator, never by an agent. `test-backend` and `test-frontend`
+  write it to the root `.env` and fail with a clear error if it is missing.
+  Dependabot PRs
   (#16) cannot read Actions secrets: the same secret must also exist under
   Dependabot secrets
 - Quality gate: linters, strict types and coverage thresholds. Thresholds live
@@ -176,7 +179,11 @@ running them locally would make the browser call that environment's API, whose C
   `coverage.thresholds`), never in the workflow YAML
 - `security.yml` (`security-scan`), with no `paths:` filter because a secret or
   a vulnerable pattern can land in any file. Runs on PRs, on pushes to `main`
-  and monthly (cron `17 6 1 * *`). Four jobs: `codeql` (python and
+  and `develop`, and monthly (cron `17 6 1 * *`). `schedule` only fires on the
+  default branch, so the monthly run is a fan-out: its only job,
+  `scan-branches`, dispatches one ordinary run per branch (`workflow_dispatch`)
+  and waits for both, so each branch's alerts land in the Security tab under its
+  own branch. Four jobs, run in those per-branch runs: `codeql` (python and
   javascript-typescript matrix) then `codeql-gate` (fails on open critical or
   high CodeQL alerts of the analysed ref, read from the code scanning API;
   dismissing an alert in the Security tab is how a false positive is accepted),
@@ -192,19 +199,24 @@ running them locally would make the browser call that environment's API, whose C
   move them to a tag or to `latest`: `trivy-action` was compromised in March
   2026 (GHSA-69fq-xp46-6x23). A finding is fixed, never hidden: no
   `.trivyignore` and no new `.gitleaks.toml` allowlist without the
-  maintainer's approval
+  repo collaborator's approval
 - GitHub disables scheduled workflows in a public repository after 60 days
   without repository activity, and the scheduled run does not count as activity.
-  Re-enable it from the Actions tab or with `gh workflow enable`. Failure
-  notifications of the scheduled run go to whoever last edited its `cron` line:
+  Re-enable it from the Actions tab or with `gh workflow enable`. `scan-branches`
+  fails if either branch's run fails, so failure notifications of the scheduled
+  run go to whoever last edited its `cron` line (a run started with
+  `GITHUB_TOKEN` belongs to `github-actions[bot]` and notifies nobody, which is
+  why the job waits). To launch the monthly scan by hand:
+  `gh workflow run security.yml -f both-branches=true`, which notifies whoever
+  launched it. Notification setup:
   email under Settings > Notifications > System > Actions (email on, "Only
   notify for failed workflows"); mobile under GitHub Mobile > Settings >
   Configure Notifications > Actions push, failures only
 - E2E exists (`make test-e2e`, Playwright) but does NOT run in CI: it needs a live
   API and a seeded database
 - Not planned, on purpose: branch protection (#23), because the project has a
-  single maintainer who pushes to `main` directly; and publishing images to GHCR
-  (#22), because nothing deploys them
+  single repo collaborator who pushes to `develop` and `main` directly; and
+  publishing images to GHCR (#22), because nothing deploys them
 
 ## Deployment
 

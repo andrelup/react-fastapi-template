@@ -332,5 +332,5 @@ them for the whole project at once rather than per entity.
 - [ ] The feature is reachable only through its `index.ts`; the page is `lazy()` with a default
       export; the nav placeholder became a real link.
 - [ ] No colour outside the tokens; no component used that is not in `/components-ui`.
-- [ ] `make lint` and `make test` pass. Conventional commit with a scope. PR against `main` with
+- [ ] `make lint` and `make test` pass. Conventional commit with a scope. PR against `develop` with
       `Closes #<n>`.
