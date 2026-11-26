@@ -1,23 +1,47 @@
 # Security pipeline (`security-scan` in the project docs): static analysis,
 # secret scanning and vulnerability scanning of dependencies and images.
 #
-# Triggers: every PR and every push to `main`, plus a monthly run (day 1 at
-# 06:17 UTC, off the minute 0 because GitHub delays or drops runs scheduled
-# there) so that vulnerabilities published after the last commit still show up.
-# In a public repository GitHub disables scheduled workflows after 60 days
-# without repository activity; re-enable it from the Actions tab or with
-# `gh workflow enable`.
+# Triggers: every PR and every push to `main` and `develop`, plus a monthly run
+# (day 1 at 06:17 UTC, off the minute 0 because GitHub delays or drops runs
+# scheduled there) so that vulnerabilities published after the last commit
+# still show up. In a public repository GitHub disables scheduled workflows
+# after 60 days without repository activity; re-enable it from the Actions tab
+# or with `gh workflow enable`.
+#
+# Why the monthly run fans out: `schedule` only runs on the default branch
+# (`develop`), but `main` has to be scanned too. So the scheduled run does not
+# scan anything itself: its only job, `scan-branches`, dispatches one ordinary
+# run of this workflow per branch (`workflow_dispatch`, input false) and waits
+# for both. Each of those runs executes the four jobs below on its own ref, so
+# CodeQL, the gate's ref query and the SARIF uploads land on the right branch.
+# A branch is scanned with its own copy of this file, so a branch whose file
+# has no `workflow_dispatch` yet cannot be dispatched (HTTP 422), and the
+# fan-out run fails.
+#
+# Why it waits instead of firing and forgetting: runs created with
+# GITHUB_TOKEN belong to `github-actions[bot]`, so their failure notifies
+# nobody. The fan-out run fails when any child fails, and its failure goes to
+# whoever last edited the `cron` line (see below). Do not touch that line
+# casually, and never reformat it.
+#
+# Monthly scan by hand: `gh workflow run security.yml -f both-branches=true`.
+# It runs from the default branch and behaves like the scheduled run; a manual
+# one notifies whoever launched it. Without the input, a manual run is a plain
+# scan of the chosen ref (`--ref`).
 #
 # There is deliberately NO `paths:` filter, unlike ci-backend.yml and
 # ci-frontend.yml: a secret or a vulnerable pattern can land in any file, and a
 # Dockerfile or a lockfile change is exactly what these jobs exist to check.
 #
 # Jobs (independent, they all run in parallel except the gate):
-#   codeql       CodeQL analysis per language, uploaded to the Security tab.
-#   codeql-gate  Fails when CodeQL has open critical/high alerts on this ref.
-#   gitleaks     Secret scan of the whole git history.
-#   trivy        Builds both images (the only CI check that the Dockerfiles
-#                still build) and scans the filesystem and both images.
+#   scan-branches  Only on the monthly run or with `both-branches`: dispatches
+#                  and awaits one run per branch. The four jobs below are
+#                  skipped in that run.
+#   codeql         CodeQL analysis per language, uploaded to the Security tab.
+#   codeql-gate    Fails when CodeQL has open critical/high alerts on this ref.
+#   gitleaks       Secret scan of the whole git history.
+#   trivy          Builds both images (the only CI check that the Dockerfiles
+#                  still build) and scans the filesystem and both images.
 #
 # No job reads `.env` or the `CI_DOTENV` secret: nothing here runs the
 # application, so the workflow also works on Dependabot PRs.
@@ -30,22 +54,118 @@ on:
   pull_request:
     branches:
       - main
+      - develop
   push:
     branches:
       - main
+      - develop
   schedule:
     - cron: '17 6 1 * *'
+  workflow_dispatch:
+    inputs:
+      both-branches:
+        description: Scan main and develop in two parallel runs, like the monthly run
+        type: boolean
+        default: false
 
+# Pushes and PRs: a newer run of the same ref replaces the older one. The
+# scheduled and dispatched runs get a group of their own instead. Otherwise the
+# fan-out run (on `develop`) would share a group with its own `develop` child,
+# which would cancel its parent, and a push to `main` during the monthly scan
+# would cancel the `main` child and fail the parent with a false alarm.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && github.run_id || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
+  # Only the monthly run and a manual run with `both-branches` get here; the
+  # four jobs below are skipped in that case and run in the children instead.
+  # Every branch is dispatched before any is awaited, so the scans run in
+  # parallel, and one failed dispatch does not stop the other branch.
+  scan-branches:
+    name: scan-branches
+    if: github.event_name == 'schedule' || inputs.both-branches
+    runs-on: ubuntu-latest
+    # The children run their jobs in parallel with 30-minute limits, plus the
+    # time they spend queued.
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      # Needed to create workflow dispatch events.
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      BRANCHES: main develop
+    steps:
+      - name: Dispatch and await one run per branch
+        run: |
+          # No -e: a failure in one branch must not stop the other one.
+          set -uo pipefail
+
+          errfile=$(mktemp)
+          failed=0
+          branches=()
+          ids=()
+          urls=()
+
+          # `return_run_details` makes the 200 response carry the id of the
+          # run it created, so there is no guessing it from the run list.
+          for branch in $BRANCHES; do
+            branches+=("$branch")
+            run_id=""
+            if ! run_id=$(gh api --method POST \
+                "repos/$REPO/actions/workflows/security.yml/dispatches" \
+                -f ref="$branch" -F return_run_details=true \
+                --jq '.workflow_run_id' 2>"$errfile") \
+               || ! [[ "$run_id" =~ ^[0-9]+$ ]]; then
+              echo "::error::Could not dispatch security.yml on $branch. A 422 means that branch's copy of the file has no workflow_dispatch trigger yet. Output: $(tr '\n' ' ' < "$errfile") $run_id"
+              ids+=("")
+              urls+=("")
+              failed=1
+              continue
+            fi
+            echo "Dispatched security.yml on $branch: run $run_id"
+            ids+=("$run_id")
+            urls+=("https://github.com/$REPO/actions/runs/$run_id")
+          done
+
+          results=()
+          for i in "${!branches[@]}"; do
+            if [ -z "${ids[$i]}" ]; then
+              results+=("dispatch failed")
+              continue
+            fi
+            # A red child makes `watch` exit non-zero; the conclusion is read
+            # afterwards so the table shows what happened.
+            gh run watch "${ids[$i]}" --repo "$REPO" --exit-status --compact --interval 30 || true
+            conclusion=$(gh run view "${ids[$i]}" --repo "$REPO" --json conclusion --jq '.conclusion' 2>/dev/null || true)
+            results+=("${conclusion:-unknown}")
+            [ "${results[$i]}" = "success" ] || failed=1
+          done
+
+          {
+            echo "### Security scan of both branches"
+            echo
+            echo "| Branch | Run | Result |"
+            echo "|---|---|---|"
+            for i in "${!branches[@]}"; do
+              if [ -n "${urls[$i]}" ]; then link="[${ids[$i]}](${urls[$i]})"; else link="-"; fi
+              echo "| ${branches[$i]} | $link | ${results[$i]} |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::At least one branch was not scanned successfully; see the summary."
+            exit 1
+          fi
+
   codeql:
     name: codeql (${{ matrix.language }})
+    if: github.event_name != 'schedule' && !inputs.both-branches
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -82,6 +202,7 @@ jobs:
 
   codeql-gate:
     name: codeql-gate
+    if: github.event_name != 'schedule' && !inputs.both-branches
     needs: codeql
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -90,7 +211,8 @@ jobs:
       security-events: read
     steps:
       # The "Code scanning results" check only exists on PRs, so a finding on a
-      # push to `main` or on the scheduled run would otherwise go unnoticed.
+      # push to `main` or `develop`, or in a monthly per-branch run, would
+      # otherwise go unnoticed.
       # This asks the code scanning API for the open alerts of the analysed ref
       # (`refs/pull/N/merge` on a PR) and fails on critical or high severity.
       # A dismissed alert stops counting: that is how a false positive is
@@ -135,6 +257,7 @@ jobs:
 
   gitleaks:
     name: gitleaks
+    if: github.event_name != 'schedule' && !inputs.both-branches
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -187,6 +310,7 @@ jobs:
 
   trivy:
     name: trivy
+    if: github.event_name != 'schedule' && !inputs.both-branches
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
