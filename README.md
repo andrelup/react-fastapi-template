@@ -401,17 +401,18 @@ consecuencias, como recoge la [licencia MIT](LICENSE).
 
 ## Soporte y contribuciones
 
-Es un proyecto open source con un solo mantenedor, que lo atiende cuando puede.
+Es un proyecto open source con un solo colaborador, que lo atiende cuando puede.
 
 - **Issues.** Abre una para avisar de un fallo o proponer una mejora. El autor
   las contesta cuando puede, y decide qué propuestas se hacen, con qué prioridad
   y cuándo.
 - **Vulnerabilidades.** No las publiques en una issue: avísalas en privado desde
   la pestaña *Security* del repositorio, con *Report a vulnerability*.
-- **Pull requests.** Para colaborar, haz un fork, trabaja en una rama y abre una
-  pull request contra `main`. El autor revisa los cambios y, si todo está
-  conforme, la acepta. Sigue las [convenciones](#convenciones-globales) y las
-  reglas de [Git](#git): Conventional Commits, tests y hooks de pre-commit.
+- **Pull requests.** Para contribuir, haz un fork, trabaja en una rama y abre una
+  pull request contra `develop`, nunca contra `main`: a `main` solo llegan
+  grupos de cambios que ya están en `develop`. El autor revisa los cambios y, si
+  todo está conforme, la acepta. Sigue las [convenciones](#convenciones-globales)
+  y las reglas de [Git](#git): Conventional Commits, tests y hooks de pre-commit.
 
 ## Licencia
 
