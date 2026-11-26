@@ -2,7 +2,7 @@
 
 Aplicación de página única (SPA) de la plantilla react-template, construida con **React + TypeScript** siguiendo la arquitectura **Bulletproof React**.
 
-Está deliberadamente a medio construir: el feature de autenticación (`features/auth/`) está completo de punta a punta y es la referencia de cómo se construye un feature; forma parte del núcleo de la plantilla. El catálogo de ejemplo —`Item`, el recurso publicable, y `Collection`, la agrupación editorial que lo ordena— vive en `features/example/items/` y `features/example/collections/` como muestra sustituible: quien adopte la plantilla la reemplaza por su propio dominio (véase [`docs/the-example-domain.md`](../docs/the-example-domain.md)). Es una plantilla, no un producto.
+El feature de autenticación (`features/auth/`) es la referencia de cómo se construye un feature y forma parte del núcleo de la plantilla. El catálogo de ejemplo —`Item`, el recurso publicable, y `Collection`, la agrupación editorial que lo ordena— está completo, con sus pantallas de listado, detalle, alta y edición, y vive en `features/example/items/` y `features/example/collections/` como muestra sustituible: quien adopte la plantilla la reemplaza por su propio dominio (véase [`docs/the-example-domain.md`](../docs/the-example-domain.md)). Es una plantilla, no un producto.
 
 ## Stack
 
@@ -35,8 +35,8 @@ frontend/
 │   │   └── example/   # Catálogo de ejemplo, sustituible: items/ y collections/
 │   │
 │   ├── components/    # COMPARTIDOS — UI genérica (ui/, shadcn/ui) y layout (layout/)
-│   ├── hooks/         # Hooks genéricos: useApi, useDebounce, useLocalStorage
-│   ├── lib/           # api-client.ts (fetch con baseURL e interceptors), utils.ts (`cn`) y paths.ts (rutas del ejemplo)
+│   ├── hooks/         # Hooks genéricos: useApi, useApiOnMount, useDebounce, useLocalStorage
+│   ├── lib/           # api-client.ts (el único `fetch`), env.ts (URL de la API), utils.ts (`cn`) y paths.ts (rutas del ejemplo)
 │   ├── types/         # Tipos globales: ApiResponse<T>, PaginatedResponse<T>
 │   └── utils/         # Helpers puros: get-initials
 │
@@ -58,8 +58,8 @@ contiene el catálogo de ejemplo (`items/` y `collections/`, con la misma estruc
 1. **Cada feature es un módulo autónomo** con su propia `api/`, `components/`, `hooks/`, `types/` e `index.ts`.
 2. **Un feature NO importa directamente de otro feature.** Los tipos compartidos van a `types/` global o se exportan desde el `index.ts` del feature de origen.
 3. **El `index.ts` de cada feature es su contrato público:** solo lo exportado ahí es accesible desde fuera.
-4. **`components/` raíz es UI genérica** (Button, Input, Modal, Card, Spinner) sin lógica de negocio ni imports de features.
-5. **`hooks/` raíz son hooks genéricos** (useApi, useDebounce, useLocalStorage) sin lógica de negocio.
+4. **`components/ui/` es UI genérica** (Button, Input, Dialog, Card, Spinner) sin lógica de negocio ni imports de features. `components/layout/` solo importa `useAuth` de `features/auth`.
+5. **`hooks/` raíz son hooks genéricos** (useApi, useApiOnMount, useDebounce, useLocalStorage) sin lógica de negocio.
 6. **`app/` solo contiene wiring:** providers, router y el componente raíz.
 
 ## Convenciones de código
@@ -72,9 +72,9 @@ contiene el catálogo de ejemplo (`items/` y `collections/`, con la misma estruc
 
 ## Estado
 
-- **React Context** solo para auth (usuario logueado, token), en `app/providers.tsx`.
+- **React Context** solo para auth (usuario logueado, token): lo define `features/auth` y se monta en `app/providers.tsx`.
 - **Estado local** (`useState`, `useReducer`) para todo lo demás. Sin Redux ni Zustand.
-- **Datos del servidor** gestionados con el hook `useApi` (loading / error / data).
+- **Datos del servidor** gestionados con el hook `useApi` (loading / error / data), o con `useApiOnMount` si se piden al montar la pantalla.
 - Un estado necesario en más de un feature se eleva a Context o a un hook compartido.
 
 ## API Client
@@ -86,8 +86,9 @@ contiene el catálogo de ejemplo (`items/` y `collections/`, con la misma estruc
   ```
   `requireApiUrl` (`lib/env.ts`) falla si falta la URL, y `vite.config.ts` la usa también para que
   `vite`, `vite build` y `vitest` no arranquen sin ella.
-- Todas las llamadas al backend pasan por este client; el token JWT se inyecta automáticamente desde el `AuthContext`.
-- Respuestas tipadas con generics: `ApiResponse<Item>`, `ApiResponse<Item[]>`.
+- Todas las llamadas al backend pasan por este client; el token JWT se inyecta automáticamente: `AuthProvider` se lo pasa con `setAuthToken`.
+- Respuestas tipadas con generics: `apiClient.get<T>(…)` desenvuelve el `ApiResponse<T>` del
+  backend y devuelve `T`, o lanza `ApiError` si la petición falla.
 
 ## Estilos
 
@@ -101,8 +102,9 @@ contiene el catálogo de ejemplo (`items/` y `collections/`, con la misma estruc
 
 **Para reteñir la plantilla entera se edita un solo bloque: el `:root` de `src/app/index.css`.** Ahí
 viven todas las variables CSS del proyecto — los cinco tonos de verde, los neutros (`ink`, `body`,
-`muted`, `border`, `bg`, `surface`), los tres de destructivo, las dos familias tipográficas (Lora
-para titulares, Public Sans para el resto), los radios y las sombras.
+`muted`, `border`, `bg`, `surface`) y el velo de los diálogos (`overlay`), los tres de destructivo, los
+tres de aviso, las dos familias tipográficas (Lora para titulares, Public Sans para el resto), los
+radios, las sombras y el alto de la cabecera.
 
 Eso funciona porque se cumplen dos reglas, y las dos importan:
 
@@ -183,12 +185,12 @@ Los tests E2E asumen un entorno completo levantado, no solo el frontend:
 
 1. `make dev` — levanta PostgreSQL en Docker.
 2. `make dev-back` — API en `http://localhost:8000` (en otra terminal).
-3. `make seed` — puebla la base de datos, incluidas dos cuentas fijas (una
-   `editor` y otra `viewer`) pensadas para el login manual y para los propios
+3. `make seed` — puebla la base de datos, incluidas cuatro cuentas fijas (una
+   por rol y una segunda `editor`) pensadas para el login manual y para los
    specs. Sus credenciales literales viven en `backend/seed.py`, que es su única
-   fuente de verdad, y el spec de login las repite en `e2e/tests/auth.spec.ts`.
-   Son datos de desarrollo únicamente — nunca credenciales válidas fuera de una
-   base de datos local.
+   fuente de verdad; el spec de login repite las de la `viewer` en
+   `e2e/tests/auth.spec.ts`. Son datos de desarrollo únicamente — nunca
+   credenciales válidas fuera de una base de datos local.
 
 Playwright arranca el propio `npm run dev` (puerto 3000) a través de `webServer`
 en `playwright.config.ts`, así que no hace falta tenerlo corriendo aparte.

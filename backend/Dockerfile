@@ -30,14 +30,16 @@ WORKDIR /app
 # del proceso no se lleve por delante las ultimas lineas.
 ENV PYTHONUNBUFFERED=1
 
-# python:3.12-slim still ships Debian 13.7's zlib1g with CVE-2026-85091 (HIGH,
-# heap overflow in gz_vacate): the fix is already in trixie-security
-# (1:1.3.dfsg+really1.3.1-1+deb13u1) but the base image does not include it yet.
-# Only that package is upgraded, not the whole system with `apt-get upgrade`, so
-# nothing unrelated gets pulled in. Once the base image ships the fix this step
-# is a no-op and can be deleted.
+# The base image lags days behind Debian's security fixes: python:3.12-slim
+# shipped zlib1g (CVE-2026-85091) and then libzstd1 (CVE-2026-124851) vulnerable
+# while trixie-security already had the fix, and Trivy fails the build on both.
+# OS packages are indirect dependencies: they are not tracked one by one, they
+# only have to pass the vulnerability scan. So the whole system is upgraded and
+# a lagging base image needs no change here. The cost: two builds on different
+# days may carry different package versions, as the floating 3.12-slim tag
+# already does. See docs/adr/0010-dependencias-directas-y-paquetes-del-sistema.md.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+    && apt-get upgrade -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --shell /bin/bash appuser
 

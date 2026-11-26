@@ -1,38 +1,37 @@
 # react-fastapi-template — Plantilla full-stack
 
-react-fastapi-template es una **plantilla de proyecto** full-stack. Usa un catálogo genérico (artículos, colecciones y etiquetas) como dominio de ejemplo, con la autenticación resuelta de punta a punta y el catálogo deliberadamente a medio hacer: lo que se lleva de aquí es la arquitectura, las convenciones y el andamiaje, no el dominio.
+react-fastapi-template es una **plantilla de proyecto** full-stack compartida con la comunidad: puedes usarla para lo que quieras, también en producción (antes, lee [Uso en producción](#uso-en-producción)). Trae la autenticación y un catálogo genérico (artículos, colecciones y etiquetas) resueltos de punta a punta. El catálogo es un dominio de ejemplo, pensado para borrarlo: lo que se lleva de aquí es la arquitectura, las convenciones y el andamiaje, no el dominio.
 
-Es un **monorepo** con el backend y el frontend juntos, pensado como proyecto de formación en Claude Code y desarrollo agéntico. Aunque ambos conviven en el mismo repositorio, se **despliegan por separado**.
+Es un **monorepo** con el backend y el frontend juntos, preparado para trabajar con agentes de Claude Code: subagentes, skills y un `CLAUDE.md` por capa. Aunque ambos conviven en el mismo repositorio, se **despliegan por separado**.
 
 ## Funcionalidades
 
-El dominio de ejemplo es un catálogo genérico, y está deliberadamente a medio construir: la plantilla
-existe para enseñar la arquitectura, no para resolver un negocio concreto. Esto es lo que hay hoy,
-sin adornos.
+La plantilla resuelve la arquitectura, no un negocio concreto. Esto es lo que hay hoy, sin adornos.
 
-**Completo, de punta a punta:**
+**Núcleo de la plantilla:**
 
 - **Registro e inicio de sesión** — alta de cuenta y autenticación con JWT, con la sesión persistida
   en el cliente y restaurada al recargar.
 - **Roles diferenciados** — `admin`, `editor` y `viewer`, jerárquicos, con rutas de la SPA
-  protegidas por rol. Son una **simulación del mecanismo**, no un modelo de permisos: el registro es
-  abierto y acepta el rol que le mandes, porque cerrar esa puerta se puede hacer de cinco maneras
-  razonables y cuál es la buena depende del proyecto. Decidirlo es lo primero que le toca a quien
-  use la plantilla; el porqué y las alternativas están en
+  protegidas por rol. Son una **simulación del mecanismo**, no un modelo de permisos. El formulario
+  de registro no deja elegir rol y crea cuentas `viewer`, pero la API es abierta y acepta el rol que
+  le mandes: sirve para crear los primeros usuarios, y cerrarla se puede hacer de cinco maneras
+  razonables (entre ellas, delegar en un proveedor de identidad como Keycloak). Cuál es la buena
+  depende del proyecto, así que decidirlo es lo primero que le toca a quien use la plantilla; el
+  porqué y las alternativas están en
   [0003-roles-y-registro-abierto.md](./docs/adr/0003-roles-y-registro-abierto.md).
 - **Logging estructurado** — cada petición emite un evento con `request_id`, `status_code` y
   `duration_ms`, correlacionable desde la cabecera `X-Request-ID` de la respuesta.
 
-**Cimientos puestos, vertical por construir:**
+**Dominio de ejemplo:**
 
-- **Esquema del catálogo de ejemplo** — las tablas `items` (con su dueño), `collections`,
-  `tags` y sus tablas de asociación existen, con bloqueo optimista y sus migraciones de Alembic. Sus modelos ORM viven aislados en
-  `backend/src/adapters/outbound/persistence/example/`, para que borrar el dominio de ejemplo de un
-  proyecto generado sea un `rm -rf` de ese directorio.
+- **Catálogo** — `items`, `collections` y `tags` recorren todas las capas del backend, del modelo de
+  dominio al router, con permisos por rol (y por propietario en los items) y bloqueo optimista en
+  items y colecciones. Los items y las colecciones tienen además sus pantallas de listado, detalle,
+  alta y edición.
 
-Lo que **no** existe —el dominio, los repositorios, la API y las pantallas del catálogo— vive en el
-[Roadmap](#roadmap), no aquí. Si has llegado desde «Use this template», eso es precisamente lo que
-te toca construir.
+El ejemplo está para leerlo, copiarlo y borrarlo. Vive en carpetas `example/` dentro de cada capa, y
+el procedimiento para quitarlo está en [docs/the-example-domain.md](./docs/the-example-domain.md).
 
 ## Estructura del repositorio
 
@@ -96,15 +95,17 @@ todas con la contraseña `ChangeMe123!`:
 | `editor2@example.com`   | `EDITOR` |
 | `viewer@example.com`    | `VIEWER` |
 
-El seed está partido en dos ficheros siguiendo la convención `example/` del repo:
-`backend/seed.py` siembra las cuentas (plantilla, sobrevive a `--no-example`) y
+El seed está partido en dos ficheros: `backend/seed.py` siembra las cuentas y
 `backend/seed_example.py` siembra el catálogo de ejemplo —items, colecciones y etiquetas—, con
 items propios para cada `EDITOR` (incluido el segundo, para poder probar que uno no edita los del
 otro). El resto de usuarios y el catálogo los genera Faker con semilla fija; las cuatro cuentas por
-rol son literales precisamente para que no cambien al actualizar la librería.
+rol son literales precisamente para que no cambien al actualizar la librería. Los dos ficheros son
+parte del ejemplo: al quitarlo se borran juntos, cuentas incluidas, y el primer usuario se crea
+registrándolo.
 
-> Son **datos de desarrollo**, nunca credenciales válidas fuera de una base de datos local. No las
-> reutilices en ningún entorno real.
+> Son **datos de desarrollo**, nunca credenciales válidas fuera de una base de datos local. El
+> script no comprueba el entorno: siembra la base a la que apunte el `.env`, así que no ejecutes
+> `make seed` contra una base real. La imagen de producción no lo incluye.
 
 ### Desarrollo del día a día
 
@@ -227,9 +228,12 @@ Si Prettier se queja, `make format-front` lo arregla.
 
 ## Docker
 
-- `infra/docker-compose.yml` levanta el entorno completo.
-- Servicios: PostgreSQL 16, backend FastAPI y frontend Vite.
-- Dockerfiles multi-stage en cada subdirectorio (`backend/Dockerfile`, `frontend/Dockerfile`).
+- `infra/docker-compose.yml` define tres servicios: PostgreSQL 16, el backend (FastAPI) y el frontend
+  (la SPA compilada, servida por nginx).
+- Un `docker compose up` sin perfil levanta solo PostgreSQL; el backend y el frontend están en el
+  perfil `prod`.
+- Dockerfiles multi-stage en cada subdirectorio (`backend/Dockerfile`, `frontend/Dockerfile`), solo
+  de producción.
 
 ## Configuración y secretos
 
@@ -299,6 +303,16 @@ por versión: `trivy-action` fue comprometida en marzo de 2026
 (GHSA-69fq-xp46-6x23). Un hallazgo se corrige; no se oculta con un
 `.trivyignore` ni con una excepción nueva en `.gitleaks.toml` sin aprobación.
 
+**Cómo se actualizan las dependencias.** Las directas, las que el proyecto
+declara en `backend/pyproject.toml` y `frontend/package.json`, se actualizan de
+una en una, revisando cada cambio. Las indirectas, como los paquetes del sistema
+de las imágenes base, no se siguen así: basta con que pasen los escaneos de
+seguridad. Por eso la imagen del backend instala al construirse todos los
+parches de seguridad que Debian ya ha publicado (`apt-get upgrade`): la imagen
+oficial de Python tarda unos días en incluirlos, y mientras tanto Trivy falla.
+Ver el
+[ADR 0010](./docs/adr/0010-dependencias-directas-y-paquetes-del-sistema.md).
+
 **Ejecución programada.** Corre el día 1 de cada mes a las 06:17 UTC, para que
 aparezcan las vulnerabilidades nuevas aunque no haya commits. En un repositorio
 público GitHub desactiva los workflows programados tras 60 días sin actividad, y
@@ -318,23 +332,88 @@ vez su línea `cron`.
 
 ## Roadmap
 
-Piezas del dominio de ejemplo que la plantilla deja a medias a propósito. No son
-deuda técnica: son el trabajo que se espera que hagas tú al partir de aquí.
+El trabajo que te toca a ti al partir de la plantilla:
 
-- **Una entidad tuya, de punta a punta.** Es el primer ejercicio natural sobre
-  la plantilla: añadir la entidad que tu proyecto necesite y hacerla recorrer las
-  tres capas, del modelo de dominio al router, con su migración y sus tests.
-  `docs/backend-hexagonal-architecture.md` lleva el paso a paso.
-
-- **La vertical del catálogo de ejemplo.** De `items`, `collections` y `tags` están
-  puestos y cubiertos por tests solo los modelos ORM y su migración. Encima no hay
-  nada todavía: ni modelos de dominio, ni ports, ni servicios, ni repositorios, ni
-  routers, ni pantallas. Construir esa vertical atraviesa las tres capas de una vez
-  y `docs/backend-hexagonal-architecture.md` lleva el paso a paso.
+- **Una entidad tuya, de punta a punta.** Es el primer paso natural: añadir la
+  entidad que tu proyecto necesite y hacerla recorrer el backend y el frontend,
+  con su migración y sus tests. `docs/adding-a-feature.md` lleva el paso a paso.
+- **Tu autenticación y tus roles.** Los que trae son un ejemplo: ver
+  [Uso en producción](#uso-en-producción).
+- **Quitar el dominio de ejemplo** cuando ya no te sirva de referencia, con
+  `docs/the-example-domain.md`.
 
 ## Despliegue
 
 El frontend y el backend se desarrollan juntos en este repositorio pero se **despliegan de forma independiente**, de modo que cada parte puede escalar y publicarse según su propio calendario.
+
+## Uso en producción
+
+Puedes usar esta plantilla para lo que quieras, también en producción. Se
+distribuye tal cual, sin garantías y sin una auditoría de seguridad formal, y
+**su autor no se hace responsable del uso que se haga de ella** ni de sus
+consecuencias, como recoge la [licencia MIT](LICENSE).
+
+**Lo que ya trae:**
+
+- Contraseñas guardadas con bcrypt y JWT con el algoritmo fijado.
+- Secretos y direcciones sin valor por defecto en el código; si falta uno, la
+  plataforma no arranca, y el error no imprime los valores leídos.
+- CORS limitado a los orígenes del `.env`.
+- Imágenes que corren sin root y con `HEALTHCHECK`.
+- CodeQL, gitleaks y Trivy en CI.
+
+**Lo que tienes que hacer tú antes de publicar:**
+
+- **Cierra el registro.** `POST /auth/register` acepta el rol que le mandan, así
+  que cualquiera puede darse de alta como `admin`. Cambia también los roles y, si
+  te conviene, el método de autenticación. Ver el
+  [ADR 0003](./docs/adr/0003-roles-y-registro-abierto.md).
+- **Cambia los secretos.** Los de `.env.example` son públicos y el backend no
+  comprueba si los has cambiado: con `JWT_SECRET_KEY` sin tocar, cualquiera puede
+  firmar un token válido.
+- **Protege el login.** No hay límite de intentos, y las respuestas permiten
+  averiguar si un email está registrado.
+- **Sirve por HTTPS y añade cabeceras de seguridad** (CSP, HSTS…) en un proxy
+  delante: las imágenes hablan HTTP y no las envían. El token vive en
+  `localStorage`, caduca a los 60 minutos por defecto y no se puede revocar antes.
+- **No expongas PostgreSQL.** El compose publica su puerto en todas las interfaces
+  del host, también con el perfil `prod`.
+- **Decide si `/docs` y `/openapi.json` son públicos.** Lo son por defecto.
+- **No ejecutes `make seed`** contra una base real: crea cuentas con una
+  contraseña conocida.
+
+**Límites de las dependencias actuales:**
+
+- `python-jose` 3.5.0 tiene una vulnerabilidad crítica sin versión corregida
+  (CVE-2026-85394). Afecta a quien verifica sin restringir los algoritmos y con
+  claves asimétricas; aquí se usa HS256 y está fijado, pero revísalo si cambias a
+  RS256 o a un proveedor de identidad.
+- bcrypt solo tiene en cuenta los primeros 72 bytes de la contraseña, aunque el
+  registro acepta hasta 128 caracteres.
+- Las dependencias transitivas de Python no están fijadas, y Trivy no avisa de las
+  vulnerabilidades que aún no tienen parche (`ignore-unfixed`).
+
+> **Free to use for anything, production included.** react-fastapi-template is
+> provided as is, without warranty or a formal security audit, and its author
+> accepts no liability for any use of it, under the MIT license terms. Before
+> going live, close the open registration, replace the example secrets, add login
+> rate limiting and serve it over HTTPS with security headers.
+
+## Soporte y contribuciones
+
+Es un proyecto open source con un solo colaborador, que lo atiende cuando puede.
+
+- **Issues.** Abre una para avisar de un fallo o proponer una mejora. El autor
+  las contesta cuando puede, y decide qué propuestas se hacen, con qué prioridad
+  y cuándo.
+- **Vulnerabilidades.** No las publiques en una issue: avísalas en privado desde
+  la pestaña *Security* del repositorio, con *Report a vulnerability*.
+- **Pull requests.** Para contribuir, haz un fork, trabaja en una rama y abre una
+  pull request contra `develop`, nunca contra `main`: en `main` solo entran los
+  merges que hace el propio proyecto desde `develop`. El autor revisa los cambios
+  y, si todo está conforme, la acepta. Sigue las
+  [convenciones](#convenciones-globales) y las reglas de [Git](#git):
+  Conventional Commits, tests y hooks de pre-commit.
 
 ## Licencia
 
@@ -342,38 +421,6 @@ Publicado bajo licencia [MIT](LICENSE). Puedes usar, copiar, modificar,
 fusionar, publicar y redistribuir el código libremente, incluso en obras
 derivadas de licencia distinta, siempre que conserves el aviso de copyright
 y de la licencia.
-
-### Aviso: no apto para producción
-
-Como se indica arriba, esto es un ejercicio de aprendizaje: no es un producto,
-no tiene mantenimiento comprometido y **no está pensado para usarse en
-producción**. En concreto:
-
-- **Sin auditoría de seguridad.** La autenticación, la gestión de sesiones y el
-  control de acceso están implementados con fines didácticos y no han pasado
-  ninguna revisión de seguridad formal.
-- **Configuración orientada a desarrollo.** El entorno de `infra/` y el fichero
-  `.env.example` traen valores pensados para levantar el proyecto en local. Si
-  aun así lo despliegas, sustituye toda la configuración sensible por valores
-  propios y gestionados fuera del repositorio.
-- **Datos ficticios.** El catálogo y los usuarios que genera el script de seed
-  son datos sintéticos creados con Faker. No corresponden a personas ni a
-  artículos reales.
-- **Sin estabilidad de API ni de esquema.** Los endpoints, los modelos de datos
-  y las migraciones pueden cambiar de forma incompatible en cualquier momento,
-  sin aviso ni ruta de migración.
-- **Sin soporte.** Los issues y las pull requests forman parte del ejercicio de
-  formación; no hay ningún compromiso de respuesta ni de corrección de fallos.
-
-Usarlo es cosa tuya y **bajo tu entera responsabilidad**, tal y como recoge la
-cláusula de exención de garantías de la licencia. Si buscas una base para un
-sistema real, trátalo como material de referencia y no como código listo para
-desplegar.
-
-> **Training project — not for production use.** react-fastapi-template is a learning
-> exercise. It has not been security-audited, ships development-oriented
-> configuration and synthetic seed data, offers no API or schema stability and
-> no support. Use it as a reference, at your own risk, under the MIT license terms.
 
 ### Dependencias de terceros
 
