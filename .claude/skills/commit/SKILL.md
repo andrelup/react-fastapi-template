@@ -20,9 +20,9 @@ git log --oneline -10
 
 The `git log` is there to match the repo's recent message style, not to copy it blindly.
 
-The repository's integration branch is `main`. There is no `develop` and no `master` — never assume either exists.
+The repository's integration branch is `develop`, which is also the default branch: issue branches start from it and their PRs target it. `main` only receives the batches the repo collaborator merges from `develop`. There is no `master` — never assume it exists.
 
-`CLAUDE.md` describes an issue-driven workflow: one branch per issue, created with `gh issue develop <n> --checkout` so it stays linked, and a PR against `main` carrying `Closes #<n>`. Follow it — but **never create a branch on your own initiative**. If the current branch already belongs to the work being committed, commit there; if it does not, ask the user before starting a new one.
+`CLAUDE.md` describes an issue-driven workflow: one branch per issue, created with `gh issue develop <n> --checkout` so it stays linked, and a PR against `develop` carrying `Closes #<n>`. Follow it — but **never create a branch on your own initiative**. If the current branch already belongs to the work being committed, commit there; if it does not, ask the user before starting a new one.
 
 ## Step 2 — Group into atomic commits
 
@@ -108,7 +108,7 @@ Show the user `git log --oneline -n <commits created>` and one sentence per comm
 
 Merging is the user's job, always. **Do not run `gh pr merge`, `git merge`, `gh pr merge --auto`, or merge through the API or the web UI** — not when the checks are green, not when the PR only closes an issue you opened yourself, not when the user approved the plan that led to the PR. Approving a plan is not approving a merge.
 
-The reason is that the user reviews the code before it reaches `main`. A merge done by the agent removes that review; a green pipeline does not replace it.
+The reason is that the user reviews the code before it reaches `develop`, and again before each batch reaches `main`. A merge done by the agent removes that review; a green pipeline does not replace it.
 
 The same applies to what comes after: **do not delete the branch, the remote branch, or the worktree** once the PR is open. They are what the reviewer reads.
 
@@ -117,5 +117,5 @@ Your work ends at the pull request: commits made, branch pushed, PR open with `C
 If the user explicitly asks you to merge, ask which strategy before doing it — the choice changes the history and is not yours to make:
 
 - `--merge` keeps the branch visible as a fork in the graph
-- `--rebase` replays the commits onto `main`: linear history, and the branch disappears from the graph
+- `--rebase` replays the commits onto the target branch: linear history, and the branch disappears from the graph
 - `--squash` collapses the branch into a single commit, losing the split into atomic commits
